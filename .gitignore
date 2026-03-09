@@ -1,0 +1,23 @@
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+.pytest_cache/
+.venv/
+.coverage
+*.py[cod]
+*.profraw
+htmlcov/
+build/
+dist/
+*.egg-info/
+
+# Pixi
+.pixi/
+
+# Frontend
+node_modules/
+
+# Local scratch
+test_audio/

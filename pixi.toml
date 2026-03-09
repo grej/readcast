@@ -1,0 +1,38 @@
+[workspace]
+name = "readcast"
+channels = ["conda-forge"]
+platforms = ["osx-arm64"]
+
+[system-requirements]
+macos = "15.0"
+
+[dependencies]
+python = "3.12.*"
+pip = "*"
+ffmpeg = "*"
+
+[pypi-dependencies]
+readcast = { path = ".", editable = true }
+
+[feature.dev.dependencies]
+
+[feature.dev.pypi-dependencies]
+pytest = "*"
+pytest-cov = "*"
+ruff = "*"
+build = "*"
+hatchling = "*"
+
+[tasks]
+setup = "bash scripts/ensure-kokoro-edge.sh"
+serve = { cmd = "python -m readcast.cli.main server start", env = { PYTHONPATH = "src" }, depends-on = ["setup"] }
+readcast = { cmd = "python -m readcast.cli.main", env = { PYTHONPATH = "src" }, depends-on = ["setup"] }
+test = { cmd = "pytest -q", env = { PYTHONPATH = "src" } }
+lint = { cmd = "ruff check .", env = { PYTHONPATH = "src" } }
+check = { cmd = "ruff check . && pytest -q && npm run build:frontend", env = { PYTHONPATH = "src" }, depends-on = ["setup"] }
+"frontend:build" = "npm run build:frontend"
+"package:check" = { cmd = "python scripts/verify_distribution.py", env = { PYTHONPATH = "src" } }
+
+[environments]
+default = { features = ["dev"], solve-group = "default" }
+dev = { features = ["dev"], solve-group = "default" }
