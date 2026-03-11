@@ -53,6 +53,11 @@ CREATE VIRTUAL TABLE IF NOT EXISTS articles_fts USING fts5(
 );
 
 CREATE INDEX IF NOT EXISTS idx_articles_status ON articles(status);
+
+CREATE TABLE IF NOT EXISTS settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);
 """
 
 
@@ -176,6 +181,25 @@ class Store:
                 WHERE id = ?
                 """,
                 (duration_sec, voice, model, speed, "done", article_id),
+            )
+            conn.commit()
+
+    def get_setting(self, key: str) -> Optional[str]:
+        with closing(self._connect()) as conn:
+            row = conn.execute("SELECT value FROM settings WHERE key = ?", (key,)).fetchone()
+        if row is None:
+            return None
+        return str(row["value"])
+
+    def set_setting(self, key: str, value: str) -> None:
+        with closing(self._connect()) as conn:
+            conn.execute(
+                """
+                INSERT INTO settings(key, value)
+                VALUES(?, ?)
+                ON CONFLICT(key) DO UPDATE SET value = excluded.value
+                """,
+                (key, value),
             )
             conn.commit()
 
@@ -310,4 +334,3 @@ class Store:
         tmp = path.with_suffix(path.suffix + ".tmp")
         tmp.write_text(content, encoding="utf-8")
         tmp.replace(path)
-

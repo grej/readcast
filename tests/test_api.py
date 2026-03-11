@@ -71,6 +71,30 @@ def test_api_reprocess_updates_same_article_and_kicks_worker(base_dir) -> None:
         assert kicks == [True]
 
 
+def test_api_delete_removes_article_and_audio(base_dir) -> None:
+    app = create_app(base_dir)
+    with TestClient(app) as client:
+        service = client.app.state.service
+        article = service.add_text("Delete title\n\nBody.").article
+        article_dir = service.store.get_article_dir(article.id)
+        audio_path = article_dir / "audio.mp3"
+        audio_path.write_bytes(_wav_bytes())
+        service.store.update_audio_metadata(
+            article.id,
+            duration_sec=0.2,
+            voice="af_sky",
+            model="kokoro-82m",
+            speed=1.0,
+        )
+        service.store.create_output_symlink(service.get_article(article.id), audio_path)
+
+        response = client.delete(f"/api/articles/{article.id}")
+
+        assert response.status_code == 204
+        assert service.get_article(article.id) is None
+        assert not article_dir.exists()
+
+
 def test_api_status_and_voices(monkeypatch, base_dir) -> None:
     app = create_app(base_dir)
     with TestClient(app) as client:
@@ -88,6 +112,28 @@ def test_api_status_and_voices(monkeypatch, base_dir) -> None:
         voices = client.get("/api/voices")
         assert voices.status_code == 200
         assert [voice["name"] for voice in voices.json()["voices"]] == ["af_sky", "af_heart"]
+
+
+def test_api_preferences_round_trip_and_drive_new_articles(monkeypatch, base_dir) -> None:
+    app = create_app(base_dir)
+    with TestClient(app) as client:
+        monkeypatch.setattr("readcast.api.app.ensure_server_running", lambda config: {"model": "kokoro-82m"})
+        monkeypatch.setattr(
+            "readcast.api.app.ReadcastService.available_voices",
+            lambda self: [{"name": "af_sky"}, {"name": "af_heart"}],
+        )
+
+        initial = client.get("/api/preferences")
+        assert initial.status_code == 200
+        assert initial.json()["preferences"]["default_voice"] == "af_sky"
+
+        updated = client.put("/api/preferences", json={"default_voice": "af_heart"})
+        assert updated.status_code == 200
+        assert updated.json()["preferences"]["default_voice"] == "af_heart"
+
+        created = client.post("/api/articles", json={"input": "Saved voice title\n\nBody.", "process": False})
+        assert created.status_code == 201
+        assert created.json()["article"]["voice"] == "af_heart"
 
 
 def test_api_audio_endpoint_supports_range_requests(base_dir) -> None:

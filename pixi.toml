@@ -29,7 +29,8 @@ serve = { cmd = "python -m readcast.cli.main server start", env = { PYTHONPATH =
 readcast = { cmd = "python -m readcast.cli.main", env = { PYTHONPATH = "src" }, depends-on = ["setup"] }
 test = { cmd = "pytest -q", env = { PYTHONPATH = "src" } }
 lint = { cmd = "ruff check .", env = { PYTHONPATH = "src" } }
-check = { cmd = "ruff check . && pytest -q && npm run build:frontend", env = { PYTHONPATH = "src" }, depends-on = ["setup"] }
+check = { cmd = "ruff check . && pytest -q && npm run build:frontend", env = { PYTHONPATH = "src" } }
+"check:runtime" = { cmd = "ruff check . && pytest -q && npm run build:frontend", env = { PYTHONPATH = "src" }, depends-on = ["setup"] }
 "frontend:build" = "npm run build:frontend"
 "package:check" = { cmd = "python scripts/verify_distribution.py", env = { PYTHONPATH = "src" } }
 

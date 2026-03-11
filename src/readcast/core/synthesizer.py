@@ -4,6 +4,7 @@ from dataclasses import replace
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import time
@@ -18,6 +19,10 @@ from mutagen.mp4 import MP4
 
 from .config import Config
 from .models import Article, TTSSegment
+
+
+SENTENCE_BOUNDARY = re.compile(r"(?<=[.!?])\s+")
+CLAUSE_BOUNDARY = re.compile(r"(?<=[,;:])\s+")
 
 
 class ProgressCallback(Protocol):
@@ -255,31 +260,34 @@ def _synthesize_text_group(
         except SynthesisError as exc:
             last_error = exc
 
-    parts = text.split("\n\n")
-    if len(parts) > 1 and source_chunk_end_idx > source_chunk_idx:
-        midpoint = max(1, len(parts) // 2)
-        left = _synthesize_text_group(
-            article_id=article_id,
-            segment_idx=segment_idx,
-            text="\n\n".join(parts[:midpoint]),
-            source_chunk_idx=source_chunk_idx,
-            source_chunk_end_idx=source_chunk_idx + midpoint - 1,
-            prefix=f"{prefix}_a",
-            segments_dir=segments_dir,
-            config=config,
-        )
-        right = _synthesize_text_group(
-            article_id=article_id,
-            segment_idx=segment_idx,
-            text="\n\n".join(parts[midpoint:]),
-            source_chunk_idx=source_chunk_idx + midpoint,
-            source_chunk_end_idx=source_chunk_end_idx,
-            prefix=f"{prefix}_b",
-            segments_dir=segments_dir,
-            config=config,
-        )
-        _concat_wav_files([left, right], path)
-        return path
+    split_groups, joiner = _split_failed_text_group(text)
+    if len(split_groups) > 1:
+        midpoint = len(split_groups) // 2
+        left_text = _join_split_groups(split_groups[:midpoint], joiner)
+        right_text = _join_split_groups(split_groups[midpoint:], joiner)
+        if left_text and right_text and left_text != text and right_text != text:
+            left = _synthesize_text_group(
+                article_id=article_id,
+                segment_idx=segment_idx,
+                text=left_text,
+                source_chunk_idx=source_chunk_idx,
+                source_chunk_end_idx=source_chunk_end_idx,
+                prefix=f"{prefix}_a",
+                segments_dir=segments_dir,
+                config=config,
+            )
+            right = _synthesize_text_group(
+                article_id=article_id,
+                segment_idx=segment_idx,
+                text=right_text,
+                source_chunk_idx=source_chunk_idx,
+                source_chunk_end_idx=source_chunk_end_idx,
+                prefix=f"{prefix}_b",
+                segments_dir=segments_dir,
+                config=config,
+            )
+            _concat_wav_files([left, right], path)
+            return path
 
     assert last_error is not None
     raise SynthesisError(
@@ -441,6 +449,49 @@ def _error_message(response: httpx.Response) -> str:
 
 def _snippet(text: str, limit: int = 100) -> str:
     return " ".join(text.split())[:limit]
+
+
+def _split_failed_text_group(text: str) -> tuple[list[str], str]:
+    for splitter in (
+        _split_paragraphs,
+        _split_with_regex(SENTENCE_BOUNDARY, " "),
+        _split_with_regex(CLAUSE_BOUNDARY, " "),
+        _split_words,
+    ):
+        groups, joiner = splitter(text)
+        if len(groups) > 1:
+            return groups, joiner
+    return [text], " "
+
+
+def _split_paragraphs(text: str) -> tuple[list[str], str]:
+    groups = [part.strip() for part in text.split("\n\n") if part.strip()]
+    return (groups, "\n\n") if len(groups) > 1 else ([text], "\n\n")
+
+
+def _split_with_regex(pattern: re.Pattern[str], joiner: str):
+    def splitter(text: str) -> tuple[list[str], str]:
+        groups = [part.strip() for part in pattern.split(" ".join(text.split())) if part.strip()]
+        return (groups, joiner) if len(groups) > 1 else ([text], joiner)
+
+    return splitter
+
+
+def _split_words(text: str) -> tuple[list[str], str]:
+    words = text.split()
+    if len(words) > 1:
+        midpoint = max(1, len(words) // 2)
+        return [" ".join(words[:midpoint]), " ".join(words[midpoint:])], " "
+    if len(text) > 1:
+        midpoint = max(1, len(text) // 2)
+        return [text[:midpoint].strip(), text[midpoint:].strip()], ""
+    return [text], ""
+
+
+def _join_split_groups(groups: list[str], joiner: str) -> str:
+    if not groups:
+        return ""
+    return joiner.join(group for group in groups if group.strip()).strip()
 
 
 def _env_path(name: str) -> Optional[Path]:

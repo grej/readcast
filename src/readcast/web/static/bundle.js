@@ -2434,7 +2434,7 @@
           var HostPortal = 4;
           var HostComponent = 5;
           var HostText = 6;
-          var Fragment = 7;
+          var Fragment2 = 7;
           var Mode = 8;
           var ContextConsumer = 9;
           var ContextProvider = 10;
@@ -3591,7 +3591,7 @@
                 return "DehydratedFragment";
               case ForwardRef:
                 return getWrappedName$1(type, type.render, "ForwardRef");
-              case Fragment:
+              case Fragment2:
                 return "Fragment";
               case HostComponent:
                 return type;
@@ -12020,7 +12020,7 @@
               }
             }
             function updateFragment2(returnFiber, current2, fragment, lanes, key) {
-              if (current2 === null || current2.tag !== Fragment) {
+              if (current2 === null || current2.tag !== Fragment2) {
                 var created = createFiberFromFragment(fragment, returnFiber.mode, lanes, key);
                 created.return = returnFiber;
                 return created;
@@ -12423,7 +12423,7 @@
                 if (child.key === key) {
                   var elementType = element.type;
                   if (elementType === REACT_FRAGMENT_TYPE) {
-                    if (child.tag === Fragment) {
+                    if (child.tag === Fragment2) {
                       deleteRemainingChildren(returnFiber, child.sibling);
                       var existing = useFiber(child, element.props.children);
                       existing.return = returnFiber;
@@ -17899,7 +17899,7 @@
                 var _resolvedProps2 = workInProgress2.elementType === type ? _unresolvedProps2 : resolveDefaultProps(type, _unresolvedProps2);
                 return updateForwardRef(current2, workInProgress2, type, _resolvedProps2, renderLanes2);
               }
-              case Fragment:
+              case Fragment2:
                 return updateFragment(current2, workInProgress2, renderLanes2);
               case Mode:
                 return updateMode(current2, workInProgress2, renderLanes2);
@@ -18171,7 +18171,7 @@
               case SimpleMemoComponent:
               case FunctionComponent:
               case ForwardRef:
-              case Fragment:
+              case Fragment2:
               case Mode:
               case Profiler:
               case ContextConsumer:
@@ -22432,7 +22432,7 @@
             return fiber;
           }
           function createFiberFromFragment(elements, mode, lanes, key) {
-            var fiber = createFiber(Fragment, elements, key, mode);
+            var fiber = createFiber(Fragment2, elements, key, mode);
             fiber.lanes = lanes;
             return fiber;
           }
@@ -24562,6 +24562,17 @@
   function PlusIcon({ size = 18 }) {
     return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("svg", { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2.5", strokeLinecap: "round", children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("path", { d: "M12 5v14M5 12h14" }) });
   }
+  function CheckIcon({ size = 16 }) {
+    return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("svg", { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2.5", strokeLinecap: "round", strokeLinejoin: "round", children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("path", { d: "M20 6 9 17l-5-5" }) });
+  }
+  function TrashIcon({ size = 16 }) {
+    return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("svg", { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2.2", strokeLinecap: "round", strokeLinejoin: "round", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("path", { d: "M3 6h18" }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("path", { d: "M8 6V4h8v2" }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("path", { d: "M19 6l-1 14H6L5 6" }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("path", { d: "M10 11v6M14 11v6" })
+    ] });
+  }
   function WaveformIcon() {
     return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("svg", { width: "16", height: "16", viewBox: "0 0 24 24", fill: "currentColor", opacity: "0.5", children: [
       /* @__PURE__ */ (0, import_jsx_runtime.jsx)("rect", { x: "2", y: "8", width: "3", height: "8", rx: "1" }),
@@ -24585,26 +24596,61 @@
       }
     );
   }
-  function AddPanel({ voices, defaultVoice, onAdd, onClose, error }) {
+  function DeleteConfirmPanel({ count, deleting, onConfirm, onClose }) {
+    return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.addPanel, children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.confirmPanelInner, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("h2", { style: styles.addTitle, children: [
+          "Delete ",
+          count,
+          " ",
+          count === 1 ? "article" : "articles",
+          "?"
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: onClose, style: styles.closeBtn, children: "\u2715" })
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", { style: styles.confirmBody, children: [
+        "This deletes the full record and any generated audio for the selected ",
+        count === 1 ? "article" : "articles",
+        ". This cannot be undone."
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.confirmActions, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: onClose, style: styles.secondaryBtn, disabled: deleting, children: "Cancel" }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: onConfirm, style: { ...styles.dangerBtn, opacity: deleting ? 0.6 : 1 }, disabled: deleting, children: deleting ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SpinnerIcon, {}) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TrashIcon, { size: 15 }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "Delete" })
+        ] }) })
+      ] })
+    ] }) });
+  }
+  function AddPanel({ voices, defaultVoice, onAdd, onClose, onSaveDefaultVoice, error }) {
     const [inputValue, setInputValue] = (0, import_react.useState)("");
-    const [voice, setVoice] = (0, import_react.useState)(defaultVoice || "");
     const [submitting, setSubmitting] = (0, import_react.useState)(false);
+    const [savingDefault, setSavingDefault] = (0, import_react.useState)(false);
+    const [showVoicePicker, setShowVoicePicker] = (0, import_react.useState)(false);
     const inputRef = (0, import_react.useRef)(null);
     (0, import_react.useEffect)(() => {
       inputRef.current?.focus();
     }, []);
-    (0, import_react.useEffect)(() => {
-      if (!voice && defaultVoice) {
-        setVoice(defaultVoice);
-      }
-    }, [defaultVoice, voice]);
     const handleSubmit = async () => {
       if (!inputValue.trim()) return;
       setSubmitting(true);
       try {
-        await onAdd({ input: inputValue.trim(), voice: voice || void 0 });
+        await onAdd({ input: inputValue.trim() });
       } finally {
         setSubmitting(false);
+      }
+    };
+    const handleDefaultVoiceChange = async (voiceName) => {
+      if (!voiceName || voiceName === defaultVoice) {
+        setShowVoicePicker(false);
+        return;
+      }
+      setSavingDefault(true);
+      try {
+        await onSaveDefaultVoice(voiceName);
+        setShowVoicePicker(false);
+      } finally {
+        setSavingDefault(false);
       }
     };
     const handleKeyDown = (event) => {
@@ -24632,19 +24678,36 @@
           style: styles.urlInput
         }
       ),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("label", { style: styles.fieldLabel, children: "Voice" }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.voiceGrid, children: voices.map((voiceOption) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("label", { style: styles.fieldLabel, children: "Default voice" }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.defaultVoiceRow, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.defaultVoiceName, children: voiceLabel(defaultVoice || "af_sky") }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.defaultVoiceHelp, children: "New articles use this automatically." })
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+          "button",
+          {
+            onClick: () => setShowVoicePicker((current) => !current),
+            style: showVoicePicker ? styles.secondaryBtnActive : styles.secondaryBtn,
+            disabled: savingDefault,
+            children: showVoicePicker ? "Hide voices" : "Change default"
+          }
+        )
+      ] }),
+      showVoicePicker ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.voiceGrid, children: voices.map((voiceOption) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
         "button",
         {
-          onClick: () => setVoice(voiceOption.name),
+          onClick: () => handleDefaultVoiceChange(voiceOption.name),
           style: {
             ...styles.voiceChip,
-            ...voice === voiceOption.name ? styles.voiceChipActive : {}
+            ...defaultVoice === voiceOption.name ? styles.voiceChipActive : {},
+            opacity: savingDefault ? 0.6 : 1
           },
+          disabled: savingDefault,
           children: voiceLabel(voiceOption.name)
         },
         voiceOption.name
-      )) }),
+      )) }) : null,
       error ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.errorText, children: error }) : null,
       /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
         "button",
@@ -24657,24 +24720,48 @@
       )
     ] }) });
   }
-  function ArticleCard({ article, isActive, onPlay }) {
+  function ArticleCard({ article, isActive, selectionMode, selected, onPlay, onToggleSelect }) {
     const isProcessing = article.status === "queued" || article.status === "synthesizing";
-    return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { ...styles.card, ...isActive ? styles.cardActive : {} }, onClick: () => !isProcessing && article.audio_url && onPlay(article), children: [
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.cardLeft, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.cardPlayArea, children: isProcessing ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.processingDot }) : isActive ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(WaveformIcon, {}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PlayIcon, { size: 14 }) }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.cardInfo, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.cardTitle, children: article.title }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.cardMeta, children: [
-            sourceLabel(article),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: styles.metaDot, children: "\xB7" }),
-            formatDate(article.ingested_at),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: styles.metaDot, children: "\xB7" }),
-            isProcessing ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { color: "#d4956a" }, children: article.status === "queued" ? "Queued..." : "Processing..." }) : formatDuration(article.audio_duration_sec)
-          ] })
-        ] })
-      ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.cardRight, children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: styles.voiceTag, children: article.voice || "default" }) })
-    ] });
+    const isFailed = article.status === "failed";
+    const canPlay = !isProcessing && !isFailed && article.audio_url;
+    const statusText = isProcessing ? article.status === "queued" ? "Queued..." : "Processing..." : isFailed ? "Failed" : formatDuration(article.audio_duration_sec);
+    return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+      "div",
+      {
+        style: {
+          ...styles.card,
+          ...isActive ? styles.cardActive : {},
+          ...isFailed ? styles.cardFailed : {},
+          ...selected ? styles.cardSelected : {}
+        },
+        onClick: () => {
+          if (selectionMode) {
+            onToggleSelect(article.id);
+            return;
+          }
+          if (canPlay) {
+            onPlay(article);
+          }
+        },
+        children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.cardLeft, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.cardPlayArea, children: selectionMode ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { ...styles.selectDot, ...selected ? styles.selectDotActive : {} }, children: selected ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CheckIcon, { size: 12 }) : null }) : isProcessing ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.processingDot }) : isFailed ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.failedGlyph, children: "!" }) : isActive ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(WaveformIcon, {}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PlayIcon, { size: 14 }) }),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.cardInfo, children: [
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.cardTitle, children: article.title }),
+              /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.cardMeta, children: [
+                sourceLabel(article),
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: styles.metaDot, children: "\xB7" }),
+                formatDate(article.ingested_at),
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: styles.metaDot, children: "\xB7" }),
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { color: isFailed ? "#f0b8b6" : isProcessing ? "#d4956a" : void 0 }, children: statusText })
+              ] }),
+              isFailed && article.error_message ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.cardError, children: article.error_message }) : null
+            ] })
+          ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.cardRight, children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: styles.voiceTag, children: article.voice || "default" }) })
+        ]
+      }
+    );
   }
   function PlayerBar({ article, isPlaying, currentTime, duration, onToggle, onSeek }) {
     if (!article) return null;
@@ -24698,6 +24785,7 @@
   function ReadcastApp() {
     const [articles, setArticles] = (0, import_react.useState)([]);
     const [voices, setVoices] = (0, import_react.useState)([]);
+    const [defaultVoice, setDefaultVoice] = (0, import_react.useState)("af_sky");
     const [search, setSearch] = (0, import_react.useState)("");
     const [showAdd, setShowAdd] = (0, import_react.useState)(false);
     const [activeId, setActiveId] = (0, import_react.useState)(null);
@@ -24707,10 +24795,15 @@
     const [daemonConnected, setDaemonConnected] = (0, import_react.useState)(false);
     const [daemonError, setDaemonError] = (0, import_react.useState)("");
     const [addError, setAddError] = (0, import_react.useState)("");
+    const [selectionMode, setSelectionMode] = (0, import_react.useState)(false);
+    const [selectedIds, setSelectedIds] = (0, import_react.useState)([]);
+    const [showDeleteConfirm, setShowDeleteConfirm] = (0, import_react.useState)(false);
+    const [deleteError, setDeleteError] = (0, import_react.useState)("");
+    const [deleting, setDeleting] = (0, import_react.useState)(false);
     const audioRef = (0, import_react.useRef)(null);
     const activeArticle = (0, import_react.useMemo)(() => articles.find((article) => article.id === activeId) || null, [articles, activeId]);
     const hasActiveWork = articles.some((article) => article.status === "queued" || article.status === "synthesizing");
-    const defaultVoice = voices[0]?.name || "af_sky";
+    const selectedCount = selectedIds.length;
     async function refreshArticles(query = search) {
       const suffix = query.trim() ? `?q=${encodeURIComponent(query.trim())}` : "";
       const data = await apiGet(`/api/articles${suffix}`);
@@ -24720,6 +24813,14 @@
       try {
         const data = await apiGet("/api/voices");
         setVoices(data.voices || []);
+      } catch (error) {
+        setDaemonError(error.message);
+      }
+    }
+    async function refreshPreferences() {
+      try {
+        const data = await apiGet("/api/preferences");
+        setDefaultVoice(data.preferences?.default_voice || "af_sky");
       } catch (error) {
         setDaemonError(error.message);
       }
@@ -24737,6 +24838,7 @@
     (0, import_react.useEffect)(() => {
       refreshArticles("");
       refreshVoices();
+      refreshPreferences();
       refreshStatus();
     }, []);
     (0, import_react.useEffect)(() => {
@@ -24745,6 +24847,9 @@
       }, 200);
       return () => window.clearTimeout(timeout);
     }, [search]);
+    (0, import_react.useEffect)(() => {
+      setSelectedIds((current) => current.filter((id) => articles.some((article) => article.id === id)));
+    }, [articles]);
     (0, import_react.useEffect)(() => {
       if (!hasActiveWork) return void 0;
       const interval = window.setInterval(() => {
@@ -24786,6 +24891,60 @@
       } catch (error) {
         setAddError(error.message);
         throw error;
+      }
+    }
+    async function handleSaveDefaultVoice(voice) {
+      setAddError("");
+      const data = await apiJson("/api/preferences", "PUT", { default_voice: voice });
+      setDefaultVoice(data.preferences?.default_voice || voice);
+      await refreshArticles(search);
+    }
+    function handleToggleSelect(articleId) {
+      setSelectedIds(
+        (current) => current.includes(articleId) ? current.filter((id) => id !== articleId) : [...current, articleId]
+      );
+    }
+    function handleSelectionModeToggle() {
+      setDeleteError("");
+      setShowDeleteConfirm(false);
+      setSelectionMode((current) => {
+        if (current) {
+          setSelectedIds([]);
+        }
+        return !current;
+      });
+    }
+    async function handleDeleteSelected() {
+      if (!selectedIds.length) {
+        return;
+      }
+      setDeleteError("");
+      setDeleting(true);
+      try {
+        for (const articleId of selectedIds) {
+          await apiJson(`/api/articles/${articleId}`, "DELETE");
+          if (articleId === activeId) {
+            const audio = audioRef.current;
+            if (audio) {
+              audio.pause();
+              audio.removeAttribute("src");
+              audio.load();
+            }
+            setActiveId(null);
+            setIsPlaying(false);
+            setCurrentTime(0);
+            setDuration(0);
+          }
+        }
+        setSelectedIds([]);
+        setShowDeleteConfirm(false);
+        setSelectionMode(false);
+        await refreshArticles(search);
+        await refreshStatus();
+      } catch (error) {
+        setDeleteError(error.message);
+      } finally {
+        setDeleting(false);
       }
     }
     async function handlePlay(article) {
@@ -24833,12 +24992,34 @@
             /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: styles.daemonLabel, children: "kokoro-edge" })
           ] })
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", { onClick: () => setShowAdd(true), style: styles.addBtn, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PlusIcon, { size: 16 }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "Add Article" })
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.headerActions, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", { onClick: handleSelectionModeToggle, style: selectionMode ? styles.headerBtnActive : styles.headerBtn, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CheckIcon, { size: 15 }),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: selectionMode ? "Done" : "Select" })
+          ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", { onClick: () => setShowAdd(true), style: styles.addBtn, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PlusIcon, { size: 16 }),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "Add Article" })
+          ] })
         ] })
       ] }),
       daemonError ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.banner, children: daemonError }) : null,
+      deleteError ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { ...styles.banner, ...styles.bannerError }, children: deleteError }) : null,
+      selectionMode ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.bulkBar, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.bulkText, children: selectedCount ? `${selectedCount} selected` : "Select articles to delete" }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+          "button",
+          {
+            onClick: () => setShowDeleteConfirm(true),
+            style: { ...styles.dangerBtn, opacity: selectedCount ? 1 : 0.45 },
+            disabled: !selectedCount,
+            children: [
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TrashIcon, { size: 15 }),
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "Delete" })
+            ]
+          }
+        )
+      ] }) : null,
       /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.searchWrap, children: [
         /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SearchIcon, {}),
         /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
@@ -24858,7 +25039,10 @@
         {
           article,
           isActive: activeId === article.id,
-          onPlay: handlePlay
+          selectionMode,
+          selected: selectedIds.includes(article.id),
+          onPlay: handlePlay,
+          onToggleSelect: handleToggleSelect
         },
         article.id
       )) }),
@@ -24879,11 +25063,24 @@
           voices,
           defaultVoice,
           onAdd: handleAdd,
+          onSaveDefaultVoice: handleSaveDefaultVoice,
           onClose: () => {
             setAddError("");
             setShowAdd(false);
           },
           error: addError
+        }
+      ) : null,
+      showDeleteConfirm ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+        DeleteConfirmPanel,
+        {
+          count: selectedCount,
+          deleting,
+          onConfirm: handleDeleteSelected,
+          onClose: () => {
+            setDeleteError("");
+            setShowDeleteConfirm(false);
+          }
         }
       ) : null
     ] });
@@ -24929,6 +25126,7 @@ textarea::placeholder, input::placeholder { color: rgba(255,255,255,0.25); }
       padding: "28px 24px 12px"
     },
     headerLeft: { display: "flex", alignItems: "center", gap: 16 },
+    headerActions: { display: "flex", alignItems: "center", gap: 10 },
     logo: {
       fontFamily: c.serif,
       fontSize: 26,
@@ -24964,6 +25162,34 @@ textarea::placeholder, input::placeholder { color: rgba(255,255,255,0.25); }
       fontFamily: c.sans,
       cursor: "pointer"
     },
+    headerBtn: {
+      display: "flex",
+      alignItems: "center",
+      gap: 6,
+      padding: "8px 14px",
+      borderRadius: 8,
+      border: `1px solid ${c.border}`,
+      background: "rgba(255,255,255,0.04)",
+      color: c.textMuted,
+      fontSize: 13,
+      fontWeight: 600,
+      fontFamily: c.sans,
+      cursor: "pointer"
+    },
+    headerBtnActive: {
+      display: "flex",
+      alignItems: "center",
+      gap: 6,
+      padding: "8px 14px",
+      borderRadius: 8,
+      border: `1px solid ${c.accent}`,
+      background: c.accentDim,
+      color: c.accent,
+      fontSize: 13,
+      fontWeight: 600,
+      fontFamily: c.sans,
+      cursor: "pointer"
+    },
     banner: {
       margin: "0 24px 12px",
       padding: "10px 14px",
@@ -24972,6 +25198,26 @@ textarea::placeholder, input::placeholder { color: rgba(255,255,255,0.25); }
       background: "rgba(217, 83, 79, 0.12)",
       color: "#f0b8b6",
       fontSize: 13
+    },
+    bannerError: {
+      border: `1px solid rgba(217, 83, 79, 0.4)`,
+      background: "rgba(217, 83, 79, 0.12)",
+      color: "#f0b8b6"
+    },
+    bulkBar: {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: 12,
+      margin: "0 24px 10px",
+      padding: "10px 14px",
+      borderRadius: 10,
+      background: "rgba(255,255,255,0.04)",
+      border: `1px solid ${c.border}`
+    },
+    bulkText: {
+      fontSize: 13,
+      color: c.textMuted
     },
     searchWrap: {
       display: "flex",
@@ -25027,6 +25273,10 @@ textarea::placeholder, input::placeholder { color: rgba(255,255,255,0.25); }
       background: c.accentDim,
       borderBottom: "1px solid transparent"
     },
+    cardSelected: {
+      background: "rgba(255,255,255,0.04)",
+      borderBottom: "1px solid transparent"
+    },
     cardLeft: {
       display: "flex",
       alignItems: "center",
@@ -25044,6 +25294,20 @@ textarea::placeholder, input::placeholder { color: rgba(255,255,255,0.25); }
       justifyContent: "center",
       flexShrink: 0,
       color: c.textMuted
+    },
+    selectDot: {
+      width: 18,
+      height: 18,
+      borderRadius: "50%",
+      border: `1px solid ${c.textMuted}`,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      color: "#141416"
+    },
+    selectDotActive: {
+      background: c.accent,
+      border: `1px solid ${c.accent}`
     },
     cardInfo: { minWidth: 0 },
     cardTitle: {
@@ -25080,6 +25344,22 @@ textarea::placeholder, input::placeholder { color: rgba(255,255,255,0.25); }
       borderRadius: "50%",
       background: c.accent,
       animation: "pulse 1.5s ease-in-out infinite"
+    },
+    cardFailed: {
+      border: "1px solid rgba(217, 83, 79, 0.18)"
+    },
+    failedGlyph: {
+      color: "#f0b8b6",
+      fontSize: 15,
+      fontWeight: 700,
+      lineHeight: 1
+    },
+    cardError: {
+      marginTop: 6,
+      color: "#f0b8b6",
+      fontSize: 12,
+      lineHeight: 1.4,
+      maxWidth: "70ch"
     },
     playerBar: {
       position: "fixed",
@@ -25152,6 +25432,14 @@ textarea::placeholder, input::placeholder { color: rgba(255,255,255,0.25); }
       maxHeight: "90vh",
       overflow: "auto"
     },
+    confirmPanelInner: {
+      background: c.surface,
+      border: `1px solid ${c.border}`,
+      borderRadius: 16,
+      padding: 28,
+      width: "100%",
+      maxWidth: 460
+    },
     addTitle: {
       fontFamily: c.serif,
       fontSize: 22,
@@ -25190,6 +25478,27 @@ textarea::placeholder, input::placeholder { color: rgba(255,255,255,0.25); }
       lineHeight: 1.5
     },
     voiceGrid: { display: "flex", flexWrap: "wrap", gap: 6 },
+    defaultVoiceRow: {
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      gap: 14,
+      padding: "12px 14px",
+      borderRadius: 10,
+      border: `1px solid ${c.border}`,
+      background: "rgba(255,255,255,0.03)"
+    },
+    defaultVoiceName: {
+      fontFamily: c.serif,
+      fontSize: 16,
+      fontWeight: 600,
+      letterSpacing: "-0.01em"
+    },
+    defaultVoiceHelp: {
+      marginTop: 4,
+      fontSize: 12,
+      color: c.textMuted
+    },
     voiceChip: {
       padding: "6px 12px",
       borderRadius: 6,
@@ -25210,6 +25519,54 @@ textarea::placeholder, input::placeholder { color: rgba(255,255,255,0.25); }
       color: "#f0b8b6",
       fontSize: 13,
       lineHeight: 1.45
+    },
+    confirmBody: {
+      color: c.textMuted,
+      fontSize: 14,
+      lineHeight: 1.6
+    },
+    confirmActions: {
+      display: "flex",
+      justifyContent: "flex-end",
+      gap: 10,
+      marginTop: 22
+    },
+    secondaryBtn: {
+      padding: "10px 14px",
+      borderRadius: 8,
+      border: `1px solid ${c.border}`,
+      background: "rgba(255,255,255,0.04)",
+      color: c.text,
+      fontSize: 13,
+      fontWeight: 600,
+      fontFamily: c.sans,
+      cursor: "pointer"
+    },
+    secondaryBtnActive: {
+      padding: "10px 14px",
+      borderRadius: 8,
+      border: `1px solid ${c.accent}`,
+      background: c.accentDim,
+      color: c.accent,
+      fontSize: 13,
+      fontWeight: 600,
+      fontFamily: c.sans,
+      cursor: "pointer"
+    },
+    dangerBtn: {
+      padding: "10px 14px",
+      borderRadius: 8,
+      border: "none",
+      background: "#b14c46",
+      color: "#fff",
+      fontSize: 13,
+      fontWeight: 600,
+      fontFamily: c.sans,
+      cursor: "pointer",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 8
     },
     submitBtn: {
       width: "100%",

@@ -41,6 +41,8 @@ class ProcessArticleResult:
 
 
 class ReadcastService:
+    DEFAULT_VOICE_SETTING_KEY = "default_voice"
+
     def __init__(self, config: Config, store: Optional[Store] = None):
         self.config = config
         self.store = store or Store(config.base_dir)
@@ -56,6 +58,16 @@ class ReadcastService:
 
     def delete_article(self, article_id: str) -> bool:
         return self.store.delete_article(article_id)
+
+    def default_voice(self) -> str:
+        return self.store.get_setting(self.DEFAULT_VOICE_SETTING_KEY) or self.config.tts.voice
+
+    def set_default_voice(self, voice: str) -> str:
+        available = {item["name"] for item in self.available_voices() if isinstance(item.get("name"), str)}
+        if available and voice not in available:
+            raise ValueError(f"Voice '{voice}' is not available.")
+        self.store.set_setting(self.DEFAULT_VOICE_SETTING_KEY, voice)
+        return voice
 
     def retry_article(self, article_id: str) -> Article:
         article = self._require_article(article_id)
@@ -169,8 +181,7 @@ class ReadcastService:
         tags: Optional[list[str]],
     ) -> AddArticleResult:
         article.tags = list(tags or [])
-        if voice is not None:
-            article.voice = voice
+        article.voice = voice if voice is not None else self.default_voice()
         if speed is not None:
             article.speed = speed
         full_text = "\n\n".join(chunk.text for chunk in chunks)
@@ -202,7 +213,7 @@ class ReadcastService:
 
         current = self._require_article(article.id)
         duration = audio_duration(output_path)
-        voice = current.voice or self.config.tts.voice
+        voice = current.voice or self.default_voice()
         speed = current.speed if current.speed is not None else self.config.tts.speed
         self.store.update_audio_metadata(article.id, duration, voice, self.config.tts.model, speed)
         latest = self._require_article(article.id)

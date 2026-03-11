@@ -90,6 +90,7 @@ pixi run test
 pixi run lint
 pixi run frontend:build
 pixi run check
+pixi run check:runtime
 pixi run package:check
 ```
 

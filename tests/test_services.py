@@ -51,6 +51,15 @@ def test_reprocess_updates_existing_article(base_dir) -> None:
     assert updated.status == "queued"
 
 
+def test_add_text_uses_saved_default_voice(base_dir) -> None:
+    service = ReadcastService(Config.load(base_dir))
+    service.store.set_setting(service.DEFAULT_VOICE_SETTING_KEY, "af_heart")
+
+    added = service.add_text("Title line\n\nParagraph one.")
+
+    assert added.article.voice == "af_heart"
+
+
 def test_process_article_removes_segments_after_success(monkeypatch, base_dir) -> None:
     service = ReadcastService(Config.load(base_dir))
     added = service.add_text("Cleanup title\n\nParagraph one.\n\nParagraph two.")

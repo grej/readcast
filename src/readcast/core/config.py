@@ -12,6 +12,11 @@ DEFAULT_PUBLICATIONS = {
     "noahpinion.substack.com": "Noahpinion",
     "stratechery.com": "Stratechery",
 }
+DEFAULT_TTS_MODEL = "kokoro-82m"
+DEFAULT_TTS_VOICE = "af_sky"
+DEFAULT_TTS_LANGUAGE = "en-us"
+DEFAULT_TTS_MAX_CHARS = 12000
+DEFAULT_TTS_AUDIO_FORMAT = "mp3"
 
 
 @dataclass(slots=True)
@@ -21,12 +26,12 @@ class ReadcastConfig:
 
 @dataclass(slots=True)
 class TTSConfig:
-    model: str = "kokoro-82m"
-    voice: str = "af_sky"
+    model: str = DEFAULT_TTS_MODEL
+    voice: str = DEFAULT_TTS_VOICE
     speed: float = 1.0
-    language: str = "en-us"
-    max_chunk_chars: int = 12000
-    audio_format: str = "mp3"
+    language: str = DEFAULT_TTS_LANGUAGE
+    max_chunk_chars: int = DEFAULT_TTS_MAX_CHARS
+    audio_format: str = DEFAULT_TTS_AUDIO_FORMAT
 
 
 @dataclass(slots=True)
@@ -188,11 +193,11 @@ def _migrate_tts_data(values: dict[str, object]) -> dict[str, object]:
         "mlx-community/Qwen3-TTS-12Hz-1.7B-CustomVoice-bf16",
     }
     if str(tts_data.get("model", "")) in legacy_models:
-        tts_data["model"] = TTSConfig.model
+        tts_data["model"] = DEFAULT_TTS_MODEL
 
     legacy_voices = {"conversational_a", "conversational_b", "serena", "chelsie", "vivian"}
     raw_voice = tts_data.get("voice")
     if isinstance(raw_voice, str) and raw_voice.lower() in legacy_voices:
-        tts_data["voice"] = TTSConfig.voice
+        tts_data["voice"] = DEFAULT_TTS_VOICE
 
     return _known_fields(TTSConfig, tts_data)

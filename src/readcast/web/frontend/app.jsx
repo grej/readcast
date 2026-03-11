@@ -95,6 +95,25 @@ function PlusIcon({ size = 18 }) {
   );
 }
 
+function CheckIcon({ size = 16 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20 6 9 17l-5-5" />
+    </svg>
+  );
+}
+
+function TrashIcon({ size = 16 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 6h18" />
+      <path d="M8 6V4h8v2" />
+      <path d="M19 6l-1 14H6L5 6" />
+      <path d="M10 11v6M14 11v6" />
+    </svg>
+  );
+}
+
 function WaveformIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" opacity="0.5">
@@ -121,29 +140,61 @@ function SpinnerIcon() {
   );
 }
 
-function AddPanel({ voices, defaultVoice, onAdd, onClose, error }) {
+function DeleteConfirmPanel({ count, deleting, onConfirm, onClose }) {
+  return (
+    <div style={styles.addPanel}>
+      <div style={styles.confirmPanelInner}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
+          <h2 style={styles.addTitle}>Delete {count} {count === 1 ? "article" : "articles"}?</h2>
+          <button onClick={onClose} style={styles.closeBtn}>✕</button>
+        </div>
+        <p style={styles.confirmBody}>
+          This deletes the full record and any generated audio for the selected {count === 1 ? "article" : "articles"}.
+          This cannot be undone.
+        </p>
+        <div style={styles.confirmActions}>
+          <button onClick={onClose} style={styles.secondaryBtn} disabled={deleting}>Cancel</button>
+          <button onClick={onConfirm} style={{ ...styles.dangerBtn, opacity: deleting ? 0.6 : 1 }} disabled={deleting}>
+            {deleting ? <SpinnerIcon /> : <><TrashIcon size={15} /><span>Delete</span></>}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AddPanel({ voices, defaultVoice, onAdd, onClose, onSaveDefaultVoice, error }) {
   const [inputValue, setInputValue] = useState("");
-  const [voice, setVoice] = useState(defaultVoice || "");
   const [submitting, setSubmitting] = useState(false);
+  const [savingDefault, setSavingDefault] = useState(false);
+  const [showVoicePicker, setShowVoicePicker] = useState(false);
   const inputRef = useRef(null);
 
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
 
-  useEffect(() => {
-    if (!voice && defaultVoice) {
-      setVoice(defaultVoice);
-    }
-  }, [defaultVoice, voice]);
-
   const handleSubmit = async () => {
     if (!inputValue.trim()) return;
     setSubmitting(true);
     try {
-      await onAdd({ input: inputValue.trim(), voice: voice || undefined });
+      await onAdd({ input: inputValue.trim() });
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleDefaultVoiceChange = async (voiceName) => {
+    if (!voiceName || voiceName === defaultVoice) {
+      setShowVoicePicker(false);
+      return;
+    }
+    setSavingDefault(true);
+    try {
+      await onSaveDefaultVoice(voiceName);
+      setShowVoicePicker(false);
+    } finally {
+      setSavingDefault(false);
     }
   };
 
@@ -174,21 +225,39 @@ function AddPanel({ voices, defaultVoice, onAdd, onClose, error }) {
           style={styles.urlInput}
         />
 
-        <label style={styles.fieldLabel}>Voice</label>
-        <div style={styles.voiceGrid}>
-          {voices.map((voiceOption) => (
-            <button
-              key={voiceOption.name}
-              onClick={() => setVoice(voiceOption.name)}
-              style={{
-                ...styles.voiceChip,
-                ...(voice === voiceOption.name ? styles.voiceChipActive : {}),
-              }}
-            >
-              {voiceLabel(voiceOption.name)}
-            </button>
-          ))}
+        <label style={styles.fieldLabel}>Default voice</label>
+        <div style={styles.defaultVoiceRow}>
+          <div>
+            <div style={styles.defaultVoiceName}>{voiceLabel(defaultVoice || "af_sky")}</div>
+            <div style={styles.defaultVoiceHelp}>New articles use this automatically.</div>
+          </div>
+          <button
+            onClick={() => setShowVoicePicker((current) => !current)}
+            style={showVoicePicker ? styles.secondaryBtnActive : styles.secondaryBtn}
+            disabled={savingDefault}
+          >
+            {showVoicePicker ? "Hide voices" : "Change default"}
+          </button>
         </div>
+
+        {showVoicePicker ? (
+          <div style={styles.voiceGrid}>
+            {voices.map((voiceOption) => (
+              <button
+                key={voiceOption.name}
+                onClick={() => handleDefaultVoiceChange(voiceOption.name)}
+                style={{
+                  ...styles.voiceChip,
+                  ...(defaultVoice === voiceOption.name ? styles.voiceChipActive : {}),
+                  opacity: savingDefault ? 0.6 : 1,
+                }}
+                disabled={savingDefault}
+              >
+                {voiceLabel(voiceOption.name)}
+              </button>
+            ))}
+          </div>
+        ) : null}
 
         {error ? <div style={styles.errorText}>{error}</div> : null}
 
@@ -204,14 +273,51 @@ function AddPanel({ voices, defaultVoice, onAdd, onClose, error }) {
   );
 }
 
-function ArticleCard({ article, isActive, onPlay }) {
+function ArticleCard({ article, isActive, selectionMode, selected, onPlay, onToggleSelect }) {
   const isProcessing = article.status === "queued" || article.status === "synthesizing";
+  const isFailed = article.status === "failed";
+  const canPlay = !isProcessing && !isFailed && article.audio_url;
+  const statusText = isProcessing
+    ? article.status === "queued"
+      ? "Queued..."
+      : "Processing..."
+    : isFailed
+      ? "Failed"
+      : formatDuration(article.audio_duration_sec);
 
   return (
-    <div style={{ ...styles.card, ...(isActive ? styles.cardActive : {}) }} onClick={() => !isProcessing && article.audio_url && onPlay(article)}>
+    <div
+      style={{
+        ...styles.card,
+        ...(isActive ? styles.cardActive : {}),
+        ...(isFailed ? styles.cardFailed : {}),
+        ...(selected ? styles.cardSelected : {}),
+      }}
+      onClick={() => {
+        if (selectionMode) {
+          onToggleSelect(article.id);
+          return;
+        }
+        if (canPlay) {
+          onPlay(article);
+        }
+      }}
+    >
       <div style={styles.cardLeft}>
         <div style={styles.cardPlayArea}>
-          {isProcessing ? <div style={styles.processingDot} /> : isActive ? <WaveformIcon /> : <PlayIcon size={14} />}
+          {selectionMode ? (
+            <div style={{ ...styles.selectDot, ...(selected ? styles.selectDotActive : {}) }}>
+              {selected ? <CheckIcon size={12} /> : null}
+            </div>
+          ) : isProcessing ? (
+            <div style={styles.processingDot} />
+          ) : isFailed ? (
+            <div style={styles.failedGlyph}>!</div>
+          ) : isActive ? (
+            <WaveformIcon />
+          ) : (
+            <PlayIcon size={14} />
+          )}
         </div>
         <div style={styles.cardInfo}>
           <div style={styles.cardTitle}>{article.title}</div>
@@ -220,8 +326,11 @@ function ArticleCard({ article, isActive, onPlay }) {
             <span style={styles.metaDot}>·</span>
             {formatDate(article.ingested_at)}
             <span style={styles.metaDot}>·</span>
-            {isProcessing ? <span style={{ color: "#d4956a" }}>{article.status === "queued" ? "Queued..." : "Processing..."}</span> : formatDuration(article.audio_duration_sec)}
+            <span style={{ color: isFailed ? "#f0b8b6" : isProcessing ? "#d4956a" : undefined }}>
+              {statusText}
+            </span>
           </div>
+          {isFailed && article.error_message ? <div style={styles.cardError}>{article.error_message}</div> : null}
         </div>
       </div>
       <div style={styles.cardRight}>
@@ -259,6 +368,7 @@ function PlayerBar({ article, isPlaying, currentTime, duration, onToggle, onSeek
 function ReadcastApp() {
   const [articles, setArticles] = useState([]);
   const [voices, setVoices] = useState([]);
+  const [defaultVoice, setDefaultVoice] = useState("af_sky");
   const [search, setSearch] = useState("");
   const [showAdd, setShowAdd] = useState(false);
   const [activeId, setActiveId] = useState(null);
@@ -268,11 +378,16 @@ function ReadcastApp() {
   const [daemonConnected, setDaemonConnected] = useState(false);
   const [daemonError, setDaemonError] = useState("");
   const [addError, setAddError] = useState("");
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
+  const [deleting, setDeleting] = useState(false);
   const audioRef = useRef(null);
 
   const activeArticle = useMemo(() => articles.find((article) => article.id === activeId) || null, [articles, activeId]);
   const hasActiveWork = articles.some((article) => article.status === "queued" || article.status === "synthesizing");
-  const defaultVoice = voices[0]?.name || "af_sky";
+  const selectedCount = selectedIds.length;
 
   async function refreshArticles(query = search) {
     const suffix = query.trim() ? `?q=${encodeURIComponent(query.trim())}` : "";
@@ -284,6 +399,15 @@ function ReadcastApp() {
     try {
       const data = await apiGet("/api/voices");
       setVoices(data.voices || []);
+    } catch (error) {
+      setDaemonError(error.message);
+    }
+  }
+
+  async function refreshPreferences() {
+    try {
+      const data = await apiGet("/api/preferences");
+      setDefaultVoice(data.preferences?.default_voice || "af_sky");
     } catch (error) {
       setDaemonError(error.message);
     }
@@ -303,6 +427,7 @@ function ReadcastApp() {
   useEffect(() => {
     refreshArticles("");
     refreshVoices();
+    refreshPreferences();
     refreshStatus();
   }, []);
 
@@ -312,6 +437,10 @@ function ReadcastApp() {
     }, 200);
     return () => window.clearTimeout(timeout);
   }, [search]);
+
+  useEffect(() => {
+    setSelectedIds((current) => current.filter((id) => articles.some((article) => article.id === id)));
+  }, [articles]);
 
   useEffect(() => {
     if (!hasActiveWork) return undefined;
@@ -359,6 +488,64 @@ function ReadcastApp() {
     } catch (error) {
       setAddError(error.message);
       throw error;
+    }
+  }
+
+  async function handleSaveDefaultVoice(voice) {
+    setAddError("");
+    const data = await apiJson("/api/preferences", "PUT", { default_voice: voice });
+    setDefaultVoice(data.preferences?.default_voice || voice);
+    await refreshArticles(search);
+  }
+
+  function handleToggleSelect(articleId) {
+    setSelectedIds((current) =>
+      current.includes(articleId) ? current.filter((id) => id !== articleId) : [...current, articleId],
+    );
+  }
+
+  function handleSelectionModeToggle() {
+    setDeleteError("");
+    setShowDeleteConfirm(false);
+    setSelectionMode((current) => {
+      if (current) {
+        setSelectedIds([]);
+      }
+      return !current;
+    });
+  }
+
+  async function handleDeleteSelected() {
+    if (!selectedIds.length) {
+      return;
+    }
+    setDeleteError("");
+    setDeleting(true);
+    try {
+      for (const articleId of selectedIds) {
+        await apiJson(`/api/articles/${articleId}`, "DELETE");
+        if (articleId === activeId) {
+          const audio = audioRef.current;
+          if (audio) {
+            audio.pause();
+            audio.removeAttribute("src");
+            audio.load();
+          }
+          setActiveId(null);
+          setIsPlaying(false);
+          setCurrentTime(0);
+          setDuration(0);
+        }
+      }
+      setSelectedIds([]);
+      setShowDeleteConfirm(false);
+      setSelectionMode(false);
+      await refreshArticles(search);
+      await refreshStatus();
+    } catch (error) {
+      setDeleteError(error.message);
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -414,13 +601,36 @@ function ReadcastApp() {
             <span style={styles.daemonLabel}>kokoro-edge</span>
           </div>
         </div>
-        <button onClick={() => setShowAdd(true)} style={styles.addBtn}>
-          <PlusIcon size={16} />
-          <span>Add Article</span>
-        </button>
+        <div style={styles.headerActions}>
+          <button onClick={handleSelectionModeToggle} style={selectionMode ? styles.headerBtnActive : styles.headerBtn}>
+            <CheckIcon size={15} />
+            <span>{selectionMode ? "Done" : "Select"}</span>
+          </button>
+          <button onClick={() => setShowAdd(true)} style={styles.addBtn}>
+            <PlusIcon size={16} />
+            <span>Add Article</span>
+          </button>
+        </div>
       </header>
 
       {daemonError ? <div style={styles.banner}>{daemonError}</div> : null}
+      {deleteError ? <div style={{ ...styles.banner, ...styles.bannerError }}>{deleteError}</div> : null}
+
+      {selectionMode ? (
+        <div style={styles.bulkBar}>
+          <div style={styles.bulkText}>
+            {selectedCount ? `${selectedCount} selected` : "Select articles to delete"}
+          </div>
+          <button
+            onClick={() => setShowDeleteConfirm(true)}
+            style={{ ...styles.dangerBtn, opacity: selectedCount ? 1 : 0.45 }}
+            disabled={!selectedCount}
+          >
+            <TrashIcon size={15} />
+            <span>Delete</span>
+          </button>
+        </div>
+      ) : null}
 
       <div style={styles.searchWrap}>
         <SearchIcon />
@@ -445,7 +655,10 @@ function ReadcastApp() {
               key={article.id}
               article={article}
               isActive={activeId === article.id}
+              selectionMode={selectionMode}
+              selected={selectedIds.includes(article.id)}
               onPlay={handlePlay}
+              onToggleSelect={handleToggleSelect}
             />
           ))
         )}
@@ -465,11 +678,24 @@ function ReadcastApp() {
           voices={voices}
           defaultVoice={defaultVoice}
           onAdd={handleAdd}
+          onSaveDefaultVoice={handleSaveDefaultVoice}
           onClose={() => {
             setAddError("");
             setShowAdd(false);
           }}
           error={addError}
+        />
+      ) : null}
+
+      {showDeleteConfirm ? (
+        <DeleteConfirmPanel
+          count={selectedCount}
+          deleting={deleting}
+          onConfirm={handleDeleteSelected}
+          onClose={() => {
+            setDeleteError("");
+            setShowDeleteConfirm(false);
+          }}
         />
       ) : null}
     </div>
@@ -519,6 +745,7 @@ const styles = {
     padding: "28px 24px 12px",
   },
   headerLeft: { display: "flex", alignItems: "center", gap: 16 },
+  headerActions: { display: "flex", alignItems: "center", gap: 10 },
   logo: {
     fontFamily: c.serif,
     fontSize: 26,
@@ -554,6 +781,34 @@ const styles = {
     fontFamily: c.sans,
     cursor: "pointer",
   },
+  headerBtn: {
+    display: "flex",
+    alignItems: "center",
+    gap: 6,
+    padding: "8px 14px",
+    borderRadius: 8,
+    border: `1px solid ${c.border}`,
+    background: "rgba(255,255,255,0.04)",
+    color: c.textMuted,
+    fontSize: 13,
+    fontWeight: 600,
+    fontFamily: c.sans,
+    cursor: "pointer",
+  },
+  headerBtnActive: {
+    display: "flex",
+    alignItems: "center",
+    gap: 6,
+    padding: "8px 14px",
+    borderRadius: 8,
+    border: `1px solid ${c.accent}`,
+    background: c.accentDim,
+    color: c.accent,
+    fontSize: 13,
+    fontWeight: 600,
+    fontFamily: c.sans,
+    cursor: "pointer",
+  },
   banner: {
     margin: "0 24px 12px",
     padding: "10px 14px",
@@ -562,6 +817,26 @@ const styles = {
     background: "rgba(217, 83, 79, 0.12)",
     color: "#f0b8b6",
     fontSize: 13,
+  },
+  bannerError: {
+    border: `1px solid rgba(217, 83, 79, 0.4)`,
+    background: "rgba(217, 83, 79, 0.12)",
+    color: "#f0b8b6",
+  },
+  bulkBar: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    margin: "0 24px 10px",
+    padding: "10px 14px",
+    borderRadius: 10,
+    background: "rgba(255,255,255,0.04)",
+    border: `1px solid ${c.border}`,
+  },
+  bulkText: {
+    fontSize: 13,
+    color: c.textMuted,
   },
   searchWrap: {
     display: "flex",
@@ -617,6 +892,10 @@ const styles = {
     background: c.accentDim,
     borderBottom: "1px solid transparent",
   },
+  cardSelected: {
+    background: "rgba(255,255,255,0.04)",
+    borderBottom: "1px solid transparent",
+  },
   cardLeft: {
     display: "flex",
     alignItems: "center",
@@ -634,6 +913,20 @@ const styles = {
     justifyContent: "center",
     flexShrink: 0,
     color: c.textMuted,
+  },
+  selectDot: {
+    width: 18,
+    height: 18,
+    borderRadius: "50%",
+    border: `1px solid ${c.textMuted}`,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    color: "#141416",
+  },
+  selectDotActive: {
+    background: c.accent,
+    border: `1px solid ${c.accent}`,
   },
   cardInfo: { minWidth: 0 },
   cardTitle: {
@@ -670,6 +963,22 @@ const styles = {
     borderRadius: "50%",
     background: c.accent,
     animation: "pulse 1.5s ease-in-out infinite",
+  },
+  cardFailed: {
+    border: "1px solid rgba(217, 83, 79, 0.18)",
+  },
+  failedGlyph: {
+    color: "#f0b8b6",
+    fontSize: 15,
+    fontWeight: 700,
+    lineHeight: 1,
+  },
+  cardError: {
+    marginTop: 6,
+    color: "#f0b8b6",
+    fontSize: 12,
+    lineHeight: 1.4,
+    maxWidth: "70ch",
   },
   playerBar: {
     position: "fixed",
@@ -742,6 +1051,14 @@ const styles = {
     maxHeight: "90vh",
     overflow: "auto",
   },
+  confirmPanelInner: {
+    background: c.surface,
+    border: `1px solid ${c.border}`,
+    borderRadius: 16,
+    padding: 28,
+    width: "100%",
+    maxWidth: 460,
+  },
   addTitle: {
     fontFamily: c.serif,
     fontSize: 22,
@@ -780,6 +1097,27 @@ const styles = {
     lineHeight: 1.5,
   },
   voiceGrid: { display: "flex", flexWrap: "wrap", gap: 6 },
+  defaultVoiceRow: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 14,
+    padding: "12px 14px",
+    borderRadius: 10,
+    border: `1px solid ${c.border}`,
+    background: "rgba(255,255,255,0.03)",
+  },
+  defaultVoiceName: {
+    fontFamily: c.serif,
+    fontSize: 16,
+    fontWeight: 600,
+    letterSpacing: "-0.01em",
+  },
+  defaultVoiceHelp: {
+    marginTop: 4,
+    fontSize: 12,
+    color: c.textMuted,
+  },
   voiceChip: {
     padding: "6px 12px",
     borderRadius: 6,
@@ -800,6 +1138,54 @@ const styles = {
     color: "#f0b8b6",
     fontSize: 13,
     lineHeight: 1.45,
+  },
+  confirmBody: {
+    color: c.textMuted,
+    fontSize: 14,
+    lineHeight: 1.6,
+  },
+  confirmActions: {
+    display: "flex",
+    justifyContent: "flex-end",
+    gap: 10,
+    marginTop: 22,
+  },
+  secondaryBtn: {
+    padding: "10px 14px",
+    borderRadius: 8,
+    border: `1px solid ${c.border}`,
+    background: "rgba(255,255,255,0.04)",
+    color: c.text,
+    fontSize: 13,
+    fontWeight: 600,
+    fontFamily: c.sans,
+    cursor: "pointer",
+  },
+  secondaryBtnActive: {
+    padding: "10px 14px",
+    borderRadius: 8,
+    border: `1px solid ${c.accent}`,
+    background: c.accentDim,
+    color: c.accent,
+    fontSize: 13,
+    fontWeight: 600,
+    fontFamily: c.sans,
+    cursor: "pointer",
+  },
+  dangerBtn: {
+    padding: "10px 14px",
+    borderRadius: 8,
+    border: "none",
+    background: "#b14c46",
+    color: "#fff",
+    fontSize: 13,
+    fontWeight: 600,
+    fontFamily: c.sans,
+    cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
   },
   submitBtn: {
     width: "100%",

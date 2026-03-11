@@ -30,6 +30,10 @@ class ReprocessRequest(BaseModel):
     speed: Optional[float] = None
 
 
+class PreferencesRequest(BaseModel):
+    default_voice: str = Field(min_length=1)
+
+
 def create_app(base_dir: Optional[Path] = None) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -67,6 +71,15 @@ def create_app(base_dir: Optional[Path] = None) -> FastAPI:
         if article is None:
             raise HTTPException(status_code=404, detail="Article not found")
         return {"article": _serialize_article(service, article)}
+
+    @app.get("/api/preferences")
+    async def get_preferences(request: Request) -> dict[str, object]:
+        service = _service(request)
+        return {
+            "preferences": {
+                "default_voice": service.default_voice(),
+            }
+        }
 
     @app.post("/api/articles", status_code=201)
     async def add_article(request: Request, payload: AddArticleRequest) -> dict[str, object]:
@@ -149,6 +162,16 @@ def create_app(base_dir: Optional[Path] = None) -> FastAPI:
         except (ServerError, SynthesisError) as exc:
             raise HTTPException(status_code=503, detail=str(exc)) from exc
         return {"voices": voices}
+
+    @app.put("/api/preferences")
+    async def update_preferences(request: Request, payload: PreferencesRequest) -> dict[str, object]:
+        service = _service(request)
+        try:
+            ensure_server_running(service.config)
+            default_voice = service.set_default_voice(payload.default_voice)
+        except (ServerError, SynthesisError, ValueError) as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return {"preferences": {"default_voice": default_voice}}
 
     return app
 

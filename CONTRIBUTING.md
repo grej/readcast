@@ -34,6 +34,7 @@ pixi run test
 pixi run lint
 pixi run frontend:build
 pixi run check
+pixi run check:runtime
 pixi run package:check
 ```
 
@@ -67,10 +68,13 @@ pixi run frontend:build
 - unit and mocked integration coverage live under `tests/`
 - true local synthesis checks remain manual
 - CI runs lint, non-integration tests, and the frontend build
+- `pixi run check` is CI-safe and does not require a local `kokoro-edge` binary
+- `pixi run check:runtime` includes the same checks but boots `kokoro-edge` first
 
 ## Pull requests
 
 - keep changes focused
 - update tests with behavior changes
 - run `pixi run check` before opening a PR
+- if you are changing local runtime integration, also run `pixi run check:runtime`
 - if packaging or static assets are touched, also run `pixi run package:check`

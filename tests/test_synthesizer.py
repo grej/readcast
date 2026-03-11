@@ -14,6 +14,19 @@ from readcast.core.models import Article, TTSSegment
 from readcast.core.synthesizer import SynthesisError, synthesize
 
 
+FAILING_PASSAGE_PART_1 = (
+    "At the end of January, the US department of justice released its biggest drop yet of documents "
+    "related to Jeffrey Epstein, the convicted paedophile and erstwhile friend of Trump who died in prison."
+)
+FAILING_PASSAGE_PART_2 = (
+    "Lurid headlines based on the documents followed, about foreign women allegedly buried on Epstein's "
+    "New Mexico ranch, about Epstein's purchase of 330 gallons of sulphuric acid, and a woman who claimed "
+    "Trump raped her when she was aged 13. The Wall Street Journal reported the government took 47,635 files "
+    "offline \"for further review\"."
+)
+FAILING_PASSAGE_COMBINED = f"{FAILING_PASSAGE_PART_1} {FAILING_PASSAGE_PART_2}"
+
+
 def _wav_bytes(duration: float = 0.15) -> bytes:
     buffer = BytesIO()
     with wave.open(buffer, "wb") as handle:
@@ -152,10 +165,12 @@ def test_synthesize_retries_once_and_surfaces_input_snippet(monkeypatch, base_di
     with pytest.raises(SynthesisError) as excinfo:
         synthesize(segments, article_dir, config)
 
-    assert len(attempts) == 2
+    assert len(attempts) > 2
+    assert attempts[0]["input"] == text
+    assert attempts[1]["input"] == text
     assert "daemon exploded" in str(excinfo.value)
     assert "segment 0" in str(excinfo.value)
-    assert "Alpha beta gamma" in str(excinfo.value)
+    assert "(input:" in str(excinfo.value)
 
 
 def test_synthesize_does_not_write_json_error_body_as_wav(monkeypatch, base_dir: Path) -> None:
@@ -214,3 +229,36 @@ def test_synthesize_splits_failed_grouped_request_into_smaller_parts(monkeypatch
     assert attempts.count("Title\n\nFirst paragraph.\n\nSecond paragraph.") == 2
     assert "Title" in attempts
     assert "First paragraph.\n\nSecond paragraph." in attempts
+
+
+def test_synthesize_falls_back_to_sentence_splitting_when_single_paragraph_fails(monkeypatch, base_dir: Path) -> None:
+    config = Config.load(base_dir)
+    article_dir = base_dir / "articles" / "art12345"
+    article_dir.mkdir(parents=True)
+    (article_dir / "meta.json").write_text(json.dumps(_article().to_dict()), encoding="utf-8")
+    segments = [TTSSegment(idx=0, text=FAILING_PASSAGE_COMBINED, source_chunk_idx=0, source_chunk_end_idx=0)]
+    attempts: list[str] = []
+
+    monkeypatch.setattr(
+        "readcast.core.synthesizer.httpx.get",
+        lambda url, timeout: _json_response(200, {"voices": [{"name": "af_sky"}]}),
+    )
+
+    def fake_post(url: str, json: dict[str, object], timeout: float) -> httpx.Response:
+        current = str(json["input"])
+        attempts.append(current)
+        if current == FAILING_PASSAGE_COMBINED:
+            return _json_response(
+                500,
+                {"message": "The operation couldn't be completed. (KokoroSwift.KokoroTTS.KokoroTTSError error 0.)"},
+            )
+        return _wav_response()
+
+    monkeypatch.setattr("readcast.core.synthesizer.httpx.post", fake_post)
+
+    audio_path = synthesize(segments, article_dir, config)
+
+    assert audio_path.exists()
+    assert attempts.count(FAILING_PASSAGE_COMBINED) == 2
+    assert FAILING_PASSAGE_PART_1 in attempts
+    assert FAILING_PASSAGE_PART_2 in attempts
