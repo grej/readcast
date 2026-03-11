@@ -126,14 +126,51 @@ def test_api_preferences_round_trip_and_drive_new_articles(monkeypatch, base_dir
         initial = client.get("/api/preferences")
         assert initial.status_code == 200
         assert initial.json()["preferences"]["default_voice"] == "af_sky"
+        assert initial.json()["preferences"]["playback_rate"] == 1.0
 
         updated = client.put("/api/preferences", json={"default_voice": "af_heart"})
         assert updated.status_code == 200
         assert updated.json()["preferences"]["default_voice"] == "af_heart"
 
+        playback = client.put("/api/preferences", json={"playback_rate": 1.5})
+        assert playback.status_code == 200
+        assert playback.json()["preferences"]["playback_rate"] == 1.5
+
         created = client.post("/api/articles", json={"input": "Saved voice title\n\nBody.", "process": False})
         assert created.status_code == 201
         assert created.json()["article"]["voice"] == "af_heart"
+
+
+def test_api_preview_does_not_create_article(base_dir) -> None:
+    app = create_app(base_dir)
+    with TestClient(app) as client:
+        preview = client.post("/api/preview", json={"input": "Preview title\n\nParagraph body."})
+
+        assert preview.status_code == 200
+        payload = preview.json()["preview"]
+        assert payload["article"]["title"] == "Preview title"
+        assert payload["chunks"][0]["chunk_type"] == "title"
+        listed = client.get("/api/articles")
+        assert listed.json()["articles"] == []
+
+
+def test_api_feed_includes_audio_items_only(base_dir) -> None:
+    app = create_app(base_dir)
+    with TestClient(app) as client:
+        service = client.app.state.service
+        included = service.add_text("Feed title\n\nFeed body.").article
+        excluded = service.add_text("No audio title\n\nBody.").article
+        audio_path = service.store.get_article_dir(included.id) / "audio.mp3"
+        audio_path.write_bytes(_wav_bytes())
+        service.store.update_audio_metadata(included.id, duration_sec=0.2, voice="af_sky", model="kokoro-82m", speed=1.0)
+
+        response = client.get("/feed.xml")
+
+        assert response.status_code == 200
+        assert response.headers["content-type"].startswith("application/rss+xml")
+        assert "Feed title" in response.text
+        assert "No audio title" not in response.text
+        assert f"/api/articles/{included.id}/audio" in response.text
 
 
 def test_api_audio_endpoint_supports_range_requests(base_dir) -> None:
@@ -153,3 +190,20 @@ def test_api_audio_endpoint_supports_range_requests(base_dir) -> None:
         assert response.status_code in {200, 206}
         assert response.headers["content-type"].startswith("audio/")
         assert response.content
+
+
+def test_api_status_reports_ready_details(monkeypatch, base_dir) -> None:
+    app = create_app(base_dir)
+    with TestClient(app) as client:
+        monkeypatch.setattr(
+            "readcast.api.app.ReadcastService.daemon_status",
+            lambda self: {"model": "kokoro-82m", "models_loaded": ["kokoro-82m"]},
+        )
+
+        response = client.get("/api/status")
+
+        assert response.status_code == 200
+        payload = response.json()["kokoro_edge"]
+        assert payload["connected"] is True
+        assert payload["ready"] is True
+        assert payload["state"] == "ready"

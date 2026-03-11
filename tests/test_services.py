@@ -4,6 +4,7 @@ from io import BytesIO
 from pathlib import Path
 import wave
 
+from readcast.core.models import Article, Chunk
 from readcast.core.config import Config
 from readcast.services import ReadcastService
 
@@ -58,6 +59,55 @@ def test_add_text_uses_saved_default_voice(base_dir) -> None:
     added = service.add_text("Title line\n\nParagraph one.")
 
     assert added.article.voice == "af_heart"
+
+
+def test_playback_rate_round_trip(base_dir) -> None:
+    service = ReadcastService(Config.load(base_dir))
+
+    assert service.playback_rate() == 1.0
+    assert service.set_playback_rate(1.5) == 1.5
+    assert service.playback_rate() == 1.5
+
+
+def test_preview_input_does_not_store_article(base_dir) -> None:
+    service = ReadcastService(Config.load(base_dir))
+
+    preview = service.preview_input("Preview title\n\nParagraph one.\n\nParagraph two.")
+
+    assert preview.article.title == "Preview title"
+    assert preview.chunks[0].chunk_type == "title"
+    assert service.list_articles() == []
+
+
+def test_preview_input_for_url_uses_extractor(monkeypatch, base_dir) -> None:
+    service = ReadcastService(Config.load(base_dir))
+
+    def fake_extract(source, config):
+        return (
+            Article(
+                id="preview01",
+                source_url=source,
+                source_file=None,
+                title="Fetched title",
+                author=None,
+                publication="Example",
+                published_date=None,
+                ingested_at="2026-03-10T00:00:00+00:00",
+                word_count=3,
+                estimated_read_min=1,
+            ),
+            [
+                Chunk(idx=0, chunk_type="title", text="Fetched title", html_tag="title"),
+                Chunk(idx=1, chunk_type="paragraph", text="Fetched body text.", html_tag="p"),
+            ],
+        )
+
+    monkeypatch.setattr("readcast.services.extract", fake_extract)
+
+    preview = service.preview_input("https://example.com/article")
+
+    assert preview.article.source_url == "https://example.com/article"
+    assert preview.full_text.startswith("Fetched title")
 
 
 def test_process_article_removes_segments_after_success(monkeypatch, base_dir) -> None:

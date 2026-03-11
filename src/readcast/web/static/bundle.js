@@ -24490,6 +24490,7 @@
   var import_react = __toESM(require_react(), 1);
   var import_client = __toESM(require_client(), 1);
   var import_jsx_runtime = __toESM(require_jsx_runtime(), 1);
+  var PLAYBACK_RATES = [1, 1.25, 1.5, 1.75, 2];
   function formatDuration(seconds) {
     if (!seconds && seconds !== 0) return "--:--";
     const whole = Math.max(0, Math.floor(seconds));
@@ -24515,6 +24516,11 @@
   }
   function sourceLabel(article) {
     return article.source || article.publication || article.source_url || article.source_file || "Pasted Text";
+  }
+  function isTypingTarget(target) {
+    if (!(target instanceof HTMLElement)) return false;
+    const tag = target.tagName;
+    return target.isContentEditable || tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
   }
   async function apiGet(path) {
     const response = await fetch(path);
@@ -24622,8 +24628,10 @@
       ] })
     ] }) });
   }
-  function AddPanel({ voices, defaultVoice, onAdd, onClose, onSaveDefaultVoice, error }) {
+  function AddPanel({ voices, defaultVoice, onAdd, onPreview, onClose, onSaveDefaultVoice, error }) {
     const [inputValue, setInputValue] = (0, import_react.useState)("");
+    const [preview, setPreview] = (0, import_react.useState)(null);
+    const [previewing, setPreviewing] = (0, import_react.useState)(false);
     const [submitting, setSubmitting] = (0, import_react.useState)(false);
     const [savingDefault, setSavingDefault] = (0, import_react.useState)(false);
     const [showVoicePicker, setShowVoicePicker] = (0, import_react.useState)(false);
@@ -24631,8 +24639,18 @@
     (0, import_react.useEffect)(() => {
       inputRef.current?.focus();
     }, []);
-    const handleSubmit = async () => {
+    const handlePreview = async () => {
       if (!inputValue.trim()) return;
+      setPreviewing(true);
+      try {
+        const result = await onPreview({ input: inputValue.trim() });
+        setPreview(result);
+      } finally {
+        setPreviewing(false);
+      }
+    };
+    const handleSubmit = async () => {
+      if (!inputValue.trim() || !preview) return;
       setSubmitting(true);
       try {
         await onAdd({ input: inputValue.trim() });
@@ -24657,13 +24675,17 @@
       if (event.key === "Escape") onClose();
       if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
         event.preventDefault();
-        handleSubmit();
+        if (preview) {
+          handleSubmit();
+        } else {
+          handlePreview();
+        }
       }
     };
-    return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.addPanel, children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.addPanelInner, children: [
+    return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.addPanel, role: "presentation", children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.addPanelInner, role: "dialog", "aria-modal": "true", "aria-labelledby": "add-article-title", children: [
       /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", { style: styles.addTitle, children: "New Article" }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: onClose, style: styles.closeBtn, children: "\u2715" })
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", { id: "add-article-title", style: styles.addTitle, children: "New Article" }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: onClose, style: styles.closeBtn, "aria-label": "Close add article dialog", children: "\u2715" })
       ] }),
       /* @__PURE__ */ (0, import_jsx_runtime.jsx)("label", { style: styles.fieldLabel, children: "URL or text" }),
       /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
@@ -24671,11 +24693,15 @@
         {
           ref: inputRef,
           value: inputValue,
-          onChange: (event) => setInputValue(event.target.value),
+          onChange: (event) => {
+            setInputValue(event.target.value);
+            setPreview(null);
+          },
           onKeyDown: handleKeyDown,
           placeholder: "https://example.com/article or paste plain text...",
           rows: 5,
-          style: styles.urlInput
+          style: styles.urlInput,
+          "aria-label": "Article URL or pasted text"
         }
       ),
       /* @__PURE__ */ (0, import_jsx_runtime.jsx)("label", { style: styles.fieldLabel, children: "Default voice" }),
@@ -24690,6 +24716,7 @@
             onClick: () => setShowVoicePicker((current) => !current),
             style: showVoicePicker ? styles.secondaryBtnActive : styles.secondaryBtn,
             disabled: savingDefault,
+            "aria-label": "Change default voice",
             children: showVoicePicker ? "Hide voices" : "Change default"
           }
         )
@@ -24704,20 +24731,49 @@
             opacity: savingDefault ? 0.6 : 1
           },
           disabled: savingDefault,
+          "aria-label": `Set default voice to ${voiceLabel(voiceOption.name)}`,
           children: voiceLabel(voiceOption.name)
         },
         voiceOption.name
       )) }) : null,
+      preview ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.previewCard, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.previewMetaRow, children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.previewTitle, children: preview.article.title }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.previewMeta, children: [
+            preview.source,
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: styles.metaDot, children: "\xB7" }),
+            preview.article.estimated_read_min,
+            "m read",
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: styles.metaDot, children: "\xB7" }),
+            preview.article.word_count,
+            " words"
+          ] })
+        ] }) }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.previewBody, children: preview.chunks.slice(0, 5).map((chunk) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { style: styles.previewParagraph, children: chunk.text }, `${chunk.idx}-${chunk.chunk_type}`)) })
+      ] }) : null,
       error ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.errorText, children: error }) : null,
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-        "button",
-        {
-          onClick: handleSubmit,
-          disabled: !inputValue.trim() || submitting,
-          style: { ...styles.submitBtn, opacity: !inputValue.trim() || submitting ? 0.5 : 1 },
-          children: submitting ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SpinnerIcon, {}) : "Add & Process"
-        }
-      )
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.submitActions, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+          "button",
+          {
+            onClick: handlePreview,
+            disabled: !inputValue.trim() || previewing,
+            style: { ...styles.secondaryBtn, opacity: !inputValue.trim() || previewing ? 0.5 : 1 },
+            "aria-label": "Preview extracted article text",
+            children: previewing ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SpinnerIcon, {}) : preview ? "Refresh Preview" : "Preview"
+          }
+        ),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+          "button",
+          {
+            onClick: handleSubmit,
+            disabled: !inputValue.trim() || !preview || submitting,
+            style: { ...styles.submitBtnCompact, opacity: !inputValue.trim() || !preview || submitting ? 0.5 : 1 },
+            "aria-label": "Add article and start processing",
+            children: submitting ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SpinnerIcon, {}) : "Add & Process"
+          }
+        )
+      ] })
     ] }) });
   }
   function ArticleCard({ article, isActive, selectionMode, selected, onPlay, onToggleSelect }) {
@@ -24733,6 +24789,19 @@
           ...isActive ? styles.cardActive : {},
           ...isFailed ? styles.cardFailed : {},
           ...selected ? styles.cardSelected : {}
+        },
+        role: "button",
+        tabIndex: 0,
+        "aria-label": `${article.title}, ${statusText}`,
+        onKeyDown: (event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            if (selectionMode) {
+              onToggleSelect(article.id);
+            } else if (canPlay) {
+              onPlay(article);
+            }
+          }
         },
         onClick: () => {
           if (selectionMode) {
@@ -24763,16 +24832,32 @@
       }
     );
   }
-  function PlayerBar({ article, isPlaying, currentTime, duration, onToggle, onSeek }) {
+  function PlayerBar({ article, isPlaying, currentTime, duration, playbackRate, playbackRates, onToggle, onSeek, onPlaybackRateChange }) {
     if (!article) return null;
     const percent = duration > 0 ? currentTime / duration * 100 : 0;
     return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.playerBar, children: [
       /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.playerProgress, onClick: onSeek, children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { ...styles.playerProgressFill, width: `${percent}%` } }) }),
       /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.playerInner, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: onToggle, style: styles.playerPlayBtn, children: isPlaying ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PauseIcon, { size: 20 }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PlayIcon, { size: 20 }) }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: onToggle, style: styles.playerPlayBtn, "aria-label": isPlaying ? "Pause audio" : "Play audio", children: isPlaying ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PauseIcon, { size: 20 }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PlayIcon, { size: 20 }) }),
         /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.playerInfo, children: [
           /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.playerTitle, children: article.title }),
           /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.playerSource, children: sourceLabel(article) })
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", { style: styles.speedControl, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: styles.speedLabel, children: "Speed" }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+            "select",
+            {
+              value: String(playbackRate),
+              onChange: (event) => onPlaybackRateChange(Number(event.target.value)),
+              style: styles.speedSelect,
+              "aria-label": "Playback speed",
+              children: (playbackRates.length ? playbackRates : PLAYBACK_RATES).map((rate) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("option", { value: String(rate), children: [
+                rate,
+                "x"
+              ] }, rate))
+            }
+          )
         ] }),
         /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.playerTime, children: [
           formatDuration(currentTime),
@@ -24786,6 +24871,8 @@
     const [articles, setArticles] = (0, import_react.useState)([]);
     const [voices, setVoices] = (0, import_react.useState)([]);
     const [defaultVoice, setDefaultVoice] = (0, import_react.useState)("af_sky");
+    const [playbackRate, setPlaybackRate] = (0, import_react.useState)(1);
+    const [playbackRates, setPlaybackRates] = (0, import_react.useState)(PLAYBACK_RATES);
     const [search, setSearch] = (0, import_react.useState)("");
     const [showAdd, setShowAdd] = (0, import_react.useState)(false);
     const [activeId, setActiveId] = (0, import_react.useState)(null);
@@ -24800,7 +24887,11 @@
     const [showDeleteConfirm, setShowDeleteConfirm] = (0, import_react.useState)(false);
     const [deleteError, setDeleteError] = (0, import_react.useState)("");
     const [deleting, setDeleting] = (0, import_react.useState)(false);
+    const [feedCopied, setFeedCopied] = (0, import_react.useState)(false);
+    const [daemonMessage, setDaemonMessage] = (0, import_react.useState)("");
+    const [daemonState, setDaemonState] = (0, import_react.useState)("offline");
     const audioRef = (0, import_react.useRef)(null);
+    const searchRef = (0, import_react.useRef)(null);
     const activeArticle = (0, import_react.useMemo)(() => articles.find((article) => article.id === activeId) || null, [articles, activeId]);
     const hasActiveWork = articles.some((article) => article.status === "queued" || article.status === "synthesizing");
     const selectedCount = selectedIds.length;
@@ -24821,6 +24912,8 @@
       try {
         const data = await apiGet("/api/preferences");
         setDefaultVoice(data.preferences?.default_voice || "af_sky");
+        setPlaybackRate(Number(data.preferences?.playback_rate || 1));
+        setPlaybackRates(data.preferences?.available_playback_rates || PLAYBACK_RATES);
       } catch (error) {
         setDaemonError(error.message);
       }
@@ -24829,9 +24922,13 @@
       try {
         const data = await apiGet("/api/status");
         setDaemonConnected(Boolean(data.kokoro_edge?.connected));
+        setDaemonState(data.kokoro_edge?.state || "offline");
+        setDaemonMessage(data.kokoro_edge?.message || "");
         setDaemonError(data.kokoro_edge?.error || "");
       } catch (error) {
         setDaemonConnected(false);
+        setDaemonState("offline");
+        setDaemonMessage("");
         setDaemonError(error.message);
       }
     }
@@ -24881,6 +24978,39 @@
         audio.removeEventListener("play", onPlay);
       };
     }, []);
+    (0, import_react.useEffect)(() => {
+      const audio = audioRef.current;
+      if (!audio) return;
+      audio.playbackRate = playbackRate;
+    }, [playbackRate]);
+    (0, import_react.useEffect)(() => {
+      const onKeyDown = (event) => {
+        if (showAdd && event.key === "Escape") {
+          setAddError("");
+          setShowAdd(false);
+          return;
+        }
+        if (isTypingTarget(event.target)) {
+          return;
+        }
+        if (event.key === "/") {
+          event.preventDefault();
+          searchRef.current?.focus();
+          return;
+        }
+        if (event.key.toLowerCase() === "n") {
+          event.preventDefault();
+          setShowAdd(true);
+          return;
+        }
+        if (event.key.toLowerCase() === "k") {
+          event.preventDefault();
+          handleToggle();
+        }
+      };
+      window.addEventListener("keydown", onKeyDown);
+      return () => window.removeEventListener("keydown", onKeyDown);
+    }, [showAdd, activeArticle, playbackRate]);
     async function handleAdd(payload) {
       setAddError("");
       try {
@@ -24893,11 +25023,28 @@
         throw error;
       }
     }
+    async function handlePreview(payload) {
+      setAddError("");
+      try {
+        const data = await apiJson("/api/preview", "POST", payload);
+        return data.preview;
+      } catch (error) {
+        setAddError(error.message);
+        throw error;
+      }
+    }
     async function handleSaveDefaultVoice(voice) {
       setAddError("");
       const data = await apiJson("/api/preferences", "PUT", { default_voice: voice });
       setDefaultVoice(data.preferences?.default_voice || voice);
+      setPlaybackRate(Number(data.preferences?.playback_rate || playbackRate));
+      setPlaybackRates(data.preferences?.available_playback_rates || PLAYBACK_RATES);
       await refreshArticles(search);
+    }
+    async function handleSavePlaybackRate(rate) {
+      const data = await apiJson("/api/preferences", "PUT", { playback_rate: rate });
+      setPlaybackRate(Number(data.preferences?.playback_rate || rate));
+      setPlaybackRates(data.preferences?.available_playback_rates || PLAYBACK_RATES);
     }
     function handleToggleSelect(articleId) {
       setSelectedIds(
@@ -24981,29 +25128,40 @@
       audio.currentTime = percent * duration;
       setCurrentTime(audio.currentTime);
     }
+    async function handleCopyFeed() {
+      const feedUrl = new URL("/feed.xml", window.location.href).toString();
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(feedUrl);
+      } else {
+        window.prompt("Copy feed URL", feedUrl);
+      }
+      setFeedCopied(true);
+      window.setTimeout(() => setFeedCopied(false), 1500);
+    }
     return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.root, children: [
       /* @__PURE__ */ (0, import_jsx_runtime.jsx)("style", { children: globalStyles }),
       /* @__PURE__ */ (0, import_jsx_runtime.jsx)("audio", { ref: audioRef, preload: "metadata" }),
       /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("header", { style: styles.header, children: [
         /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.headerLeft, children: [
           /* @__PURE__ */ (0, import_jsx_runtime.jsx)("h1", { style: styles.logo, children: "readcast" }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.daemonBadge, children: [
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { ...styles.statusDot, background: daemonConnected ? "#5cb85c" : "#d9534f" } }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.daemonBadge, "aria-label": `kokoro-edge status: ${daemonState}`, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { ...styles.statusDot, background: daemonState === "ready" ? "#5cb85c" : daemonConnected ? "#d4af37" : "#d9534f" } }),
             /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: styles.daemonLabel, children: "kokoro-edge" })
           ] })
         ] }),
         /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.headerActions, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: handleCopyFeed, style: styles.headerBtn, "aria-label": "Copy podcast feed URL", children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: feedCopied ? "Feed Copied" : "Copy Feed" }) }),
           /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", { onClick: handleSelectionModeToggle, style: selectionMode ? styles.headerBtnActive : styles.headerBtn, children: [
             /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CheckIcon, { size: 15 }),
             /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: selectionMode ? "Done" : "Select" })
           ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", { onClick: () => setShowAdd(true), style: styles.addBtn, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", { onClick: () => setShowAdd(true), style: styles.addBtn, "aria-label": "Add article", children: [
             /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PlusIcon, { size: 16 }),
             /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "Add Article" })
           ] })
         ] })
       ] }),
-      daemonError ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.banner, children: daemonError }) : null,
+      daemonError || daemonState !== "ready" ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { ...styles.banner, ...daemonError ? styles.bannerError : styles.bannerInfo }, children: daemonError || daemonMessage }) : null,
       deleteError ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { ...styles.banner, ...styles.bannerError }, children: deleteError }) : null,
       selectionMode ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.bulkBar, children: [
         /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.bulkText, children: selectedCount ? `${selectedCount} selected` : "Select articles to delete" }),
@@ -25025,14 +25183,16 @@
         /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
           "input",
           {
+            ref: searchRef,
             type: "text",
             value: search,
             onChange: (event) => setSearch(event.target.value),
             placeholder: "Search articles...",
-            style: styles.searchInput
+            style: styles.searchInput,
+            "aria-label": "Search articles"
           }
         ),
-        search ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: () => setSearch(""), style: styles.searchClear, children: "\u2715" }) : null
+        search ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: () => setSearch(""), style: styles.searchClear, "aria-label": "Clear search", children: "\u2715" }) : null
       ] }),
       /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.library, children: !articles.length ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.empty, children: search ? "No articles match your search." : "No articles yet. Add one to get started." }) : articles.map((article) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
         ArticleCard,
@@ -25053,8 +25213,11 @@
           isPlaying,
           currentTime,
           duration,
+          playbackRate,
+          playbackRates,
           onToggle: handleToggle,
-          onSeek: handleSeek
+          onSeek: handleSeek,
+          onPlaybackRateChange: handleSavePlaybackRate
         }
       ),
       showAdd ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
@@ -25063,6 +25226,7 @@
           voices,
           defaultVoice,
           onAdd: handleAdd,
+          onPreview: handlePreview,
           onSaveDefaultVoice: handleSaveDefaultVoice,
           onClose: () => {
             setAddError("");
@@ -25203,6 +25367,11 @@ textarea::placeholder, input::placeholder { color: rgba(255,255,255,0.25); }
       border: `1px solid rgba(217, 83, 79, 0.4)`,
       background: "rgba(217, 83, 79, 0.12)",
       color: "#f0b8b6"
+    },
+    bannerInfo: {
+      border: `1px solid rgba(92, 184, 92, 0.25)`,
+      background: "rgba(92, 184, 92, 0.08)",
+      color: "#cfe8cf"
     },
     bulkBar: {
       display: "flex",
@@ -25411,6 +25580,25 @@ textarea::placeholder, input::placeholder { color: rgba(255,255,255,0.25); }
       flexShrink: 0,
       letterSpacing: "0.02em"
     },
+    speedControl: {
+      display: "flex",
+      alignItems: "center",
+      gap: 8,
+      flexShrink: 0
+    },
+    speedLabel: {
+      fontSize: 12,
+      color: c.textMuted
+    },
+    speedSelect: {
+      borderRadius: 8,
+      border: `1px solid ${c.border}`,
+      background: "rgba(255,255,255,0.04)",
+      color: c.text,
+      fontSize: 12,
+      padding: "6px 8px",
+      fontFamily: c.sans
+    },
     addPanel: {
       position: "fixed",
       inset: 0,
@@ -25514,6 +25702,44 @@ textarea::placeholder, input::placeholder { color: rgba(255,255,255,0.25); }
       borderColor: c.accent,
       color: c.accent
     },
+    previewCard: {
+      marginTop: 18,
+      padding: "14px 16px",
+      borderRadius: 12,
+      border: `1px solid ${c.border}`,
+      background: "rgba(255,255,255,0.03)"
+    },
+    previewMetaRow: {
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "flex-start",
+      gap: 12
+    },
+    previewTitle: {
+      fontFamily: c.serif,
+      fontSize: 18,
+      fontWeight: 700,
+      lineHeight: 1.3
+    },
+    previewMeta: {
+      marginTop: 6,
+      fontSize: 12,
+      color: c.textMuted,
+      display: "flex",
+      flexWrap: "wrap",
+      alignItems: "center"
+    },
+    previewBody: {
+      marginTop: 14,
+      display: "flex",
+      flexDirection: "column",
+      gap: 10
+    },
+    previewParagraph: {
+      fontSize: 13,
+      color: "rgba(255,255,255,0.82)",
+      lineHeight: 1.55
+    },
     errorText: {
       marginTop: 14,
       color: "#f0b8b6",
@@ -25580,6 +25806,27 @@ textarea::placeholder, input::placeholder { color: rgba(255,255,255,0.25); }
       fontFamily: c.sans,
       cursor: "pointer",
       marginTop: 24,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 8
+    },
+    submitActions: {
+      display: "flex",
+      gap: 10,
+      marginTop: 24
+    },
+    submitBtnCompact: {
+      flex: 1,
+      padding: "12px 0",
+      borderRadius: 8,
+      border: "none",
+      background: c.accent,
+      color: "#141416",
+      fontSize: 14,
+      fontWeight: 600,
+      fontFamily: c.sans,
+      cursor: "pointer",
       display: "flex",
       alignItems: "center",
       justifyContent: "center",

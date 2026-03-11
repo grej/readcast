@@ -1,8 +1,12 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime
+from email.utils import format_datetime
 from pathlib import Path
 from typing import Any, Optional
+from urllib.parse import urljoin
+from xml.sax.saxutils import escape
 
 from fastapi import FastAPI, HTTPException, Query, Request, Response
 from fastapi.responses import FileResponse
@@ -11,8 +15,13 @@ from pydantic import BaseModel, Field
 
 from readcast.core.config import Config
 from readcast.core.models import Article
-from readcast.core.synthesizer import ServerError, SynthesisError, ensure_server_running
-from readcast.services import ProcessingWorker, ReadcastService
+from readcast.core.synthesizer import (
+    ServerError,
+    SynthesisError,
+    ensure_server_running,
+    resolve_kokoro_edge_binary,
+)
+from readcast.services import PreviewResult, ProcessingWorker, ReadcastService
 
 
 STATIC_DIR = Path(__file__).resolve().parents[1] / "web" / "static"
@@ -25,13 +34,18 @@ class AddArticleRequest(BaseModel):
     process: bool = True
 
 
+class PreviewRequest(BaseModel):
+    input: str = Field(min_length=1)
+
+
 class ReprocessRequest(BaseModel):
     voice: Optional[str] = None
     speed: Optional[float] = None
 
 
 class PreferencesRequest(BaseModel):
-    default_voice: str = Field(min_length=1)
+    default_voice: Optional[str] = Field(default=None, min_length=1)
+    playback_rate: Optional[float] = None
 
 
 def create_app(base_dir: Optional[Path] = None) -> FastAPI:
@@ -53,6 +67,17 @@ def create_app(base_dir: Optional[Path] = None) -> FastAPI:
     @app.get("/")
     async def index() -> FileResponse:
         return FileResponse(STATIC_DIR / "index.html")
+
+    @app.post("/api/preview")
+    async def preview_article(request: Request, payload: PreviewRequest) -> dict[str, object]:
+        service = _service(request)
+        try:
+            preview = service.preview_input(payload.input)
+        except (ValueError, SynthesisError) as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        except Exception as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return {"preview": _serialize_preview(preview)}
 
     @app.get("/api/articles")
     async def list_articles(
@@ -78,6 +103,8 @@ def create_app(base_dir: Optional[Path] = None) -> FastAPI:
         return {
             "preferences": {
                 "default_voice": service.default_voice(),
+                "playback_rate": service.playback_rate(),
+                "available_playback_rates": list(service.PLAYBACK_RATES),
             }
         }
 
@@ -131,22 +158,10 @@ def create_app(base_dir: Optional[Path] = None) -> FastAPI:
     async def api_status(request: Request) -> dict[str, object]:
         service = _service(request)
         worker = _worker(request)
-        try:
-            kokoro = service.daemon_status()
-            connected = True
-            error = None
-        except ServerError as exc:
-            kokoro = None
-            connected = False
-            error = str(exc)
 
         return {
             "readcast": {"ok": True},
-            "kokoro_edge": {
-                "connected": connected,
-                "status": kokoro,
-                "error": error,
-            },
+            "kokoro_edge": _kokoro_status_payload(service),
             "worker": {
                 "running": worker.is_running(),
                 "queued": service.queued_count(),
@@ -167,11 +182,28 @@ def create_app(base_dir: Optional[Path] = None) -> FastAPI:
     async def update_preferences(request: Request, payload: PreferencesRequest) -> dict[str, object]:
         service = _service(request)
         try:
-            ensure_server_running(service.config)
-            default_voice = service.set_default_voice(payload.default_voice)
+            if payload.default_voice is None and payload.playback_rate is None:
+                raise ValueError("Provide at least one preference value.")
+            if payload.default_voice is not None:
+                ensure_server_running(service.config)
+                service.set_default_voice(payload.default_voice)
+            if payload.playback_rate is not None:
+                service.set_playback_rate(payload.playback_rate)
         except (ServerError, SynthesisError, ValueError) as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
-        return {"preferences": {"default_voice": default_voice}}
+        return {
+            "preferences": {
+                "default_voice": service.default_voice(),
+                "playback_rate": service.playback_rate(),
+                "available_playback_rates": list(service.PLAYBACK_RATES),
+            }
+        }
+
+    @app.get("/feed.xml")
+    async def feed(request: Request) -> Response:
+        service = _service(request)
+        xml = _build_feed_xml(request, service)
+        return Response(content=xml, media_type="application/rss+xml")
 
     return app
 
@@ -193,6 +225,16 @@ def _serialize_article(service: ReadcastService, article: Article) -> dict[str, 
     return payload
 
 
+def _serialize_preview(preview: PreviewResult) -> dict[str, Any]:
+    return {
+        "article": preview.article.to_dict(),
+        "source": _article_source(preview.article),
+        "full_text": preview.full_text,
+        "text_excerpt": preview.full_text[:2000],
+        "chunks": [chunk.to_dict() for chunk in preview.chunks[:12]],
+    }
+
+
 def _article_source(article: Article) -> str:
     if article.publication:
         return article.publication
@@ -201,3 +243,104 @@ def _article_source(article: Article) -> str:
     if article.source_file:
         return Path(article.source_file).name
     return "Pasted Text"
+
+
+def _kokoro_status_payload(service: ReadcastService) -> dict[str, object]:
+    try:
+        status = service.daemon_status()
+    except ServerError as exc:
+        installed = _kokoro_binary_available(service.config)
+        state = "missing" if not installed else "offline"
+        message = (
+            "kokoro-edge is not installed. Run `pixi run setup` or set READCAST_KOKORO_EDGE_BIN."
+            if not installed
+            else str(exc)
+        )
+        return {
+            "installed": installed,
+            "connected": False,
+            "ready": False,
+            "state": state,
+            "models_loaded": [],
+            "status": None,
+            "error": message,
+            "message": message,
+        }
+
+    models_loaded = status.get("models_loaded")
+    model_names = models_loaded if isinstance(models_loaded, list) else []
+    ready = bool(model_names) or models_loaded is None
+    message = (
+        "kokoro-edge is running but no model is loaded yet."
+        if not ready
+        else f"kokoro-edge is ready ({status.get('model', service.config.tts.model)})."
+    )
+    return {
+        "installed": True,
+        "connected": True,
+        "ready": ready,
+        "state": "ready" if ready else "warming",
+        "models_loaded": model_names,
+        "status": status,
+        "error": None,
+        "message": message,
+    }
+
+
+def _kokoro_binary_available(config: Config) -> bool:
+    try:
+        resolve_kokoro_edge_binary(config)
+        return True
+    except ServerError:
+        return False
+
+
+def _build_feed_xml(request: Request, service: ReadcastService) -> str:
+    articles = [article for article in service.list_articles(limit=5000) if service.audio_path_for_article(article.id)]
+    base_url = str(request.base_url)
+    site_url = base_url.rstrip("/") + "/"
+    channel_items = [
+        "<rss version=\"2.0\">",
+        "<channel>",
+        "<title>readcast</title>",
+        "<description>Articles converted into offline audio on this Mac.</description>",
+        f"<link>{escape(site_url)}</link>",
+        "<language>en-us</language>",
+    ]
+    for article in articles:
+        audio_path = service.audio_path_for_article(article.id)
+        if audio_path is None:
+            continue
+        audio_url = str(request.url_for("article_audio", article_id=article.id))
+        source_link = article.source_url or audio_url
+        description = article.author or article.publication or _article_source(article)
+        pub_date = _feed_date(article)
+        mime_type = "audio/mp4" if audio_path.suffix.lower() == ".m4a" else "audio/mpeg"
+        channel_items.extend(
+            [
+                "<item>",
+                f"<guid isPermaLink=\"false\">{escape(article.id)}</guid>",
+                f"<title>{escape(article.title)}</title>",
+                f"<link>{escape(source_link)}</link>",
+                f"<description>{escape(description)}</description>",
+                f"<pubDate>{escape(pub_date)}</pubDate>",
+                (
+                    f"<enclosure url=\"{escape(urljoin(site_url, audio_url.lstrip('/')))}\" "
+                    f"length=\"{audio_path.stat().st_size}\" type=\"{mime_type}\" />"
+                ),
+                "</item>",
+            ]
+        )
+    channel_items.extend(["</channel>", "</rss>"])
+    return "\n".join(channel_items)
+
+
+def _feed_date(article: Article) -> str:
+    raw = article.published_date or article.ingested_at
+    try:
+        parsed = datetime.fromisoformat(raw)
+    except ValueError:
+        parsed = datetime.now(UTC)
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=UTC)
+    return format_datetime(parsed)

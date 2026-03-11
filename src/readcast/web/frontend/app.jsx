@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 
+const PLAYBACK_RATES = [1.0, 1.25, 1.5, 1.75, 2.0];
+
 function formatDuration(seconds) {
   if (!seconds && seconds !== 0) return "--:--";
   const whole = Math.max(0, Math.floor(seconds));
@@ -29,6 +31,12 @@ function voiceLabel(name) {
 
 function sourceLabel(article) {
   return article.source || article.publication || article.source_url || article.source_file || "Pasted Text";
+}
+
+function isTypingTarget(target) {
+  if (!(target instanceof HTMLElement)) return false;
+  const tag = target.tagName;
+  return target.isContentEditable || tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
 }
 
 async function apiGet(path) {
@@ -163,8 +171,10 @@ function DeleteConfirmPanel({ count, deleting, onConfirm, onClose }) {
   );
 }
 
-function AddPanel({ voices, defaultVoice, onAdd, onClose, onSaveDefaultVoice, error }) {
+function AddPanel({ voices, defaultVoice, onAdd, onPreview, onClose, onSaveDefaultVoice, error }) {
   const [inputValue, setInputValue] = useState("");
+  const [preview, setPreview] = useState(null);
+  const [previewing, setPreviewing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [savingDefault, setSavingDefault] = useState(false);
   const [showVoicePicker, setShowVoicePicker] = useState(false);
@@ -174,8 +184,19 @@ function AddPanel({ voices, defaultVoice, onAdd, onClose, onSaveDefaultVoice, er
     inputRef.current?.focus();
   }, []);
 
-  const handleSubmit = async () => {
+  const handlePreview = async () => {
     if (!inputValue.trim()) return;
+    setPreviewing(true);
+    try {
+      const result = await onPreview({ input: inputValue.trim() });
+      setPreview(result);
+    } finally {
+      setPreviewing(false);
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!inputValue.trim() || !preview) return;
     setSubmitting(true);
     try {
       await onAdd({ input: inputValue.trim() });
@@ -202,27 +223,35 @@ function AddPanel({ voices, defaultVoice, onAdd, onClose, onSaveDefaultVoice, er
     if (event.key === "Escape") onClose();
     if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
       event.preventDefault();
-      handleSubmit();
+      if (preview) {
+        handleSubmit();
+      } else {
+        handlePreview();
+      }
     }
   };
 
   return (
-    <div style={styles.addPanel}>
-      <div style={styles.addPanelInner}>
+    <div style={styles.addPanel} role="presentation">
+      <div style={styles.addPanelInner} role="dialog" aria-modal="true" aria-labelledby="add-article-title">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-          <h2 style={styles.addTitle}>New Article</h2>
-          <button onClick={onClose} style={styles.closeBtn}>✕</button>
+          <h2 id="add-article-title" style={styles.addTitle}>New Article</h2>
+          <button onClick={onClose} style={styles.closeBtn} aria-label="Close add article dialog">✕</button>
         </div>
 
         <label style={styles.fieldLabel}>URL or text</label>
         <textarea
           ref={inputRef}
           value={inputValue}
-          onChange={(event) => setInputValue(event.target.value)}
+          onChange={(event) => {
+            setInputValue(event.target.value);
+            setPreview(null);
+          }}
           onKeyDown={handleKeyDown}
           placeholder="https://example.com/article or paste plain text..."
           rows={5}
           style={styles.urlInput}
+          aria-label="Article URL or pasted text"
         />
 
         <label style={styles.fieldLabel}>Default voice</label>
@@ -235,6 +264,7 @@ function AddPanel({ voices, defaultVoice, onAdd, onClose, onSaveDefaultVoice, er
             onClick={() => setShowVoicePicker((current) => !current)}
             style={showVoicePicker ? styles.secondaryBtnActive : styles.secondaryBtn}
             disabled={savingDefault}
+            aria-label="Change default voice"
           >
             {showVoicePicker ? "Hide voices" : "Change default"}
           </button>
@@ -252,6 +282,7 @@ function AddPanel({ voices, defaultVoice, onAdd, onClose, onSaveDefaultVoice, er
                   opacity: savingDefault ? 0.6 : 1,
                 }}
                 disabled={savingDefault}
+                aria-label={`Set default voice to ${voiceLabel(voiceOption.name)}`}
               >
                 {voiceLabel(voiceOption.name)}
               </button>
@@ -259,15 +290,48 @@ function AddPanel({ voices, defaultVoice, onAdd, onClose, onSaveDefaultVoice, er
           </div>
         ) : null}
 
+        {preview ? (
+          <div style={styles.previewCard}>
+            <div style={styles.previewMetaRow}>
+              <div>
+                <div style={styles.previewTitle}>{preview.article.title}</div>
+                <div style={styles.previewMeta}>
+                  {preview.source}
+                  <span style={styles.metaDot}>·</span>
+                  {preview.article.estimated_read_min}m read
+                  <span style={styles.metaDot}>·</span>
+                  {preview.article.word_count} words
+                </div>
+              </div>
+            </div>
+            <div style={styles.previewBody}>
+              {preview.chunks.slice(0, 5).map((chunk) => (
+                <p key={`${chunk.idx}-${chunk.chunk_type}`} style={styles.previewParagraph}>{chunk.text}</p>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
         {error ? <div style={styles.errorText}>{error}</div> : null}
 
-        <button
-          onClick={handleSubmit}
-          disabled={!inputValue.trim() || submitting}
-          style={{ ...styles.submitBtn, opacity: !inputValue.trim() || submitting ? 0.5 : 1 }}
-        >
-          {submitting ? <SpinnerIcon /> : "Add & Process"}
-        </button>
+        <div style={styles.submitActions}>
+          <button
+            onClick={handlePreview}
+            disabled={!inputValue.trim() || previewing}
+            style={{ ...styles.secondaryBtn, opacity: !inputValue.trim() || previewing ? 0.5 : 1 }}
+            aria-label="Preview extracted article text"
+          >
+            {previewing ? <SpinnerIcon /> : preview ? "Refresh Preview" : "Preview"}
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={!inputValue.trim() || !preview || submitting}
+            style={{ ...styles.submitBtnCompact, opacity: !inputValue.trim() || !preview || submitting ? 0.5 : 1 }}
+            aria-label="Add article and start processing"
+          >
+            {submitting ? <SpinnerIcon /> : "Add & Process"}
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -292,6 +356,19 @@ function ArticleCard({ article, isActive, selectionMode, selected, onPlay, onTog
         ...(isActive ? styles.cardActive : {}),
         ...(isFailed ? styles.cardFailed : {}),
         ...(selected ? styles.cardSelected : {}),
+      }}
+      role="button"
+      tabIndex={0}
+      aria-label={`${article.title}, ${statusText}`}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          if (selectionMode) {
+            onToggleSelect(article.id);
+          } else if (canPlay) {
+            onPlay(article);
+          }
+        }
       }}
       onClick={() => {
         if (selectionMode) {
@@ -340,7 +417,7 @@ function ArticleCard({ article, isActive, selectionMode, selected, onPlay, onTog
   );
 }
 
-function PlayerBar({ article, isPlaying, currentTime, duration, onToggle, onSeek }) {
+function PlayerBar({ article, isPlaying, currentTime, duration, playbackRate, playbackRates, onToggle, onSeek, onPlaybackRateChange }) {
   if (!article) return null;
   const percent = duration > 0 ? (currentTime / duration) * 100 : 0;
 
@@ -350,13 +427,28 @@ function PlayerBar({ article, isPlaying, currentTime, duration, onToggle, onSeek
         <div style={{ ...styles.playerProgressFill, width: `${percent}%` }} />
       </div>
       <div style={styles.playerInner}>
-        <button onClick={onToggle} style={styles.playerPlayBtn}>
+        <button onClick={onToggle} style={styles.playerPlayBtn} aria-label={isPlaying ? "Pause audio" : "Play audio"}>
           {isPlaying ? <PauseIcon size={20} /> : <PlayIcon size={20} />}
         </button>
         <div style={styles.playerInfo}>
           <div style={styles.playerTitle}>{article.title}</div>
           <div style={styles.playerSource}>{sourceLabel(article)}</div>
         </div>
+        <label style={styles.speedControl}>
+          <span style={styles.speedLabel}>Speed</span>
+          <select
+            value={String(playbackRate)}
+            onChange={(event) => onPlaybackRateChange(Number(event.target.value))}
+            style={styles.speedSelect}
+            aria-label="Playback speed"
+          >
+            {(playbackRates.length ? playbackRates : PLAYBACK_RATES).map((rate) => (
+              <option key={rate} value={String(rate)}>
+                {rate}x
+              </option>
+            ))}
+          </select>
+        </label>
         <div style={styles.playerTime}>
           {formatDuration(currentTime)} / {formatDuration(duration || article.audio_duration_sec)}
         </div>
@@ -369,6 +461,8 @@ function ReadcastApp() {
   const [articles, setArticles] = useState([]);
   const [voices, setVoices] = useState([]);
   const [defaultVoice, setDefaultVoice] = useState("af_sky");
+  const [playbackRate, setPlaybackRate] = useState(1.0);
+  const [playbackRates, setPlaybackRates] = useState(PLAYBACK_RATES);
   const [search, setSearch] = useState("");
   const [showAdd, setShowAdd] = useState(false);
   const [activeId, setActiveId] = useState(null);
@@ -383,7 +477,11 @@ function ReadcastApp() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteError, setDeleteError] = useState("");
   const [deleting, setDeleting] = useState(false);
+  const [feedCopied, setFeedCopied] = useState(false);
+  const [daemonMessage, setDaemonMessage] = useState("");
+  const [daemonState, setDaemonState] = useState("offline");
   const audioRef = useRef(null);
+  const searchRef = useRef(null);
 
   const activeArticle = useMemo(() => articles.find((article) => article.id === activeId) || null, [articles, activeId]);
   const hasActiveWork = articles.some((article) => article.status === "queued" || article.status === "synthesizing");
@@ -408,6 +506,8 @@ function ReadcastApp() {
     try {
       const data = await apiGet("/api/preferences");
       setDefaultVoice(data.preferences?.default_voice || "af_sky");
+      setPlaybackRate(Number(data.preferences?.playback_rate || 1.0));
+      setPlaybackRates(data.preferences?.available_playback_rates || PLAYBACK_RATES);
     } catch (error) {
       setDaemonError(error.message);
     }
@@ -417,9 +517,13 @@ function ReadcastApp() {
     try {
       const data = await apiGet("/api/status");
       setDaemonConnected(Boolean(data.kokoro_edge?.connected));
+      setDaemonState(data.kokoro_edge?.state || "offline");
+      setDaemonMessage(data.kokoro_edge?.message || "");
       setDaemonError(data.kokoro_edge?.error || "");
     } catch (error) {
       setDaemonConnected(false);
+      setDaemonState("offline");
+      setDaemonMessage("");
       setDaemonError(error.message);
     }
   }
@@ -478,6 +582,41 @@ function ReadcastApp() {
     };
   }, []);
 
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    audio.playbackRate = playbackRate;
+  }, [playbackRate]);
+
+  useEffect(() => {
+    const onKeyDown = (event) => {
+      if (showAdd && event.key === "Escape") {
+        setAddError("");
+        setShowAdd(false);
+        return;
+      }
+      if (isTypingTarget(event.target)) {
+        return;
+      }
+      if (event.key === "/") {
+        event.preventDefault();
+        searchRef.current?.focus();
+        return;
+      }
+      if (event.key.toLowerCase() === "n") {
+        event.preventDefault();
+        setShowAdd(true);
+        return;
+      }
+      if (event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        handleToggle();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [showAdd, activeArticle, playbackRate]);
+
   async function handleAdd(payload) {
     setAddError("");
     try {
@@ -491,11 +630,30 @@ function ReadcastApp() {
     }
   }
 
+  async function handlePreview(payload) {
+    setAddError("");
+    try {
+      const data = await apiJson("/api/preview", "POST", payload);
+      return data.preview;
+    } catch (error) {
+      setAddError(error.message);
+      throw error;
+    }
+  }
+
   async function handleSaveDefaultVoice(voice) {
     setAddError("");
     const data = await apiJson("/api/preferences", "PUT", { default_voice: voice });
     setDefaultVoice(data.preferences?.default_voice || voice);
+    setPlaybackRate(Number(data.preferences?.playback_rate || playbackRate));
+    setPlaybackRates(data.preferences?.available_playback_rates || PLAYBACK_RATES);
     await refreshArticles(search);
+  }
+
+  async function handleSavePlaybackRate(rate) {
+    const data = await apiJson("/api/preferences", "PUT", { playback_rate: rate });
+    setPlaybackRate(Number(data.preferences?.playback_rate || rate));
+    setPlaybackRates(data.preferences?.available_playback_rates || PLAYBACK_RATES);
   }
 
   function handleToggleSelect(articleId) {
@@ -588,6 +746,17 @@ function ReadcastApp() {
     setCurrentTime(audio.currentTime);
   }
 
+  async function handleCopyFeed() {
+    const feedUrl = new URL("/feed.xml", window.location.href).toString();
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(feedUrl);
+    } else {
+      window.prompt("Copy feed URL", feedUrl);
+    }
+    setFeedCopied(true);
+    window.setTimeout(() => setFeedCopied(false), 1500);
+  }
+
   return (
     <div style={styles.root}>
       <style>{globalStyles}</style>
@@ -596,24 +765,31 @@ function ReadcastApp() {
       <header style={styles.header}>
         <div style={styles.headerLeft}>
           <h1 style={styles.logo}>readcast</h1>
-          <div style={styles.daemonBadge}>
-            <div style={{ ...styles.statusDot, background: daemonConnected ? "#5cb85c" : "#d9534f" }} />
+          <div style={styles.daemonBadge} aria-label={`kokoro-edge status: ${daemonState}`}>
+            <div style={{ ...styles.statusDot, background: daemonState === "ready" ? "#5cb85c" : daemonConnected ? "#d4af37" : "#d9534f" }} />
             <span style={styles.daemonLabel}>kokoro-edge</span>
           </div>
         </div>
         <div style={styles.headerActions}>
+          <button onClick={handleCopyFeed} style={styles.headerBtn} aria-label="Copy podcast feed URL">
+            <span>{feedCopied ? "Feed Copied" : "Copy Feed"}</span>
+          </button>
           <button onClick={handleSelectionModeToggle} style={selectionMode ? styles.headerBtnActive : styles.headerBtn}>
             <CheckIcon size={15} />
             <span>{selectionMode ? "Done" : "Select"}</span>
           </button>
-          <button onClick={() => setShowAdd(true)} style={styles.addBtn}>
+          <button onClick={() => setShowAdd(true)} style={styles.addBtn} aria-label="Add article">
             <PlusIcon size={16} />
             <span>Add Article</span>
           </button>
         </div>
       </header>
 
-      {daemonError ? <div style={styles.banner}>{daemonError}</div> : null}
+      {daemonError || daemonState !== "ready" ? (
+        <div style={{ ...styles.banner, ...(daemonError ? styles.bannerError : styles.bannerInfo) }}>
+          {daemonError || daemonMessage}
+        </div>
+      ) : null}
       {deleteError ? <div style={{ ...styles.banner, ...styles.bannerError }}>{deleteError}</div> : null}
 
       {selectionMode ? (
@@ -635,13 +811,15 @@ function ReadcastApp() {
       <div style={styles.searchWrap}>
         <SearchIcon />
         <input
+          ref={searchRef}
           type="text"
           value={search}
           onChange={(event) => setSearch(event.target.value)}
           placeholder="Search articles..."
           style={styles.searchInput}
+          aria-label="Search articles"
         />
-        {search ? <button onClick={() => setSearch("")} style={styles.searchClear}>✕</button> : null}
+        {search ? <button onClick={() => setSearch("")} style={styles.searchClear} aria-label="Clear search">✕</button> : null}
       </div>
 
       <div style={styles.library}>
@@ -669,8 +847,11 @@ function ReadcastApp() {
         isPlaying={isPlaying}
         currentTime={currentTime}
         duration={duration}
+        playbackRate={playbackRate}
+        playbackRates={playbackRates}
         onToggle={handleToggle}
         onSeek={handleSeek}
+        onPlaybackRateChange={handleSavePlaybackRate}
       />
 
       {showAdd ? (
@@ -678,6 +859,7 @@ function ReadcastApp() {
           voices={voices}
           defaultVoice={defaultVoice}
           onAdd={handleAdd}
+          onPreview={handlePreview}
           onSaveDefaultVoice={handleSaveDefaultVoice}
           onClose={() => {
             setAddError("");
@@ -822,6 +1004,11 @@ const styles = {
     border: `1px solid rgba(217, 83, 79, 0.4)`,
     background: "rgba(217, 83, 79, 0.12)",
     color: "#f0b8b6",
+  },
+  bannerInfo: {
+    border: `1px solid rgba(92, 184, 92, 0.25)`,
+    background: "rgba(92, 184, 92, 0.08)",
+    color: "#cfe8cf",
   },
   bulkBar: {
     display: "flex",
@@ -1030,6 +1217,25 @@ const styles = {
     flexShrink: 0,
     letterSpacing: "0.02em",
   },
+  speedControl: {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    flexShrink: 0,
+  },
+  speedLabel: {
+    fontSize: 12,
+    color: c.textMuted,
+  },
+  speedSelect: {
+    borderRadius: 8,
+    border: `1px solid ${c.border}`,
+    background: "rgba(255,255,255,0.04)",
+    color: c.text,
+    fontSize: 12,
+    padding: "6px 8px",
+    fontFamily: c.sans,
+  },
   addPanel: {
     position: "fixed",
     inset: 0,
@@ -1133,6 +1339,44 @@ const styles = {
     borderColor: c.accent,
     color: c.accent,
   },
+  previewCard: {
+    marginTop: 18,
+    padding: "14px 16px",
+    borderRadius: 12,
+    border: `1px solid ${c.border}`,
+    background: "rgba(255,255,255,0.03)",
+  },
+  previewMetaRow: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: 12,
+  },
+  previewTitle: {
+    fontFamily: c.serif,
+    fontSize: 18,
+    fontWeight: 700,
+    lineHeight: 1.3,
+  },
+  previewMeta: {
+    marginTop: 6,
+    fontSize: 12,
+    color: c.textMuted,
+    display: "flex",
+    flexWrap: "wrap",
+    alignItems: "center",
+  },
+  previewBody: {
+    marginTop: 14,
+    display: "flex",
+    flexDirection: "column",
+    gap: 10,
+  },
+  previewParagraph: {
+    fontSize: 13,
+    color: "rgba(255,255,255,0.82)",
+    lineHeight: 1.55,
+  },
   errorText: {
     marginTop: 14,
     color: "#f0b8b6",
@@ -1199,6 +1443,27 @@ const styles = {
     fontFamily: c.sans,
     cursor: "pointer",
     marginTop: 24,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  submitActions: {
+    display: "flex",
+    gap: 10,
+    marginTop: 24,
+  },
+  submitBtnCompact: {
+    flex: 1,
+    padding: "12px 0",
+    borderRadius: 8,
+    border: "none",
+    background: c.accent,
+    color: "#141416",
+    fontSize: 14,
+    fontWeight: 600,
+    fontFamily: c.sans,
+    cursor: "pointer",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",

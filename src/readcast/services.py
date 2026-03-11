@@ -32,6 +32,13 @@ class AddArticleResult:
 
 
 @dataclass(slots=True)
+class PreviewResult:
+    article: Article
+    chunks: list[Chunk]
+    full_text: str
+
+
+@dataclass(slots=True)
 class ProcessArticleResult:
     article: Article
     success: bool
@@ -42,6 +49,8 @@ class ProcessArticleResult:
 
 class ReadcastService:
     DEFAULT_VOICE_SETTING_KEY = "default_voice"
+    PLAYBACK_RATE_SETTING_KEY = "playback_rate"
+    PLAYBACK_RATES = (1.0, 1.25, 1.5, 1.75, 2.0)
 
     def __init__(self, config: Config, store: Optional[Store] = None):
         self.config = config
@@ -62,12 +71,42 @@ class ReadcastService:
     def default_voice(self) -> str:
         return self.store.get_setting(self.DEFAULT_VOICE_SETTING_KEY) or self.config.tts.voice
 
+    def playback_rate(self) -> float:
+        raw = self.store.get_setting(self.PLAYBACK_RATE_SETTING_KEY)
+        try:
+            value = float(raw) if raw is not None else 1.0
+        except (TypeError, ValueError):
+            value = 1.0
+        return value if value in self.PLAYBACK_RATES else 1.0
+
     def set_default_voice(self, voice: str) -> str:
         available = {item["name"] for item in self.available_voices() if isinstance(item.get("name"), str)}
         if available and voice not in available:
             raise ValueError(f"Voice '{voice}' is not available.")
         self.store.set_setting(self.DEFAULT_VOICE_SETTING_KEY, voice)
         return voice
+
+    def set_playback_rate(self, rate: float) -> float:
+        try:
+            value = float(rate)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("Playback rate must be numeric.") from exc
+        if value not in self.PLAYBACK_RATES:
+            supported = ", ".join(f"{item:.2g}x" for item in self.PLAYBACK_RATES)
+            raise ValueError(f"Playback rate must be one of: {supported}.")
+        self.store.set_setting(self.PLAYBACK_RATE_SETTING_KEY, str(value))
+        return value
+
+    def preview_input(self, input_value: str) -> PreviewResult:
+        stripped = input_value.strip()
+        if not stripped:
+            raise ExtractionError("Input text is empty.")
+        if stripped.startswith(("http://", "https://")):
+            article, chunks = extract(stripped, self.config)
+        else:
+            article, chunks = self._build_text_article(stripped)
+        full_text = "\n\n".join(chunk.text for chunk in chunks)
+        return PreviewResult(article=article, chunks=chunks, full_text=full_text)
 
     def retry_article(self, article_id: str) -> Article:
         article = self._require_article(article_id)
