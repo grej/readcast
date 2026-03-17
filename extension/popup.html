@@ -22,7 +22,10 @@
       font-size: 15px;
       font-weight: 700;
       letter-spacing: -0.3px;
+      color: #e0e0e0;
+      text-decoration: none;
     }
+    .logo:hover { color: #6c63ff; }
     .status {
       display: flex;
       align-items: center;
@@ -154,7 +157,7 @@
 </head>
 <body>
   <div class="header">
-    <div class="logo">readcast</div>
+    <a href="#" id="logoLink" class="logo">readcast</a>
     <div class="status">
       <div class="status-dot checking" id="statusDot"></div>
       <span id="statusText">Checking...</span>

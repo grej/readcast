@@ -17,21 +17,25 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   const server = await getServer();
 
   if (info.menuItemId === "readcast-add-selection" && info.selectionText) {
-    await addToReadcast(server, {
-      input: info.selectionText,
-    });
+    await addToReadcast(server, { input: info.selectionText });
     return;
   }
 
   if (info.menuItemId === "readcast-add-page" && tab?.id) {
     try {
-      const [result] = await chrome.scripting.executeScript({
-        target: { tabId: tab.id },
-        func: () => document.documentElement.outerHTML,
-      });
+      // Try smart extraction via content script
+      const extracted = await chrome.tabs.sendMessage(tab.id, { type: "extractArticle" });
+
+      if (extracted?.formattedText) {
+        await addToReadcast(server, { input: extracted.formattedText });
+        return;
+      }
+
+      // Fall back to URL + HTML
+      const htmlResponse = await chrome.tabs.sendMessage(tab.id, { type: "getPageHTML" });
       await addToReadcast(server, {
         input: tab.url,
-        html: result.result,
+        html: htmlResponse?.html || null,
       });
     } catch {
       await addToReadcast(server, { input: tab.url });

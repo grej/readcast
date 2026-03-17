@@ -1,9 +1,18 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16">
-  <rect width="16" height="16" rx="3" fill="#1a1a2e"/>
-  <g fill="#e0e0e0">
-    <rect x="3" y="5" width="2" height="6" rx="0.5"/>
-    <rect x="6" y="3" width="2" height="10" rx="0.5"/>
-    <rect x="9" y="4" width="2" height="8" rx="0.5"/>
-    <rect x="12" y="6" width="2" height="4" rx="0.5"/>
-  </g>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <rect width="48" height="48" rx="8" fill="#1a1a2e"/>
+  <!-- open book -->
+  <path d="M22 13V36" stroke="#e0e0e0" stroke-width="1.5" stroke-linecap="round"/>
+  <path d="M22 13C19 10.5 14 9.5 8 10.5V34C14 33 19 34 22 36" fill="#6c63ff" opacity="0.6"/>
+  <path d="M22 13C25 10.5 30 9.5 36 10.5V34C30 33 25 34 22 36" fill="#6c63ff" opacity="0.8"/>
+  <!-- page lines left -->
+  <line x1="11" y1="16" x2="19" y2="15" stroke="#e0e0e0" stroke-width="0.7" opacity="0.3"/>
+  <line x1="11" y1="20" x2="19" y2="19" stroke="#e0e0e0" stroke-width="0.7" opacity="0.3"/>
+  <line x1="11" y1="24" x2="19" y2="23" stroke="#e0e0e0" stroke-width="0.7" opacity="0.3"/>
+  <!-- page lines right -->
+  <line x1="25" y1="15" x2="33" y2="16" stroke="#e0e0e0" stroke-width="0.7" opacity="0.3"/>
+  <line x1="25" y1="19" x2="33" y2="20" stroke="#e0e0e0" stroke-width="0.7" opacity="0.3"/>
+  <line x1="25" y1="23" x2="33" y2="24" stroke="#e0e0e0" stroke-width="0.7" opacity="0.3"/>
+  <!-- sound waves -->
+  <path d="M37 18C39 20 39 28 37 30" stroke="#e0e0e0" stroke-width="1.5" stroke-linecap="round" fill="none" opacity="0.7"/>
+  <path d="M40 15C43 18 43 30 40 33" stroke="#e0e0e0" stroke-width="1.5" stroke-linecap="round" fill="none" opacity="0.4"/>
 </svg>

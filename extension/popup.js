@@ -5,40 +5,38 @@ let currentTab = null;
 let serverUrl = DEFAULT_SERVER;
 
 document.addEventListener("DOMContentLoaded", async () => {
-  // Load saved server URL
   const stored = await chrome.storage.local.get("readcastServer");
   serverUrl = stored.readcastServer || DEFAULT_SERVER;
   $("serverInput").value = serverUrl;
 
-  // Get current tab info
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   currentTab = tab;
   $("pageTitle").textContent = tab?.title || "Unknown page";
   $("pageUrl").textContent = tab?.url || "";
 
-  // Check server connectivity
   await checkServer();
 
-  // Check for text selection on the page
+  // Check for text selection via message to content script
   if (tab?.id) {
     try {
-      const [result] = await chrome.scripting.executeScript({
-        target: { tabId: tab.id },
-        func: () => window.getSelection()?.toString() || "",
-      });
-      if (result?.result?.trim()) {
+      const response = await chrome.tabs.sendMessage(tab.id, { type: "getSelection" });
+      if (response?.text?.trim()) {
         $("addSelectionBtn").disabled = false;
-        $("addSelectionBtn").title = `Add selected text (${result.result.trim().length} chars)`;
+        const len = response.text.trim().length;
+        $("addSelectionBtn").title = `Add selected text (${len} chars)`;
       }
     } catch {
-      // Can't access this page (e.g. chrome:// URLs)
+      // Content script not loaded on this page
     }
   }
 
-  // Event listeners
   $("addPageBtn").addEventListener("click", handleAddPage);
   $("addSelectionBtn").addEventListener("click", handleAddSelection);
   $("serverInput").addEventListener("change", handleServerChange);
+  $("logoLink").addEventListener("click", (e) => {
+    e.preventDefault();
+    chrome.tabs.create({ url: serverUrl });
+  });
 });
 
 async function checkServer() {
@@ -74,26 +72,43 @@ async function handleAddPage() {
   btn.innerHTML = '<div class="spinner"></div>';
 
   try {
-    // Try to get rendered HTML from the page
+    // Try smart extraction via content script message
+    let extracted = null;
+    if (currentTab.id) {
+      try {
+        extracted = await chrome.tabs.sendMessage(currentTab.id, { type: "extractArticle" });
+      } catch {
+        // Content script not available
+      }
+    }
+
+    // If smart extraction got text (e.g. Twitter article), send as text
+    if (extracted?.formattedText) {
+      await addToReadcast({
+        input: extracted.formattedText,
+        process: true,
+      });
+      showFeedback("Added to Readcast!", "success");
+      btn.textContent = "Added";
+      setTimeout(() => window.close(), 1200);
+      return;
+    }
+
+    // Otherwise, get rendered HTML and send URL + HTML
     let html = null;
     if (currentTab.id) {
       try {
-        const [result] = await chrome.scripting.executeScript({
-          target: { tabId: currentTab.id },
-          func: () => document.documentElement.outerHTML,
-        });
-        html = result?.result || null;
+        const response = await chrome.tabs.sendMessage(currentTab.id, { type: "getPageHTML" });
+        html = response?.html || null;
       } catch {
         // Fall back to URL-only
       }
     }
 
-    const tags = parseTags($("tagsInput").value);
     await addToReadcast({
       input: currentTab.url,
       html,
       process: true,
-      ...(tags.length ? {} : {}),
     });
 
     showFeedback("Added to Readcast!", "success");
@@ -113,11 +128,8 @@ async function handleAddSelection() {
   btn.innerHTML = '<div class="spinner"></div>';
 
   try {
-    const [result] = await chrome.scripting.executeScript({
-      target: { tabId: currentTab.id },
-      func: () => window.getSelection()?.toString() || "",
-    });
-    const text = result?.result?.trim();
+    const response = await chrome.tabs.sendMessage(currentTab.id, { type: "getSelection" });
+    const text = response?.text?.trim();
     if (!text) {
       showFeedback("No text selected on the page.", "error");
       btn.textContent = "Add Selection";
@@ -165,13 +177,6 @@ async function addToReadcast(payload) {
   }
 
   return response.json();
-}
-
-function parseTags(value) {
-  return value
-    .split(",")
-    .map((t) => t.trim())
-    .filter(Boolean);
 }
 
 function showFeedback(message, type) {
