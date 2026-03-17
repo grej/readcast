@@ -30,6 +30,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   }
 
+  loadRecentJobs();
+
   $("addPageBtn").addEventListener("click", handleAddPage);
   $("addSelectionBtn").addEventListener("click", handleAddSelection);
   $("serverInput").addEventListener("change", handleServerChange);
@@ -177,6 +179,41 @@ async function addToReadcast(payload) {
   }
 
   return response.json();
+}
+
+async function loadRecentJobs() {
+  try {
+    const response = await fetch(`${serverUrl}/api/articles`, { signal: AbortSignal.timeout(3000) });
+    if (!response.ok) return;
+    const data = await response.json();
+    const articles = (data.articles || []).slice(0, 5);
+    if (!articles.length) return;
+
+    const container = $("jobsList");
+    container.innerHTML = "";
+    for (const article of articles) {
+      const item = document.createElement("div");
+      item.className = "job-item";
+      const title = document.createElement("span");
+      title.className = "job-title";
+      title.textContent = article.title;
+      const status = document.createElement("span");
+      status.className = `job-status ${article.status}`;
+      status.textContent = article.status === "done" ? "Done" : article.status === "queued" ? "Queued" : article.status === "synthesizing" ? "Processing" : article.status;
+      item.appendChild(title);
+      item.appendChild(status);
+      container.appendChild(item);
+    }
+    $("recentJobs").style.display = "block";
+
+    // Auto-refresh if any are in progress
+    const hasActive = articles.some((a) => a.status === "queued" || a.status === "synthesizing");
+    if (hasActive) {
+      setTimeout(loadRecentJobs, 2000);
+    }
+  } catch {
+    // Server not available
+  }
 }
 
 function showFeedback(message, type) {

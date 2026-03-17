@@ -24772,7 +24772,80 @@
       ] })
     ] }) });
   }
-  function ArticleCard({ article, isActive, selectionMode, selected, onPlay, onToggleSelect }) {
+  function ArticleDetail({ article, voices, onReprocess, onClose }) {
+    const [fullText, setFullText] = (0, import_react.useState)(null);
+    const [loading, setLoading] = (0, import_react.useState)(true);
+    const [reprocessVoice, setReprocessVoice] = (0, import_react.useState)(article.voice || "");
+    const [reprocessing, setReprocessing] = (0, import_react.useState)(false);
+    (0, import_react.useEffect)(() => {
+      setLoading(true);
+      apiGet(`/api/articles/${article.id}/text`).then((data) => setFullText(data.text || "")).catch(() => setFullText("(Could not load text)")).finally(() => setLoading(false));
+    }, [article.id]);
+    const handleReprocess = async () => {
+      if (!reprocessVoice || reprocessing) return;
+      setReprocessing(true);
+      try {
+        await onReprocess(article.id, reprocessVoice);
+      } finally {
+        setReprocessing(false);
+      }
+    };
+    return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.detailPanel, onClick: (e) => e.stopPropagation(), children: [
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.detailHeader, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.detailTitle, children: article.title }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.detailMeta, children: [
+            article.author ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: article.author }) : null,
+            article.author && article.publication ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: styles.metaDot, children: "\xB7" }) : null,
+            article.publication ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: article.publication }) : null,
+            article.published_date ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: styles.metaDot, children: "\xB7" }),
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: article.published_date })
+            ] }) : null,
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: styles.metaDot, children: "\xB7" }),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { children: [
+              article.word_count,
+              " words"
+            ] }),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: styles.metaDot, children: "\xB7" }),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { children: [
+              article.estimated_read_min,
+              "m read"
+            ] })
+          ] }),
+          article.source_url ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("a", { href: article.source_url, target: "_blank", rel: "noopener noreferrer", style: styles.detailLink, children: article.source_url }) : null,
+          article.description ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.detailDescription, children: article.description }) : null
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: onClose, style: styles.closeBtn, "aria-label": "Close detail view", children: "\u2715" })
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.detailVoiceRow, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: styles.detailVoiceLabel, children: "Voice:" }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+          "select",
+          {
+            value: reprocessVoice,
+            onChange: (e) => setReprocessVoice(e.target.value),
+            style: styles.detailVoiceSelect,
+            children: voices.map((v) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", { value: v.name, children: voiceLabel(v.name) }, v.name))
+          }
+        ),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+          "button",
+          {
+            onClick: handleReprocess,
+            disabled: reprocessing || reprocessVoice === article.voice,
+            style: {
+              ...styles.detailReprocessBtn,
+              opacity: reprocessing || reprocessVoice === article.voice ? 0.5 : 1
+            },
+            children: reprocessing ? "Reprocessing..." : "Renarrate"
+          }
+        )
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.detailTextWrap, children: loading ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.detailLoading, children: "Loading text..." }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.detailText, children: fullText.split("\n\n").map((para, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { style: styles.detailParagraph, children: para }, i)) }) })
+    ] });
+  }
+  function ArticleCard({ article, isActive, isExpanded, selectionMode, selected, onPlay, onToggleSelect, onDetailToggle }) {
     const isProcessing = article.status === "queued" || article.status === "synthesizing";
     const isFailed = article.status === "failed";
     const canPlay = !isProcessing && !isFailed && article.audio_url;
@@ -24784,7 +24857,8 @@
           ...styles.card,
           ...isActive ? styles.cardActive : {},
           ...isFailed ? styles.cardFailed : {},
-          ...selected ? styles.cardSelected : {}
+          ...selected ? styles.cardSelected : {},
+          ...isExpanded ? styles.cardExpanded : {}
         },
         role: "button",
         tabIndex: 0,
@@ -24794,8 +24868,8 @@
             event.preventDefault();
             if (selectionMode) {
               onToggleSelect(article.id);
-            } else if (canPlay) {
-              onPlay(article);
+            } else {
+              onDetailToggle(article.id);
             }
           }
         },
@@ -24804,13 +24878,23 @@
             onToggleSelect(article.id);
             return;
           }
-          if (canPlay) {
-            onPlay(article);
-          }
+          onDetailToggle(article.id);
         },
         children: [
           /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.cardLeft, children: [
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.cardPlayArea, children: selectionMode ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { ...styles.selectDot, ...selected ? styles.selectDotActive : {} }, children: selected ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CheckIcon, { size: 12 }) : null }) : isProcessing ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.processingDot }) : isFailed ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.failedGlyph, children: "!" }) : isActive ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(WaveformIcon, {}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PlayIcon, { size: 14 }) }),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+              "div",
+              {
+                style: styles.cardPlayArea,
+                onClick: (e) => {
+                  if (!selectionMode && canPlay) {
+                    e.stopPropagation();
+                    onPlay(article);
+                  }
+                },
+                children: selectionMode ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { ...styles.selectDot, ...selected ? styles.selectDotActive : {} }, children: selected ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CheckIcon, { size: 12 }) : null }) : isProcessing ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.processingDot }) : isFailed ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.failedGlyph, children: "!" }) : isActive ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(WaveformIcon, {}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PlayIcon, { size: 14 })
+              }
+            ),
             /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.cardInfo, children: [
               /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.cardTitle, children: article.title }),
               /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.cardMeta, children: [
@@ -24886,6 +24970,7 @@
     const [feedCopied, setFeedCopied] = (0, import_react.useState)(false);
     const [daemonMessage, setDaemonMessage] = (0, import_react.useState)("");
     const [daemonState, setDaemonState] = (0, import_react.useState)("offline");
+    const [detailId, setDetailId] = (0, import_react.useState)(null);
     const audioRef = (0, import_react.useRef)(null);
     const searchRef = (0, import_react.useRef)(null);
     const activeArticle = (0, import_react.useMemo)(() => articles.find((article) => article.id === activeId) || null, [articles, activeId]);
@@ -25124,6 +25209,14 @@
       audio.currentTime = percent * duration;
       setCurrentTime(audio.currentTime);
     }
+    async function handleReprocess(articleId, voice) {
+      await apiJson(`/api/articles/${articleId}/reprocess`, "POST", { voice });
+      refreshArticles(search);
+      refreshStatus();
+    }
+    function handleDetailToggle(articleId) {
+      setDetailId((current) => current === articleId ? null : articleId);
+    }
     async function handleCopyFeed() {
       const feedUrl = new URL("/feed.xml", window.location.href).toString();
       if (navigator.clipboard?.writeText) {
@@ -25190,18 +25283,30 @@
         ),
         search ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: () => setSearch(""), style: styles.searchClear, "aria-label": "Clear search", children: "\u2715" }) : null
       ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.library, children: !articles.length ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.empty, children: search ? "No articles match your search." : "No articles yet. Add one to get started." }) : articles.map((article) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-        ArticleCard,
-        {
-          article,
-          isActive: activeId === article.id,
-          selectionMode,
-          selected: selectedIds.includes(article.id),
-          onPlay: handlePlay,
-          onToggleSelect: handleToggleSelect
-        },
-        article.id
-      )) }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.library, children: !articles.length ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.empty, children: search ? "No articles match your search." : "No articles yet. Add one to get started." }) : articles.map((article) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_react.default.Fragment, { children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+          ArticleCard,
+          {
+            article,
+            isActive: activeId === article.id,
+            isExpanded: detailId === article.id,
+            selectionMode,
+            selected: selectedIds.includes(article.id),
+            onPlay: handlePlay,
+            onToggleSelect: handleToggleSelect,
+            onDetailToggle: handleDetailToggle
+          }
+        ),
+        detailId === article.id ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+          ArticleDetail,
+          {
+            article,
+            voices,
+            onReprocess: handleReprocess,
+            onClose: () => setDetailId(null)
+          }
+        ) : null
+      ] }, article.id)) }),
       /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
         PlayerBar,
         {
@@ -25512,6 +25617,115 @@ textarea::placeholder, input::placeholder { color: rgba(255,255,255,0.25); }
     },
     cardFailed: {
       border: "1px solid rgba(217, 83, 79, 0.18)"
+    },
+    cardExpanded: {
+      background: "rgba(255,255,255,0.03)",
+      borderBottom: "none",
+      borderRadius: "10px 10px 0 0"
+    },
+    detailPanel: {
+      padding: "0 16px 16px",
+      background: "rgba(255,255,255,0.03)",
+      borderRadius: "0 0 10px 10px",
+      borderBottom: `1px solid ${c.border}`,
+      marginBottom: 2
+    },
+    detailHeader: {
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "flex-start",
+      marginBottom: 12
+    },
+    detailTitle: {
+      fontFamily: c.serif,
+      fontSize: 18,
+      fontWeight: 600,
+      lineHeight: 1.3,
+      marginBottom: 6
+    },
+    detailMeta: {
+      fontSize: 12,
+      color: c.textMuted,
+      display: "flex",
+      flexWrap: "wrap",
+      gap: 4,
+      alignItems: "center"
+    },
+    detailLink: {
+      display: "block",
+      fontSize: 12,
+      color: c.accent,
+      marginTop: 6,
+      textDecoration: "none",
+      overflow: "hidden",
+      textOverflow: "ellipsis",
+      whiteSpace: "nowrap"
+    },
+    detailDescription: {
+      fontSize: 13,
+      color: c.textMuted,
+      marginTop: 8,
+      lineHeight: 1.5,
+      fontStyle: "italic"
+    },
+    detailVoiceRow: {
+      display: "flex",
+      alignItems: "center",
+      gap: 10,
+      padding: "10px 12px",
+      background: c.surface,
+      borderRadius: 8,
+      marginBottom: 12
+    },
+    detailVoiceLabel: {
+      fontSize: 12,
+      color: c.textMuted,
+      fontWeight: 500
+    },
+    detailVoiceSelect: {
+      flex: 1,
+      background: "rgba(255,255,255,0.06)",
+      border: `1px solid ${c.border}`,
+      borderRadius: 6,
+      padding: "5px 8px",
+      color: c.text,
+      fontSize: 12,
+      fontFamily: c.sans,
+      outline: "none"
+    },
+    detailReprocessBtn: {
+      padding: "5px 14px",
+      borderRadius: 6,
+      border: "none",
+      background: c.accent,
+      color: "#141416",
+      fontSize: 12,
+      fontWeight: 600,
+      fontFamily: c.sans,
+      cursor: "pointer",
+      whiteSpace: "nowrap"
+    },
+    detailTextWrap: {
+      maxHeight: 400,
+      overflowY: "auto",
+      borderRadius: 8,
+      background: c.surface,
+      padding: "16px 20px"
+    },
+    detailLoading: {
+      color: c.textMuted,
+      fontSize: 13,
+      textAlign: "center",
+      padding: 20
+    },
+    detailText: {
+      fontFamily: c.serif,
+      fontSize: 15,
+      lineHeight: 1.7,
+      color: c.text
+    },
+    detailParagraph: {
+      marginBottom: 14
     },
     failedGlyph: {
       color: "#f0b8b6",

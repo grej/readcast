@@ -333,7 +333,98 @@ function AddPanel({ voices, defaultVoice, onAdd, onPreview, onClose, onSaveDefau
   );
 }
 
-function ArticleCard({ article, isActive, selectionMode, selected, onPlay, onToggleSelect }) {
+function ArticleDetail({ article, voices, onReprocess, onClose }) {
+  const [fullText, setFullText] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [reprocessVoice, setReprocessVoice] = useState(article.voice || "");
+  const [reprocessing, setReprocessing] = useState(false);
+
+  useEffect(() => {
+    setLoading(true);
+    apiGet(`/api/articles/${article.id}/text`)
+      .then((data) => setFullText(data.text || ""))
+      .catch(() => setFullText("(Could not load text)"))
+      .finally(() => setLoading(false));
+  }, [article.id]);
+
+  const handleReprocess = async () => {
+    if (!reprocessVoice || reprocessing) return;
+    setReprocessing(true);
+    try {
+      await onReprocess(article.id, reprocessVoice);
+    } finally {
+      setReprocessing(false);
+    }
+  };
+
+  return (
+    <div style={styles.detailPanel} onClick={(e) => e.stopPropagation()}>
+      <div style={styles.detailHeader}>
+        <div>
+          <div style={styles.detailTitle}>{article.title}</div>
+          <div style={styles.detailMeta}>
+            {article.author ? <span>{article.author}</span> : null}
+            {article.author && article.publication ? <span style={styles.metaDot}>·</span> : null}
+            {article.publication ? <span>{article.publication}</span> : null}
+            {article.published_date ? (
+              <><span style={styles.metaDot}>·</span><span>{article.published_date}</span></>
+            ) : null}
+            <span style={styles.metaDot}>·</span>
+            <span>{article.word_count} words</span>
+            <span style={styles.metaDot}>·</span>
+            <span>{article.estimated_read_min}m read</span>
+          </div>
+          {article.source_url ? (
+            <a href={article.source_url} target="_blank" rel="noopener noreferrer" style={styles.detailLink}>
+              {article.source_url}
+            </a>
+          ) : null}
+          {article.description ? (
+            <div style={styles.detailDescription}>{article.description}</div>
+          ) : null}
+        </div>
+        <button onClick={onClose} style={styles.closeBtn} aria-label="Close detail view">✕</button>
+      </div>
+
+      <div style={styles.detailVoiceRow}>
+        <span style={styles.detailVoiceLabel}>Voice:</span>
+        <select
+          value={reprocessVoice}
+          onChange={(e) => setReprocessVoice(e.target.value)}
+          style={styles.detailVoiceSelect}
+        >
+          {voices.map((v) => (
+            <option key={v.name} value={v.name}>{voiceLabel(v.name)}</option>
+          ))}
+        </select>
+        <button
+          onClick={handleReprocess}
+          disabled={reprocessing || reprocessVoice === article.voice}
+          style={{
+            ...styles.detailReprocessBtn,
+            opacity: reprocessing || reprocessVoice === article.voice ? 0.5 : 1,
+          }}
+        >
+          {reprocessing ? "Reprocessing..." : "Renarrate"}
+        </button>
+      </div>
+
+      <div style={styles.detailTextWrap}>
+        {loading ? (
+          <div style={styles.detailLoading}>Loading text...</div>
+        ) : (
+          <div style={styles.detailText}>
+            {fullText.split("\n\n").map((para, i) => (
+              <p key={i} style={styles.detailParagraph}>{para}</p>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ArticleCard({ article, isActive, isExpanded, selectionMode, selected, onPlay, onToggleSelect, onDetailToggle }) {
   const isProcessing = article.status === "queued" || article.status === "synthesizing";
   const isFailed = article.status === "failed";
   const canPlay = !isProcessing && !isFailed && article.audio_url;
@@ -352,6 +443,7 @@ function ArticleCard({ article, isActive, selectionMode, selected, onPlay, onTog
         ...(isActive ? styles.cardActive : {}),
         ...(isFailed ? styles.cardFailed : {}),
         ...(selected ? styles.cardSelected : {}),
+        ...(isExpanded ? styles.cardExpanded : {}),
       }}
       role="button"
       tabIndex={0}
@@ -361,8 +453,8 @@ function ArticleCard({ article, isActive, selectionMode, selected, onPlay, onTog
           event.preventDefault();
           if (selectionMode) {
             onToggleSelect(article.id);
-          } else if (canPlay) {
-            onPlay(article);
+          } else {
+            onDetailToggle(article.id);
           }
         }
       }}
@@ -371,13 +463,19 @@ function ArticleCard({ article, isActive, selectionMode, selected, onPlay, onTog
           onToggleSelect(article.id);
           return;
         }
-        if (canPlay) {
-          onPlay(article);
-        }
+        onDetailToggle(article.id);
       }}
     >
       <div style={styles.cardLeft}>
-        <div style={styles.cardPlayArea}>
+        <div
+          style={styles.cardPlayArea}
+          onClick={(e) => {
+            if (!selectionMode && canPlay) {
+              e.stopPropagation();
+              onPlay(article);
+            }
+          }}
+        >
           {selectionMode ? (
             <div style={{ ...styles.selectDot, ...(selected ? styles.selectDotActive : {}) }}>
               {selected ? <CheckIcon size={12} /> : null}
@@ -476,6 +574,7 @@ function ReadcastApp() {
   const [feedCopied, setFeedCopied] = useState(false);
   const [daemonMessage, setDaemonMessage] = useState("");
   const [daemonState, setDaemonState] = useState("offline");
+  const [detailId, setDetailId] = useState(null);
   const audioRef = useRef(null);
   const searchRef = useRef(null);
 
@@ -742,6 +841,16 @@ function ReadcastApp() {
     setCurrentTime(audio.currentTime);
   }
 
+  async function handleReprocess(articleId, voice) {
+    await apiJson(`/api/articles/${articleId}/reprocess`, "POST", { voice });
+    refreshArticles(search);
+    refreshStatus();
+  }
+
+  function handleDetailToggle(articleId) {
+    setDetailId((current) => (current === articleId ? null : articleId));
+  }
+
   async function handleCopyFeed() {
     const feedUrl = new URL("/feed.xml", window.location.href).toString();
     if (navigator.clipboard?.writeText) {
@@ -825,15 +934,26 @@ function ReadcastApp() {
           </div>
         ) : (
           articles.map((article) => (
-            <ArticleCard
-              key={article.id}
-              article={article}
-              isActive={activeId === article.id}
-              selectionMode={selectionMode}
-              selected={selectedIds.includes(article.id)}
-              onPlay={handlePlay}
-              onToggleSelect={handleToggleSelect}
-            />
+            <React.Fragment key={article.id}>
+              <ArticleCard
+                article={article}
+                isActive={activeId === article.id}
+                isExpanded={detailId === article.id}
+                selectionMode={selectionMode}
+                selected={selectedIds.includes(article.id)}
+                onPlay={handlePlay}
+                onToggleSelect={handleToggleSelect}
+                onDetailToggle={handleDetailToggle}
+              />
+              {detailId === article.id ? (
+                <ArticleDetail
+                  article={article}
+                  voices={voices}
+                  onReprocess={handleReprocess}
+                  onClose={() => setDetailId(null)}
+                />
+              ) : null}
+            </React.Fragment>
           ))
         )}
       </div>
@@ -1149,6 +1269,115 @@ const styles = {
   },
   cardFailed: {
     border: "1px solid rgba(217, 83, 79, 0.18)",
+  },
+  cardExpanded: {
+    background: "rgba(255,255,255,0.03)",
+    borderBottom: "none",
+    borderRadius: "10px 10px 0 0",
+  },
+  detailPanel: {
+    padding: "0 16px 16px",
+    background: "rgba(255,255,255,0.03)",
+    borderRadius: "0 0 10px 10px",
+    borderBottom: `1px solid ${c.border}`,
+    marginBottom: 2,
+  },
+  detailHeader: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    marginBottom: 12,
+  },
+  detailTitle: {
+    fontFamily: c.serif,
+    fontSize: 18,
+    fontWeight: 600,
+    lineHeight: 1.3,
+    marginBottom: 6,
+  },
+  detailMeta: {
+    fontSize: 12,
+    color: c.textMuted,
+    display: "flex",
+    flexWrap: "wrap",
+    gap: 4,
+    alignItems: "center",
+  },
+  detailLink: {
+    display: "block",
+    fontSize: 12,
+    color: c.accent,
+    marginTop: 6,
+    textDecoration: "none",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  },
+  detailDescription: {
+    fontSize: 13,
+    color: c.textMuted,
+    marginTop: 8,
+    lineHeight: 1.5,
+    fontStyle: "italic",
+  },
+  detailVoiceRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
+    padding: "10px 12px",
+    background: c.surface,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  detailVoiceLabel: {
+    fontSize: 12,
+    color: c.textMuted,
+    fontWeight: 500,
+  },
+  detailVoiceSelect: {
+    flex: 1,
+    background: "rgba(255,255,255,0.06)",
+    border: `1px solid ${c.border}`,
+    borderRadius: 6,
+    padding: "5px 8px",
+    color: c.text,
+    fontSize: 12,
+    fontFamily: c.sans,
+    outline: "none",
+  },
+  detailReprocessBtn: {
+    padding: "5px 14px",
+    borderRadius: 6,
+    border: "none",
+    background: c.accent,
+    color: "#141416",
+    fontSize: 12,
+    fontWeight: 600,
+    fontFamily: c.sans,
+    cursor: "pointer",
+    whiteSpace: "nowrap",
+  },
+  detailTextWrap: {
+    maxHeight: 400,
+    overflowY: "auto",
+    borderRadius: 8,
+    background: c.surface,
+    padding: "16px 20px",
+  },
+  detailLoading: {
+    color: c.textMuted,
+    fontSize: 13,
+    textAlign: "center",
+    padding: 20,
+  },
+  detailText: {
+    fontFamily: c.serif,
+    fontSize: 15,
+    lineHeight: 1.7,
+    color: c.text,
+  },
+  detailParagraph: {
+    marginBottom: 14,
   },
   failedGlyph: {
     color: "#f0b8b6",

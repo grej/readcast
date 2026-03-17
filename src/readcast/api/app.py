@@ -153,6 +153,15 @@ def create_app(base_dir: Optional[Path] = None) -> FastAPI:
         worker.kick()
         return {"article": _serialize_article(service, article)}
 
+    @app.get("/api/articles/{article_id}/text")
+    async def article_text(request: Request, article_id: str) -> dict[str, object]:
+        service = _service(request)
+        article = service.get_article(article_id)
+        if article is None:
+            raise HTTPException(status_code=404, detail="Article not found")
+        text = service.store.get_full_text(article_id)
+        return {"text": text or ""}
+
     @app.get("/api/articles/{article_id}/audio")
     async def article_audio(request: Request, article_id: str) -> FileResponse:
         service = _service(request)
