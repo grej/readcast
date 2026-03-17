@@ -24,6 +24,10 @@ CREATE TABLE IF NOT EXISTS articles (
     ingested_at TEXT NOT NULL,
     word_count INTEGER NOT NULL,
     estimated_read_min INTEGER NOT NULL,
+    description TEXT,
+    image_url TEXT,
+    canonical_url TEXT,
+    site_name TEXT,
     language TEXT NOT NULL DEFAULT 'en',
     status TEXT NOT NULL DEFAULT 'queued',
     error_message TEXT,
@@ -79,10 +83,24 @@ class Store:
         conn.execute("PRAGMA foreign_keys = ON")
         return conn
 
+    _MIGRATION_COLUMNS = [
+        ("description", "TEXT"),
+        ("image_url", "TEXT"),
+        ("canonical_url", "TEXT"),
+        ("site_name", "TEXT"),
+    ]
+
     def _initialize_db(self) -> None:
         with closing(self._connect()) as conn:
             conn.executescript(SCHEMA)
+            self._migrate(conn)
             conn.commit()
+
+    def _migrate(self, conn: sqlite3.Connection) -> None:
+        existing = {row[1] for row in conn.execute("PRAGMA table_info(articles)").fetchall()}
+        for col_name, col_type in self._MIGRATION_COLUMNS:
+            if col_name not in existing:
+                conn.execute(f"ALTER TABLE articles ADD COLUMN {col_name} {col_type}")
 
     def add_article(self, article: Article, chunks: list[Chunk], full_text: str) -> bool:
         article_dir = self.get_article_dir(article.id)
@@ -92,9 +110,11 @@ class Store:
                     """
                     INSERT INTO articles (
                         id, source_url, source_file, title, author, publication, published_date,
-                        ingested_at, word_count, estimated_read_min, language, status,
+                        ingested_at, word_count, estimated_read_min,
+                        description, image_url, canonical_url, site_name,
+                        language, status,
                         error_message, audio_duration_sec, voice, tts_model, speed, tags
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         article.id,
@@ -107,6 +127,10 @@ class Store:
                         article.ingested_at,
                         article.word_count,
                         article.estimated_read_min,
+                        article.description,
+                        article.image_url,
+                        article.canonical_url,
+                        article.site_name,
                         article.language,
                         article.status,
                         article.error_message,
@@ -293,7 +317,9 @@ class Store:
                 """
                 UPDATE articles
                 SET title = ?, author = ?, publication = ?, published_date = ?, word_count = ?,
-                    estimated_read_min = ?, language = ?, status = ?, error_message = ?,
+                    estimated_read_min = ?,
+                    description = ?, image_url = ?, canonical_url = ?, site_name = ?,
+                    language = ?, status = ?, error_message = ?,
                     audio_duration_sec = ?, voice = ?, tts_model = ?, speed = ?, tags = ?
                 WHERE id = ?
                 """,
@@ -304,6 +330,10 @@ class Store:
                     article.published_date,
                     article.word_count,
                     article.estimated_read_min,
+                    article.description,
+                    article.image_url,
+                    article.canonical_url,
+                    article.site_name,
                     article.language,
                     article.status,
                     article.error_message,
@@ -321,6 +351,8 @@ class Store:
     def _row_to_article(self, row: sqlite3.Row) -> Article:
         payload = dict(row)
         payload["tags"] = json.loads(payload.get("tags") or "[]")
+        for col in ("description", "image_url", "canonical_url", "site_name"):
+            payload.setdefault(col, None)
         return Article.from_dict(payload)
 
     @staticmethod

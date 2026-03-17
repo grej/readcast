@@ -196,7 +196,7 @@ function AddPanel({ voices, defaultVoice, onAdd, onPreview, onClose, onSaveDefau
   };
 
   const handleSubmit = async () => {
-    if (!inputValue.trim() || !preview) return;
+    if (!inputValue.trim()) return;
     setSubmitting(true);
     try {
       await onAdd({ input: inputValue.trim() });
@@ -223,11 +223,7 @@ function AddPanel({ voices, defaultVoice, onAdd, onPreview, onClose, onSaveDefau
     if (event.key === "Escape") onClose();
     if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
       event.preventDefault();
-      if (preview) {
-        handleSubmit();
-      } else {
-        handlePreview();
-      }
+      handleSubmit();
     }
   };
 
@@ -325,8 +321,8 @@ function AddPanel({ voices, defaultVoice, onAdd, onPreview, onClose, onSaveDefau
           </button>
           <button
             onClick={handleSubmit}
-            disabled={!inputValue.trim() || !preview || submitting}
-            style={{ ...styles.submitBtnCompact, opacity: !inputValue.trim() || !preview || submitting ? 0.5 : 1 }}
+            disabled={!inputValue.trim() || submitting}
+            style={{ ...styles.submitBtnCompact, opacity: !inputValue.trim() || submitting ? 0.5 : 1 }}
             aria-label="Add article and start processing"
           >
             {submitting ? <SpinnerIcon /> : "Add & Process"}

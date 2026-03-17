@@ -24650,7 +24650,7 @@
       }
     };
     const handleSubmit = async () => {
-      if (!inputValue.trim() || !preview) return;
+      if (!inputValue.trim()) return;
       setSubmitting(true);
       try {
         await onAdd({ input: inputValue.trim() });
@@ -24675,11 +24675,7 @@
       if (event.key === "Escape") onClose();
       if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
         event.preventDefault();
-        if (preview) {
-          handleSubmit();
-        } else {
-          handlePreview();
-        }
+        handleSubmit();
       }
     };
     return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.addPanel, role: "presentation", children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.addPanelInner, role: "dialog", "aria-modal": "true", "aria-labelledby": "add-article-title", children: [
@@ -24767,8 +24763,8 @@
           "button",
           {
             onClick: handleSubmit,
-            disabled: !inputValue.trim() || !preview || submitting,
-            style: { ...styles.submitBtnCompact, opacity: !inputValue.trim() || !preview || submitting ? 0.5 : 1 },
+            disabled: !inputValue.trim() || submitting,
+            style: { ...styles.submitBtnCompact, opacity: !inputValue.trim() || submitting ? 0.5 : 1 },
             "aria-label": "Add article and start processing",
             children: submitting ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SpinnerIcon, {}) : "Add & Process"
           }

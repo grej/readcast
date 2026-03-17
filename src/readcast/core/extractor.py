@@ -30,11 +30,12 @@ USER_AGENT = (
 )
 
 
-def extract(source: str, config: Config) -> tuple[Article, list[Chunk]]:
+def extract(source: str, config: Config, html: Optional[str] = None) -> tuple[Article, list[Chunk]]:
     if source.startswith(("http://", "https://")):
         source_url = source
         source_file = None
-        html = _fetch_url(source_url)
+        if html is None:
+            html = _fetch_url(source_url)
     else:
         path = Path(source).expanduser().resolve()
         if not path.exists():
@@ -64,6 +65,25 @@ def extract(source: str, config: Config) -> tuple[Article, list[Chunk]]:
 
     published_date = _extract_published_date(soup)
     publication = _extract_publication(source_url, soup, config)
+
+    description = _extract_meta_content(
+        soup,
+        [
+            ("meta", {"property": "og:description"}),
+            ("meta", {"name": "description"}),
+            ("meta", {"name": "twitter:description"}),
+        ],
+    )
+    image_url = _extract_meta_content(
+        soup,
+        [
+            ("meta", {"property": "og:image"}),
+            ("meta", {"name": "twitter:image"}),
+        ],
+    )
+    canonical_url = _extract_canonical_url(soup, source_url)
+    site_name = _extract_meta_content(soup, [("meta", {"property": "og:site_name"})])
+
     chunks = _build_chunks(content_soup, title)
     if not chunks:
         raise ExtractionError("No readable article content was extracted")
@@ -83,6 +103,10 @@ def extract(source: str, config: Config) -> tuple[Article, list[Chunk]]:
         ingested_at=datetime.now(UTC).isoformat(),
         word_count=word_count,
         estimated_read_min=estimated_read_min,
+        description=_normalize_whitespace(description),
+        image_url=_normalize_whitespace(image_url) or None,
+        canonical_url=canonical_url,
+        site_name=_normalize_whitespace(site_name),
         language="en",
         status="queued",
     )
@@ -204,6 +228,16 @@ def _extract_meta_content(soup: BeautifulSoup, selectors: list[tuple[str, dict[s
         if tag and tag.get("content"):
             return tag["content"]
     return None
+
+
+def _extract_canonical_url(soup: BeautifulSoup, source_url: Optional[str]) -> Optional[str]:
+    link = soup.find("link", rel="canonical")
+    if link and link.get("href"):
+        return _normalize_whitespace(link["href"]) or None
+    og_url = _extract_meta_content(soup, [("meta", {"property": "og:url"})])
+    if og_url:
+        return _normalize_whitespace(og_url) or None
+    return source_url
 
 
 def _extract_byline(soup: BeautifulSoup) -> Optional[str]:

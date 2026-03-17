@@ -1,0 +1,61 @@
+schema_version: 1
+
+context:
+  name: readcast
+  version: "0.1.0"
+
+package:
+  name: ${{ name }}
+  version: ${{ version }}
+
+source:
+  path: ..
+
+build:
+  number: 0
+  noarch: python
+  script:
+    - python -m pip install . --no-deps --no-build-isolation -vv
+  python:
+    entry_points:
+      - readcast = readcast.cli.main:cli
+
+requirements:
+  host:
+    - python >=3.11
+    - pip
+    - hatchling
+  run:
+    - python >=3.11
+    - ffmpeg
+    - httpx >=0.27
+    - readability-lxml >=0.8
+    - beautifulsoup4 >=4.12
+    - lxml >=5.0
+    - mutagen >=1.47
+    - click >=8.1
+    - rich >=13.0
+    - fastapi >=0.115
+    - uvicorn >=0.30
+
+tests:
+  - python:
+      imports:
+        - readcast
+        - readcast.cli.main
+        - readcast.core.extractor
+        - readcast.core.store
+        - readcast.api.app
+  - script:
+      - readcast --help
+
+about:
+  homepage: https://github.com/gjennings/readcast
+  license: MIT
+  license_file: LICENSE
+  summary: Turn articles into podcasts on your Mac
+  description: |
+    Readcast is a local-first personal knowledge base and podcast system
+    for macOS. Capture articles, threads, and text from anywhere, search
+    your collection, and automatically generate audio podcasts using
+    kokoro-edge TTS.

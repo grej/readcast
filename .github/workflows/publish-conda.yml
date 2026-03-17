@@ -1,0 +1,30 @@
+name: Publish to Anaconda.org
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  publish:
+    runs-on: macos-15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up pixi
+        uses: prefix-dev/setup-pixi@v0.8.8
+
+      - name: Install rattler-build
+        run: pixi global install rattler-build
+
+      - name: Build conda package
+        run: rattler-build build --recipe recipe/recipe.yaml --output-dir dist/conda
+
+      - name: Upload to anaconda.org
+        env:
+          ANACONDA_TOKEN: ${{ secrets.ANACONDA_TOKEN }}
+        run: |
+          pixi global install anaconda-client
+          find dist/conda -name "*.conda" -exec anaconda -t "$ANACONDA_TOKEN" upload --user gjennings --force {} +

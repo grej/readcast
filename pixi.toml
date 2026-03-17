@@ -15,6 +15,7 @@ ffmpeg = "*"
 readcast = { path = ".", editable = true }
 
 [feature.dev.dependencies]
+nodejs = ">=20"
 
 [feature.dev.pypi-dependencies]
 pytest = "*"
@@ -24,6 +25,7 @@ build = "*"
 hatchling = "*"
 
 [tasks]
+start = { cmd = "python -m readcast.cli.main web", env = { PYTHONPATH = "src" }, depends-on = ["setup"] }
 setup = "bash scripts/ensure-kokoro-edge.sh"
 serve = { cmd = "python -m readcast.cli.main server start", env = { PYTHONPATH = "src" }, depends-on = ["setup"] }
 readcast = { cmd = "python -m readcast.cli.main", env = { PYTHONPATH = "src" }, depends-on = ["setup"] }

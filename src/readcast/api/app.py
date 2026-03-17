@@ -9,6 +9,7 @@ from urllib.parse import urljoin
 from xml.sax.saxutils import escape
 
 from fastapi import FastAPI, HTTPException, Query, Request, Response
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
@@ -29,6 +30,7 @@ STATIC_DIR = Path(__file__).resolve().parents[1] / "web" / "static"
 
 class AddArticleRequest(BaseModel):
     input: str = Field(min_length=1)
+    html: Optional[str] = None
     voice: Optional[str] = None
     speed: Optional[float] = None
     process: bool = True
@@ -62,6 +64,12 @@ def create_app(base_dir: Optional[Path] = None) -> FastAPI:
         worker.stop()
 
     app = FastAPI(title="readcast", lifespan=lifespan)
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_methods=["GET", "POST", "PUT", "DELETE"],
+        allow_headers=["*"],
+    )
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
     @app.get("/")
@@ -113,7 +121,7 @@ def create_app(base_dir: Optional[Path] = None) -> FastAPI:
         service = _service(request)
         worker = _worker(request)
         try:
-            result = service.add_input(payload.input, voice=payload.voice, speed=payload.speed)
+            result = service.add_input(payload.input, voice=payload.voice, speed=payload.speed, html=payload.html)
         except (ValueError, SynthesisError) as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         except Exception as exc:

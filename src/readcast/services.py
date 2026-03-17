@@ -132,8 +132,9 @@ class ReadcastService:
         voice: Optional[str] = None,
         speed: Optional[float] = None,
         tags: Optional[list[str]] = None,
+        html: Optional[str] = None,
     ) -> AddArticleResult:
-        article, chunks = extract(source, self.config)
+        article, chunks = extract(source, self.config, html=html)
         return self._store_article(article, chunks, voice=voice, speed=speed, tags=tags)
 
     def add_input(
@@ -142,10 +143,11 @@ class ReadcastService:
         voice: Optional[str] = None,
         speed: Optional[float] = None,
         tags: Optional[list[str]] = None,
+        html: Optional[str] = None,
     ) -> AddArticleResult:
         stripped = input_value.strip()
         if stripped.startswith(("http://", "https://")):
-            return self.add_source(stripped, voice=voice, speed=speed, tags=tags)
+            return self.add_source(stripped, voice=voice, speed=speed, tags=tags, html=html)
         return self.add_text(stripped, voice=voice, speed=speed, tags=tags)
 
     def add_text(

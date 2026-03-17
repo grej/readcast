@@ -2,96 +2,102 @@
 
 Turn articles into podcasts on your Mac.
 
-`readcast` is a local-first tool for converting web articles, saved HTML, or pasted text
-into offline audio files. It runs on Apple Silicon, uses `kokoro-edge` for speech
-synthesis, and keeps your source text, metadata, and audio library on your machine.
+`readcast` is a local-first personal knowledge base and podcast system. Capture web
+articles, Twitter threads, or pasted text from anywhere — search your collection by
+keyword or meaning, and automatically generate audio podcasts. It runs on Apple Silicon,
+uses `kokoro-edge` for speech synthesis, and keeps everything on your machine.
 
 ![readcast web UI](docs/assets/readcast-ui.svg)
 
-## Status
+## Install
 
-`readcast` is early but usable. It is currently:
-
-- macOS 15+ only
-- Apple Silicon only
-- localhost-only
-- built around a local `kokoro-edge` install
-
-## Quickstart
+### One-line install (conda)
 
 ```bash
-pixi install
-pixi run setup
-pixi run readcast web
+pixi global install readcast -c https://conda.anaconda.org/gjennings -c conda-forge
+readcast web
 ```
 
-That opens the local web UI at `http://127.0.0.1:8765` by default.
+This installs readcast and all dependencies (Python, ffmpeg, etc.) in an isolated
+environment. You still need `kokoro-edge` for TTS — see below.
 
-You can also use the CLI directly:
+### From source
 
 ```bash
-pixi run readcast add --process https://example.com/article
-pixi run readcast add --process article.html
-pixi run readcast add --process article.txt
-pixi run readcast process
-pixi run readcast list
-pixi run readcast search "strategic defeat"
+git clone https://github.com/gjennings/readcast.git
+cd readcast
+pixi run start
 ```
+
+`pixi run start` handles setup and launches the web UI at `http://127.0.0.1:8765`.
+
+### CLI usage
+
+```bash
+readcast add --process https://example.com/article
+readcast add --process article.html
+readcast add --process article.txt
+readcast list
+readcast search "strategic defeat"
+```
+
+If running from source, prefix commands with `pixi run readcast`.
+
+## Browser extension
+
+A Chromium extension (works in Brave, Chrome, Edge) lets you capture articles while
+browsing:
+
+1. Go to `brave://extensions/` (or `chrome://extensions/`)
+2. Enable **Developer mode**
+3. Click **Load unpacked** → select the `extension/` directory in this repo
+4. Make sure readcast is running (`readcast web`)
+
+The extension adds:
+- **Add Page** — sends the current page URL + rendered HTML to readcast
+- **Add Selection** — sends highlighted text as a new article
+- Right-click context menus for both actions
 
 ## `kokoro-edge` dependency
 
-`readcast` does not bundle its own TTS runtime. It talks to the local `kokoro-edge`
-daemon over HTTP and uses it as the only speech backend.
+`readcast` talks to the local `kokoro-edge` daemon for text-to-speech. It does not
+bundle its own TTS runtime.
 
-`pixi run setup` checks for `kokoro-edge` in this order:
+`readcast` checks for `kokoro-edge` in this order:
 
-1. `READCAST_KOKORO_EDGE_BIN`
+1. `READCAST_KOKORO_EDGE_BIN` environment variable
 2. `PATH`
 3. sibling dev build at `../kokoro-mlx/.build-xcode/stage/bin/kokoro-edge`
 4. installer URL via `KOKORO_EDGE_INSTALL_URL`
 
-## Web app
+## Status
 
-`pixi run readcast web` starts:
+`readcast` is early but usable:
 
-- the local FastAPI server
-- the shared article-processing service layer
-- the sequential background worker
-- browser UI on one localhost port
-
-The web app supports:
-
-- paste a URL or raw text into one input field
-- choose a Kokoro voice from the live daemon inventory
-- watch queued and synthesizing articles update in place
-- search the article library with SQLite FTS
-- play generated audio from a persistent bottom player
+- macOS 15+, Apple Silicon only
+- localhost-only (all data stays on your machine)
+- no cloud TTS, no hosted backend
 
 ## Privacy and storage
 
-`readcast` is local-first:
+All data lives locally under `~/.readcast/`:
 
-- no cloud TTS
-- no hosted backend
-- article text, metadata, and audio stay on your machine
+- `config.toml` — configuration
+- `index.db` — SQLite database with full-text search
+- `articles/{id}/` — extracted text, metadata, chunks, and audio
+- `output/` — symlinks to generated audio files
 
-By default data lives under `~/.readcast/`:
-
-- `config.toml`
-- `index.db`
-- `articles/{id}/...`
-- `output/`
+Subscribe to your articles as a podcast by copying the feed URL from the web UI
+or pointing your podcast app at `http://127.0.0.1:8765/feed.xml`.
 
 ## Development
 
 ```bash
-npm install
-pixi run test
-pixi run lint
-pixi run frontend:build
-pixi run check
-pixi run check:runtime
-pixi run package:check
+pixi install          # installs Python, ffmpeg, nodejs, and all dependencies
+pixi run test         # run tests
+pixi run lint         # run linter
+pixi run frontend:build  # rebuild React frontend
+pixi run check        # all checks (lint + test + build)
 ```
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, architecture, and contributor workflow.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for architecture and contributor workflow.

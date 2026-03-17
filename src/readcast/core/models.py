@@ -30,6 +30,10 @@ class Article:
     ingested_at: str
     word_count: int
     estimated_read_min: int
+    description: Optional[str] = None
+    image_url: Optional[str] = None
+    canonical_url: Optional[str] = None
+    site_name: Optional[str] = None
     language: str = "en"
     status: str = "queued"
     error_message: Optional[str] = None
