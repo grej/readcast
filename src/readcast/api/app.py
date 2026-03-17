@@ -31,6 +31,9 @@ STATIC_DIR = Path(__file__).resolve().parents[1] / "web" / "static"
 class AddArticleRequest(BaseModel):
     input: str = Field(min_length=1)
     html: Optional[str] = None
+    source_url: Optional[str] = None
+    author: Optional[str] = None
+    published_date: Optional[str] = None
     voice: Optional[str] = None
     speed: Optional[float] = None
     process: bool = True
@@ -168,7 +171,11 @@ def create_app(base_dir: Optional[Path] = None) -> FastAPI:
         service = _service(request)
         worker = _worker(request)
         try:
-            result = service.add_input(payload.input, voice=payload.voice, speed=payload.speed, html=payload.html)
+            result = service.add_input(
+                payload.input, voice=payload.voice, speed=payload.speed,
+                html=payload.html, source_url=payload.source_url,
+                author=payload.author, published_date=payload.published_date,
+            )
         except (ValueError, SynthesisError) as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         except Exception as exc:

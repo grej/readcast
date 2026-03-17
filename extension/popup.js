@@ -84,10 +84,13 @@ async function handleAddPage() {
       }
     }
 
-    // If smart extraction got text (e.g. Twitter article), send as text
+    // If smart extraction got text (e.g. Twitter article), send as text with metadata
     if (extracted?.formattedText) {
       await addToReadcast({
         input: extracted.formattedText,
+        source_url: currentTab.url,
+        author: extracted.author || undefined,
+        published_date: extracted.published_date || undefined,
         process: true,
       });
       showFeedback("Added to Readcast!", "success");

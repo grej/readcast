@@ -17,7 +17,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   const server = await getServer();
 
   if (info.menuItemId === "readcast-add-selection" && info.selectionText) {
-    await addToReadcast(server, { input: info.selectionText });
+    await addToReadcast(server, { input: info.selectionText, source_url: tab?.url });
     return;
   }
 
@@ -27,7 +27,12 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
       const extracted = await chrome.tabs.sendMessage(tab.id, { type: "extractArticle" });
 
       if (extracted?.formattedText) {
-        await addToReadcast(server, { input: extracted.formattedText });
+        await addToReadcast(server, {
+          input: extracted.formattedText,
+          source_url: tab.url,
+          author: extracted.author || undefined,
+          published_date: extracted.published_date || undefined,
+        });
         return;
       }
 

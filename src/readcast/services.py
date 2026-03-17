@@ -188,11 +188,14 @@ class ReadcastService:
         speed: Optional[float] = None,
         tags: Optional[list[str]] = None,
         html: Optional[str] = None,
+        source_url: Optional[str] = None,
+        author: Optional[str] = None,
+        published_date: Optional[str] = None,
     ) -> AddArticleResult:
         stripped = input_value.strip()
         if stripped.startswith(("http://", "https://")):
             return self.add_source(stripped, voice=voice, speed=speed, tags=tags, html=html)
-        return self.add_text(stripped, voice=voice, speed=speed, tags=tags)
+        return self.add_text(stripped, voice=voice, speed=speed, tags=tags, source_url=source_url, author=author, published_date=published_date)
 
     def add_text(
         self,
@@ -201,6 +204,9 @@ class ReadcastService:
         speed: Optional[float] = None,
         tags: Optional[list[str]] = None,
         duplicate_window_sec: int = 5,
+        source_url: Optional[str] = None,
+        author: Optional[str] = None,
+        published_date: Optional[str] = None,
     ) -> AddArticleResult:
         normalized_text = text.strip()
         if not normalized_text:
@@ -211,6 +217,12 @@ class ReadcastService:
             return AddArticleResult(article=existing, created=False)
 
         article, chunks = self._build_text_article(normalized_text)
+        if source_url:
+            article.source_url = source_url
+        if author:
+            article.author = author
+        if published_date:
+            article.published_date = published_date
         return self._store_article(article, chunks, voice=voice, speed=speed, tags=tags)
 
     def process_queued(
