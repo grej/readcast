@@ -45,6 +45,19 @@ class ReprocessRequest(BaseModel):
     speed: Optional[float] = None
 
 
+class UpdateArticleRequest(BaseModel):
+    title: Optional[str] = None
+    author: Optional[str] = None
+    publication: Optional[str] = None
+    published_date: Optional[str] = None
+    description: Optional[str] = None
+    tags: Optional[list[str]] = None
+
+
+class UpdateTextRequest(BaseModel):
+    text: str = Field(min_length=1)
+
+
 class PreferencesRequest(BaseModel):
     default_voice: Optional[str] = Field(default=None, min_length=1)
     playback_rate: Optional[float] = None
@@ -103,6 +116,40 @@ def create_app(base_dir: Optional[Path] = None) -> FastAPI:
         article = service.get_article(article_id)
         if article is None:
             raise HTTPException(status_code=404, detail="Article not found")
+        return {"article": _serialize_article(service, article)}
+
+    @app.put("/api/articles/{article_id}")
+    async def update_article_metadata(
+        request: Request,
+        article_id: str,
+        payload: UpdateArticleRequest,
+    ) -> dict[str, object]:
+        service = _service(request)
+        try:
+            article = service.update_article_metadata(
+                article_id,
+                title=payload.title,
+                author=payload.author,
+                publication=payload.publication,
+                published_date=payload.published_date,
+                description=payload.description,
+                tags=payload.tags,
+            )
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="Article not found") from exc
+        return {"article": _serialize_article(service, article)}
+
+    @app.put("/api/articles/{article_id}/text")
+    async def update_article_text(
+        request: Request,
+        article_id: str,
+        payload: UpdateTextRequest,
+    ) -> dict[str, object]:
+        service = _service(request)
+        try:
+            article = service.update_article_text(article_id, payload.text)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="Article not found") from exc
         return {"article": _serialize_article(service, article)}
 
     @app.get("/api/preferences")

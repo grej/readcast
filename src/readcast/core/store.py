@@ -268,6 +268,39 @@ class Store:
             return None
         return path.read_text(encoding="utf-8")
 
+    def update_full_text(self, article_id: str, full_text: str, chunks: list[Chunk]) -> None:
+        article_dir = self.get_article_dir(article_id)
+        self._write_text(article_dir / "source.txt", full_text)
+        self._write_json(article_dir / "chunks.json", [chunk.to_dict() for chunk in chunks])
+
+        with closing(self._connect()) as conn:
+            row = conn.execute(
+                "SELECT rowid FROM articles_fts_content WHERE article_id = ?", (article_id,)
+            ).fetchone()
+            if row:
+                conn.execute("DELETE FROM articles_fts WHERE rowid = ?", (row["rowid"],))
+                conn.execute("DELETE FROM articles_fts_content WHERE rowid = ?", (row["rowid"],))
+
+            article = self._row_to_article(
+                conn.execute("SELECT * FROM articles WHERE id = ?", (article_id,)).fetchone()
+            )
+            cursor = conn.execute(
+                """
+                INSERT INTO articles_fts_content (article_id, title, author, publication, full_text)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                (article_id, article.title, article.author, article.publication, full_text),
+            )
+            rowid = cursor.lastrowid
+            conn.execute(
+                """
+                INSERT INTO articles_fts(rowid, title, author, publication, full_text)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                (rowid, article.title, article.author, article.publication, full_text),
+            )
+            conn.commit()
+
     def create_output_symlink(self, article: Article, audio_path: Path) -> Path:
         slug = slugify(article.title) or article.id
         extension = audio_path.suffix

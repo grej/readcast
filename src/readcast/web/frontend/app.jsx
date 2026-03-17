@@ -333,54 +333,154 @@ function AddPanel({ voices, defaultVoice, onAdd, onPreview, onClose, onSaveDefau
   );
 }
 
-function ArticleDetail({ article, voices, onReprocess, onClose }) {
+function EditableField({ value, placeholder, onSave, style, inputStyle }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value || "");
+  const inputRef = useRef(null);
+
+  useEffect(() => { setDraft(value || ""); }, [value]);
+  useEffect(() => { if (editing) inputRef.current?.focus(); }, [editing]);
+
+  const save = () => {
+    setEditing(false);
+    const trimmed = draft.trim();
+    if (trimmed !== (value || "").trim()) {
+      onSave(trimmed);
+    }
+  };
+
+  if (editing) {
+    return (
+      <input
+        ref={inputRef}
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={save}
+        onKeyDown={(e) => { if (e.key === "Enter") save(); if (e.key === "Escape") { setDraft(value || ""); setEditing(false); } }}
+        style={{ ...styles.editableInput, ...inputStyle }}
+        placeholder={placeholder}
+      />
+    );
+  }
+
+  return (
+    <span
+      onClick={() => setEditing(true)}
+      style={{ ...styles.editableText, ...style, cursor: "pointer" }}
+      title="Click to edit"
+    >
+      {value || <span style={{ opacity: 0.3 }}>{placeholder}</span>}
+    </span>
+  );
+}
+
+function ArticleDetail({ article, voices, onReprocess, onClose, onRefresh }) {
   const [fullText, setFullText] = useState(null);
   const [loading, setLoading] = useState(true);
   const [reprocessVoice, setReprocessVoice] = useState(article.voice || "");
   const [reprocessing, setReprocessing] = useState(false);
+  const [removedIndices, setRemovedIndices] = useState(new Set());
+  const [saving, setSaving] = useState(false);
+  const [textModified, setTextModified] = useState(false);
+  const [message, setMessage] = useState("");
+
+  const paragraphs = useMemo(() => (fullText || "").split("\n\n").filter(Boolean), [fullText]);
+  const activeParagraphs = useMemo(() => paragraphs.filter((_, i) => !removedIndices.has(i)), [paragraphs, removedIndices]);
+  const liveWordCount = useMemo(() => activeParagraphs.reduce((sum, p) => sum + p.split(/\s+/).length, 0), [activeParagraphs]);
 
   useEffect(() => {
     setLoading(true);
+    setRemovedIndices(new Set());
+    setTextModified(false);
+    setMessage("");
     apiGet(`/api/articles/${article.id}/text`)
       .then((data) => setFullText(data.text || ""))
       .catch(() => setFullText("(Could not load text)"))
       .finally(() => setLoading(false));
   }, [article.id]);
 
+  const handleMetaSave = async (field, value) => {
+    try {
+      await apiJson(`/api/articles/${article.id}`, "PUT", { [field]: value });
+      if (onRefresh) onRefresh();
+    } catch {}
+  };
+
+  const handleRemoveParagraph = (index) => {
+    setRemovedIndices((prev) => new Set([...prev, index]));
+  };
+
+  const handleUndoRemove = (index) => {
+    setRemovedIndices((prev) => { const next = new Set(prev); next.delete(index); return next; });
+  };
+
+  const handleSaveText = async () => {
+    setSaving(true);
+    try {
+      const newText = activeParagraphs.join("\n\n");
+      await apiJson(`/api/articles/${article.id}/text`, "PUT", { text: newText });
+      setFullText(newText);
+      setRemovedIndices(new Set());
+      setTextModified(true);
+      setMessage("Text updated. Renarrate to update audio.");
+      if (onRefresh) onRefresh();
+    } catch (err) {
+      setMessage("Failed to save: " + err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleReprocess = async () => {
-    if (!reprocessVoice || reprocessing) return;
+    if (reprocessing) return;
     setReprocessing(true);
     try {
       await onReprocess(article.id, reprocessVoice);
+      setTextModified(false);
+      setMessage("");
     } finally {
       setReprocessing(false);
     }
   };
 
+  const canRenarrate = reprocessVoice !== article.voice || textModified;
+
   return (
     <div style={styles.detailPanel} onClick={(e) => e.stopPropagation()}>
       <div style={styles.detailHeader}>
-        <div>
-          <div style={styles.detailTitle}>{article.title}</div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <EditableField
+            value={article.title}
+            placeholder="Title"
+            onSave={(v) => handleMetaSave("title", v)}
+            style={styles.detailTitle}
+            inputStyle={{ ...styles.detailTitle, width: "100%" }}
+          />
           <div style={styles.detailMeta}>
-            {article.author ? <span>{article.author}</span> : null}
-            {article.author && article.publication ? <span style={styles.metaDot}>·</span> : null}
-            {article.publication ? <span>{article.publication}</span> : null}
-            {article.published_date ? (
-              <><span style={styles.metaDot}>·</span><span>{article.published_date}</span></>
-            ) : null}
+            <EditableField
+              value={article.author}
+              placeholder="Author"
+              onSave={(v) => handleMetaSave("author", v)}
+            />
             <span style={styles.metaDot}>·</span>
-            <span>{article.word_count} words</span>
+            <EditableField
+              value={article.publication}
+              placeholder="Publication"
+              onSave={(v) => handleMetaSave("publication", v)}
+            />
             <span style={styles.metaDot}>·</span>
-            <span>{article.estimated_read_min}m read</span>
+            <EditableField
+              value={article.published_date}
+              placeholder="Date"
+              onSave={(v) => handleMetaSave("published_date", v)}
+            />
+            <span style={styles.metaDot}>·</span>
+            <span>{liveWordCount} words</span>
           </div>
           {article.source_url ? (
             <a href={article.source_url} target="_blank" rel="noopener noreferrer" style={styles.detailLink}>
               {article.source_url}
             </a>
-          ) : null}
-          {article.description ? (
-            <div style={styles.detailDescription}>{article.description}</div>
           ) : null}
         </div>
         <button onClick={onClose} style={styles.closeBtn} aria-label="Close detail view">✕</button>
@@ -399,27 +499,59 @@ function ArticleDetail({ article, voices, onReprocess, onClose }) {
         </select>
         <button
           onClick={handleReprocess}
-          disabled={reprocessing || reprocessVoice === article.voice}
+          disabled={reprocessing || !canRenarrate}
           style={{
             ...styles.detailReprocessBtn,
-            opacity: reprocessing || reprocessVoice === article.voice ? 0.5 : 1,
+            opacity: reprocessing || !canRenarrate ? 0.5 : 1,
           }}
         >
           {reprocessing ? "Reprocessing..." : "Renarrate"}
         </button>
       </div>
 
+      {message ? <div style={styles.detailMessage}>{message}</div> : null}
+
       <div style={styles.detailTextWrap}>
         {loading ? (
           <div style={styles.detailLoading}>Loading text...</div>
         ) : (
           <div style={styles.detailText}>
-            {fullText.split("\n\n").map((para, i) => (
-              <p key={i} style={styles.detailParagraph}>{para}</p>
-            ))}
+            {paragraphs.map((para, i) => {
+              const removed = removedIndices.has(i);
+              if (removed) {
+                return (
+                  <div key={i} style={styles.removedParagraph}>
+                    <span style={styles.removedText}>{para.slice(0, 80)}...</span>
+                    <button onClick={() => handleUndoRemove(i)} style={styles.undoBtn}>Undo</button>
+                  </div>
+                );
+              }
+              return (
+                <div key={i} style={styles.paragraphRow}>
+                  <button
+                    onClick={() => handleRemoveParagraph(i)}
+                    style={styles.removeParagraphBtn}
+                    title="Remove this paragraph from narration"
+                    aria-label="Remove paragraph"
+                  >
+                    ×
+                  </button>
+                  <p style={styles.detailParagraph}>{para}</p>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
+
+      {removedIndices.size > 0 ? (
+        <div style={styles.detailSaveBar}>
+          <span style={styles.detailSaveInfo}>{removedIndices.size} paragraph{removedIndices.size > 1 ? "s" : ""} removed</span>
+          <button onClick={handleSaveText} disabled={saving} style={{ ...styles.detailReprocessBtn, opacity: saving ? 0.5 : 1 }}>
+            {saving ? "Saving..." : "Save changes"}
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -951,6 +1083,7 @@ function ReadcastApp() {
                   voices={voices}
                   onReprocess={handleReprocess}
                   onClose={() => setDetailId(null)}
+                  onRefresh={() => refreshArticles(search)}
                 />
               ) : null}
             </React.Fragment>
@@ -1011,6 +1144,9 @@ body { background: #141416; color: #e8e4df; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 3px; }
 textarea::placeholder, input::placeholder { color: rgba(255,255,255,0.25); }
+[style*="editableText"]:hover, span[title="Click to edit"]:hover { border-bottom-color: rgba(255,255,255,0.2) !important; }
+div[style]:hover > button[aria-label="Remove paragraph"] { color: rgba(217, 83, 79, 0.7) !important; }
+div[style]:hover > button[aria-label="Remove paragraph"]:hover { color: rgba(217, 83, 79, 1) !important; }
 `;
 
 const c = {
@@ -1378,6 +1514,87 @@ const styles = {
   },
   detailParagraph: {
     marginBottom: 14,
+    flex: 1,
+  },
+  editableText: {
+    borderBottom: "1px dashed transparent",
+    transition: "border-color 0.15s",
+  },
+  editableInput: {
+    background: "rgba(255,255,255,0.06)",
+    border: `1px solid ${c.accent}`,
+    borderRadius: 4,
+    padding: "2px 6px",
+    color: c.text,
+    fontSize: "inherit",
+    fontFamily: "inherit",
+    fontWeight: "inherit",
+    outline: "none",
+  },
+  paragraphRow: {
+    display: "flex",
+    alignItems: "flex-start",
+    gap: 8,
+    position: "relative",
+  },
+  removeParagraphBtn: {
+    background: "none",
+    border: "none",
+    color: "rgba(217, 83, 79, 0)",
+    fontSize: 18,
+    fontWeight: 700,
+    cursor: "pointer",
+    padding: "0 4px",
+    lineHeight: "1.7",
+    flexShrink: 0,
+    transition: "color 0.15s",
+  },
+  removedParagraph: {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    padding: "4px 0",
+    marginBottom: 8,
+  },
+  removedText: {
+    flex: 1,
+    fontSize: 13,
+    color: c.textMuted,
+    textDecoration: "line-through",
+    opacity: 0.5,
+  },
+  undoBtn: {
+    background: "none",
+    border: `1px solid ${c.border}`,
+    borderRadius: 4,
+    color: c.accent,
+    fontSize: 11,
+    fontWeight: 600,
+    fontFamily: c.sans,
+    padding: "2px 8px",
+    cursor: "pointer",
+    whiteSpace: "nowrap",
+  },
+  detailSaveBar: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: "10px 12px",
+    marginTop: 10,
+    background: c.surface,
+    borderRadius: 8,
+  },
+  detailSaveInfo: {
+    fontSize: 12,
+    color: c.textMuted,
+  },
+  detailMessage: {
+    fontSize: 12,
+    color: c.accent,
+    padding: "8px 12px",
+    background: c.accentDim,
+    borderRadius: 8,
+    marginBottom: 10,
   },
   failedGlyph: {
     color: "#f0b8b6",

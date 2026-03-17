@@ -24772,49 +24772,164 @@
       ] })
     ] }) });
   }
-  function ArticleDetail({ article, voices, onReprocess, onClose }) {
+  function EditableField({ value, placeholder, onSave, style, inputStyle }) {
+    const [editing, setEditing] = (0, import_react.useState)(false);
+    const [draft, setDraft] = (0, import_react.useState)(value || "");
+    const inputRef = (0, import_react.useRef)(null);
+    (0, import_react.useEffect)(() => {
+      setDraft(value || "");
+    }, [value]);
+    (0, import_react.useEffect)(() => {
+      if (editing) inputRef.current?.focus();
+    }, [editing]);
+    const save = () => {
+      setEditing(false);
+      const trimmed = draft.trim();
+      if (trimmed !== (value || "").trim()) {
+        onSave(trimmed);
+      }
+    };
+    if (editing) {
+      return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+        "input",
+        {
+          ref: inputRef,
+          value: draft,
+          onChange: (e) => setDraft(e.target.value),
+          onBlur: save,
+          onKeyDown: (e) => {
+            if (e.key === "Enter") save();
+            if (e.key === "Escape") {
+              setDraft(value || "");
+              setEditing(false);
+            }
+          },
+          style: { ...styles.editableInput, ...inputStyle },
+          placeholder
+        }
+      );
+    }
+    return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+      "span",
+      {
+        onClick: () => setEditing(true),
+        style: { ...styles.editableText, ...style, cursor: "pointer" },
+        title: "Click to edit",
+        children: value || /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { opacity: 0.3 }, children: placeholder })
+      }
+    );
+  }
+  function ArticleDetail({ article, voices, onReprocess, onClose, onRefresh }) {
     const [fullText, setFullText] = (0, import_react.useState)(null);
     const [loading, setLoading] = (0, import_react.useState)(true);
     const [reprocessVoice, setReprocessVoice] = (0, import_react.useState)(article.voice || "");
     const [reprocessing, setReprocessing] = (0, import_react.useState)(false);
+    const [removedIndices, setRemovedIndices] = (0, import_react.useState)(/* @__PURE__ */ new Set());
+    const [saving, setSaving] = (0, import_react.useState)(false);
+    const [textModified, setTextModified] = (0, import_react.useState)(false);
+    const [message, setMessage] = (0, import_react.useState)("");
+    const paragraphs = (0, import_react.useMemo)(() => (fullText || "").split("\n\n").filter(Boolean), [fullText]);
+    const activeParagraphs = (0, import_react.useMemo)(() => paragraphs.filter((_, i) => !removedIndices.has(i)), [paragraphs, removedIndices]);
+    const liveWordCount = (0, import_react.useMemo)(() => activeParagraphs.reduce((sum, p) => sum + p.split(/\s+/).length, 0), [activeParagraphs]);
     (0, import_react.useEffect)(() => {
       setLoading(true);
+      setRemovedIndices(/* @__PURE__ */ new Set());
+      setTextModified(false);
+      setMessage("");
       apiGet(`/api/articles/${article.id}/text`).then((data) => setFullText(data.text || "")).catch(() => setFullText("(Could not load text)")).finally(() => setLoading(false));
     }, [article.id]);
+    const handleMetaSave = async (field, value) => {
+      try {
+        await apiJson(`/api/articles/${article.id}`, "PUT", { [field]: value });
+        if (onRefresh) onRefresh();
+      } catch {
+      }
+    };
+    const handleRemoveParagraph = (index) => {
+      setRemovedIndices((prev) => /* @__PURE__ */ new Set([...prev, index]));
+    };
+    const handleUndoRemove = (index) => {
+      setRemovedIndices((prev) => {
+        const next = new Set(prev);
+        next.delete(index);
+        return next;
+      });
+    };
+    const handleSaveText = async () => {
+      setSaving(true);
+      try {
+        const newText = activeParagraphs.join("\n\n");
+        await apiJson(`/api/articles/${article.id}/text`, "PUT", { text: newText });
+        setFullText(newText);
+        setRemovedIndices(/* @__PURE__ */ new Set());
+        setTextModified(true);
+        setMessage("Text updated. Renarrate to update audio.");
+        if (onRefresh) onRefresh();
+      } catch (err) {
+        setMessage("Failed to save: " + err.message);
+      } finally {
+        setSaving(false);
+      }
+    };
     const handleReprocess = async () => {
-      if (!reprocessVoice || reprocessing) return;
+      if (reprocessing) return;
       setReprocessing(true);
       try {
         await onReprocess(article.id, reprocessVoice);
+        setTextModified(false);
+        setMessage("");
       } finally {
         setReprocessing(false);
       }
     };
+    const canRenarrate = reprocessVoice !== article.voice || textModified;
     return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.detailPanel, onClick: (e) => e.stopPropagation(), children: [
       /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.detailHeader, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.detailTitle, children: article.title }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { flex: 1, minWidth: 0 }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+            EditableField,
+            {
+              value: article.title,
+              placeholder: "Title",
+              onSave: (v) => handleMetaSave("title", v),
+              style: styles.detailTitle,
+              inputStyle: { ...styles.detailTitle, width: "100%" }
+            }
+          ),
           /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.detailMeta, children: [
-            article.author ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: article.author }) : null,
-            article.author && article.publication ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: styles.metaDot, children: "\xB7" }) : null,
-            article.publication ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: article.publication }) : null,
-            article.published_date ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
-              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: styles.metaDot, children: "\xB7" }),
-              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: article.published_date })
-            ] }) : null,
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+              EditableField,
+              {
+                value: article.author,
+                placeholder: "Author",
+                onSave: (v) => handleMetaSave("author", v)
+              }
+            ),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: styles.metaDot, children: "\xB7" }),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+              EditableField,
+              {
+                value: article.publication,
+                placeholder: "Publication",
+                onSave: (v) => handleMetaSave("publication", v)
+              }
+            ),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: styles.metaDot, children: "\xB7" }),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+              EditableField,
+              {
+                value: article.published_date,
+                placeholder: "Date",
+                onSave: (v) => handleMetaSave("published_date", v)
+              }
+            ),
             /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: styles.metaDot, children: "\xB7" }),
             /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { children: [
-              article.word_count,
+              liveWordCount,
               " words"
-            ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: styles.metaDot, children: "\xB7" }),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { children: [
-              article.estimated_read_min,
-              "m read"
             ] })
           ] }),
-          article.source_url ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("a", { href: article.source_url, target: "_blank", rel: "noopener noreferrer", style: styles.detailLink, children: article.source_url }) : null,
-          article.description ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.detailDescription, children: article.description }) : null
+          article.source_url ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("a", { href: article.source_url, target: "_blank", rel: "noopener noreferrer", style: styles.detailLink, children: article.source_url }) : null
         ] }),
         /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: onClose, style: styles.closeBtn, "aria-label": "Close detail view", children: "\u2715" })
       ] }),
@@ -24833,16 +24948,50 @@
           "button",
           {
             onClick: handleReprocess,
-            disabled: reprocessing || reprocessVoice === article.voice,
+            disabled: reprocessing || !canRenarrate,
             style: {
               ...styles.detailReprocessBtn,
-              opacity: reprocessing || reprocessVoice === article.voice ? 0.5 : 1
+              opacity: reprocessing || !canRenarrate ? 0.5 : 1
             },
             children: reprocessing ? "Reprocessing..." : "Renarrate"
           }
         )
       ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.detailTextWrap, children: loading ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.detailLoading, children: "Loading text..." }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.detailText, children: fullText.split("\n\n").map((para, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { style: styles.detailParagraph, children: para }, i)) }) })
+      message ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.detailMessage, children: message }) : null,
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.detailTextWrap, children: loading ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.detailLoading, children: "Loading text..." }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.detailText, children: paragraphs.map((para, i) => {
+        const removed = removedIndices.has(i);
+        if (removed) {
+          return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.removedParagraph, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: styles.removedText, children: [
+              para.slice(0, 80),
+              "..."
+            ] }),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: () => handleUndoRemove(i), style: styles.undoBtn, children: "Undo" })
+          ] }, i);
+        }
+        return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.paragraphRow, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+            "button",
+            {
+              onClick: () => handleRemoveParagraph(i),
+              style: styles.removeParagraphBtn,
+              title: "Remove this paragraph from narration",
+              "aria-label": "Remove paragraph",
+              children: "\xD7"
+            }
+          ),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { style: styles.detailParagraph, children: para })
+        ] }, i);
+      }) }) }),
+      removedIndices.size > 0 ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.detailSaveBar, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: styles.detailSaveInfo, children: [
+          removedIndices.size,
+          " paragraph",
+          removedIndices.size > 1 ? "s" : "",
+          " removed"
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: handleSaveText, disabled: saving, style: { ...styles.detailReprocessBtn, opacity: saving ? 0.5 : 1 }, children: saving ? "Saving..." : "Save changes" })
+      ] }) : null
     ] });
   }
   function ArticleCard({ article, isActive, isExpanded, selectionMode, selected, onPlay, onToggleSelect, onDetailToggle }) {
@@ -25303,7 +25452,8 @@
             article,
             voices,
             onReprocess: handleReprocess,
-            onClose: () => setDetailId(null)
+            onClose: () => setDetailId(null),
+            onRefresh: () => refreshArticles(search)
           }
         ) : null
       ] }, article.id)) }),
@@ -25361,6 +25511,9 @@ body { background: #141416; color: #e8e4df; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 3px; }
 textarea::placeholder, input::placeholder { color: rgba(255,255,255,0.25); }
+[style*="editableText"]:hover, span[title="Click to edit"]:hover { border-bottom-color: rgba(255,255,255,0.2) !important; }
+div[style]:hover > button[aria-label="Remove paragraph"] { color: rgba(217, 83, 79, 0.7) !important; }
+div[style]:hover > button[aria-label="Remove paragraph"]:hover { color: rgba(217, 83, 79, 1) !important; }
 `;
   var c = {
     bg: "#141416",
@@ -25725,7 +25878,88 @@ textarea::placeholder, input::placeholder { color: rgba(255,255,255,0.25); }
       color: c.text
     },
     detailParagraph: {
-      marginBottom: 14
+      marginBottom: 14,
+      flex: 1
+    },
+    editableText: {
+      borderBottom: "1px dashed transparent",
+      transition: "border-color 0.15s"
+    },
+    editableInput: {
+      background: "rgba(255,255,255,0.06)",
+      border: `1px solid ${c.accent}`,
+      borderRadius: 4,
+      padding: "2px 6px",
+      color: c.text,
+      fontSize: "inherit",
+      fontFamily: "inherit",
+      fontWeight: "inherit",
+      outline: "none"
+    },
+    paragraphRow: {
+      display: "flex",
+      alignItems: "flex-start",
+      gap: 8,
+      position: "relative"
+    },
+    removeParagraphBtn: {
+      background: "none",
+      border: "none",
+      color: "rgba(217, 83, 79, 0)",
+      fontSize: 18,
+      fontWeight: 700,
+      cursor: "pointer",
+      padding: "0 4px",
+      lineHeight: "1.7",
+      flexShrink: 0,
+      transition: "color 0.15s"
+    },
+    removedParagraph: {
+      display: "flex",
+      alignItems: "center",
+      gap: 8,
+      padding: "4px 0",
+      marginBottom: 8
+    },
+    removedText: {
+      flex: 1,
+      fontSize: 13,
+      color: c.textMuted,
+      textDecoration: "line-through",
+      opacity: 0.5
+    },
+    undoBtn: {
+      background: "none",
+      border: `1px solid ${c.border}`,
+      borderRadius: 4,
+      color: c.accent,
+      fontSize: 11,
+      fontWeight: 600,
+      fontFamily: c.sans,
+      padding: "2px 8px",
+      cursor: "pointer",
+      whiteSpace: "nowrap"
+    },
+    detailSaveBar: {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      padding: "10px 12px",
+      marginTop: 10,
+      background: c.surface,
+      borderRadius: 8
+    },
+    detailSaveInfo: {
+      fontSize: 12,
+      color: c.textMuted
+    },
+    detailMessage: {
+      fontSize: 12,
+      color: c.accent,
+      padding: "8px 12px",
+      background: c.accentDim,
+      borderRadius: 8,
+      marginBottom: 10
     },
     failedGlyph: {
       color: "#f0b8b6",

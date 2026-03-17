@@ -108,6 +108,50 @@ class ReadcastService:
         full_text = "\n\n".join(chunk.text for chunk in chunks)
         return PreviewResult(article=article, chunks=chunks, full_text=full_text)
 
+    def update_article_metadata(
+        self,
+        article_id: str,
+        title: Optional[str] = None,
+        author: Optional[str] = None,
+        publication: Optional[str] = None,
+        published_date: Optional[str] = None,
+        description: Optional[str] = None,
+        tags: Optional[list[str]] = None,
+    ) -> Article:
+        article = self._require_article(article_id)
+        if title is not None:
+            article.title = title
+        if author is not None:
+            article.author = author
+        if publication is not None:
+            article.publication = publication
+        if published_date is not None:
+            article.published_date = published_date
+        if description is not None:
+            article.description = description
+        if tags is not None:
+            article.tags = tags
+        self.store.update_article(article)
+        return article
+
+    def update_article_text(self, article_id: str, new_text: str) -> Article:
+        article = self._require_article(article_id)
+        paragraphs = [part.strip() for part in re.split(r"\n\s*\n+", new_text) if part.strip()]
+        title_text = paragraphs[0] if paragraphs else article.title
+
+        chunks = [Chunk(idx=0, chunk_type="title", text=article.title, html_tag="title")]
+        for idx, paragraph in enumerate(paragraphs, start=1):
+            normalized = re.sub(r"\s+", " ", paragraph).strip()
+            if normalized:
+                chunks.append(Chunk(idx=idx, chunk_type="paragraph", text=normalized, html_tag="text"))
+
+        full_text = "\n\n".join(chunk.text for chunk in chunks)
+        article.word_count = sum(len(chunk.text.split()) for chunk in chunks)
+        article.estimated_read_min = max(1, math.ceil(article.word_count / 238))
+        self.store.update_article(article)
+        self.store.update_full_text(article_id, full_text, chunks)
+        return article
+
     def retry_article(self, article_id: str) -> Article:
         article = self._require_article(article_id)
         article.status = "queued"
