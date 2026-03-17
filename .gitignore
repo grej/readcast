@@ -22,3 +22,7 @@ node_modules/
 # Local scratch
 test_audio/
 .local/
+
+# Private vision docs
+spock.md
+spock-plan.md
