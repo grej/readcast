@@ -30,6 +30,49 @@ from readcast.services import ProcessArticleResult, ReadcastService
 console = Console()
 
 
+def _check_port_available(host: str, port: int) -> None:
+    import socket
+    import os
+    import signal
+    import subprocess
+
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        sock.bind((host, port))
+        sock.close()
+        return
+    except OSError:
+        sock.close()
+
+    # Port is in use — try to find the PID
+    try:
+        result = subprocess.run(
+            ["lsof", "-ti", f":{port}"],
+            capture_output=True, text=True, timeout=5,
+        )
+        pids = [int(p) for p in result.stdout.strip().split() if p.strip()]
+    except (subprocess.SubprocessError, ValueError):
+        pids = []
+
+    if not pids:
+        raise click.ClickException(
+            f"Port {port} is already in use. Stop the other process or use --port to pick a different port."
+        )
+
+    pid_str = ", ".join(str(p) for p in pids)
+    if click.confirm(f"Port {port} is already in use (PID {pid_str}). Kill the old process?"):
+        for pid in pids:
+            try:
+                os.kill(pid, signal.SIGTERM)
+            except ProcessLookupError:
+                pass
+        import time
+        time.sleep(0.5)
+        console.print(f"[green]Stopped old process (PID {pid_str})[/green]")
+    else:
+        raise click.ClickException("Port is in use. Use --port to pick a different port.")
+
+
 class RichProgressCallback(ProgressCallback):
     def __init__(self, progress: Progress, task_id: int, article_id: str):
         self.progress = progress
@@ -129,6 +172,9 @@ def web(ctx: click.Context, host: Optional[str], port: Optional[int], no_open: b
 
     bind_host = host or config.web.host
     bind_port = port or config.web.port
+
+    _check_port_available(bind_host, bind_port)
+
     should_open = config.web.open_browser and not no_open
     url = f"http://{bind_host}:{bind_port}"
     if should_open:
