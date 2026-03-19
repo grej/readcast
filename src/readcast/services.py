@@ -147,8 +147,6 @@ class ReadcastService:
     def update_article_text(self, article_id: str, new_text: str) -> Article:
         article = self._require_article(article_id)
         paragraphs = [part.strip() for part in re.split(r"\n\s*\n+", new_text) if part.strip()]
-        title_text = paragraphs[0] if paragraphs else article.title
-
         chunks = [Chunk(idx=0, chunk_type="title", text=article.title, html_tag="title")]
         for idx, paragraph in enumerate(paragraphs, start=1):
             normalized = re.sub(r"\s+", " ", paragraph).strip()
@@ -215,7 +213,10 @@ class ReadcastService:
         stripped = input_value.strip()
         if stripped.startswith(("http://", "https://")):
             return self.add_source(stripped, voice=voice, speed=speed, tags=tags, html=html)
-        return self.add_text(stripped, voice=voice, speed=speed, tags=tags, source_url=source_url, author=author, published_date=published_date)
+        return self.add_text(
+            stripped, voice=voice, speed=speed, tags=tags,
+            source_url=source_url, author=author, published_date=published_date,
+        )
 
     def add_text(
         self,

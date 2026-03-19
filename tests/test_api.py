@@ -159,7 +159,7 @@ def test_api_feed_includes_audio_items_only(base_dir) -> None:
     with TestClient(app) as client:
         service = client.app.state.service
         included = service.add_text("Feed title\n\nFeed body.").article
-        excluded = service.add_text("No audio title\n\nBody.").article
+        service.add_text("No audio title\n\nBody.")
         audio_path = service.store.get_article_dir(included.id) / "audio.mp3"
         audio_path.write_bytes(_wav_bytes())
         service.store.update_audio_metadata(included.id, duration_sec=0.2, voice="af_sky", model="kokoro-82m", speed=1.0)
