@@ -53,9 +53,9 @@ about:
   homepage: https://github.com/gjennings/readcast
   license: MIT
   license_file: LICENSE
-  summary: Turn articles into podcasts on your Mac
+  summary: Personal knowledge engine for your Mac
   description: |
-    Readcast is a local-first personal knowledge base and podcast system
-    for macOS. Capture articles, threads, and text from anywhere, search
-    your collection, and automatically generate audio podcasts using
-    kokoro-edge TTS.
+    Readcast is a local-first knowledge engine for macOS. Capture web articles,
+    threads, and text — search by keyword and meaning via hybrid semantic search,
+    auto-tag with topics and entities using local ML, build a knowledge graph,
+    and generate audio podcasts. Runs entirely on Apple Silicon with MLX.

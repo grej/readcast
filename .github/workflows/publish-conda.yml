@@ -23,8 +23,7 @@ jobs:
         run: rattler-build build --recipe recipe/recipe.yaml --output-dir dist/conda
 
       - name: Upload to anaconda.org
-        env:
-          ANACONDA_TOKEN: ${{ secrets.ANACONDA_TOKEN }}
         run: |
-          pixi global install anaconda-client
-          find dist/conda -name "*.conda" -exec anaconda -t "$ANACONDA_TOKEN" upload --user gjennings --force {} +
+          find dist/conda -name "*.conda" -exec rattler-build upload anaconda --owner gjennings --api-key "$ANACONDA_API_KEY" --force {} +
+        env:
+          ANACONDA_API_KEY: ${{ secrets.ANACONDA_TOKEN }}
