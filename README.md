@@ -28,39 +28,25 @@ speech synthesis, and SQLite for storage. No cloud, no API keys, no data leaves 
 
 ## Install
 
-### One-line install (conda)
-
 ```bash
 pixi global install readcast -c https://conda.anaconda.org/gjennings -c conda-forge
 readcast web
 ```
 
-This installs readcast and all dependencies (Python, ffmpeg, etc.) in an isolated
-environment. You still need `kokoro-edge` for TTS — see below.
+That's it. This installs readcast, `kokoro-edge` (TTS engine), Python, ffmpeg, and all
+dependencies in an isolated environment. The web UI launches at `http://127.0.0.1:8765`.
+
+ML models (~600MB for embeddings + TTS) download automatically on first use.
 
 ### From source
 
 ```bash
-git clone https://github.com/gjennings/readcast.git
+git clone https://github.com/grej/readcast.git
 cd readcast
 pixi run start
 ```
 
-`pixi run start` handles setup and launches the web UI at `http://127.0.0.1:8765`.
-
-### ML extras
-
-Semantic search and auto-tagging require the `ml` optional dependencies:
-
-```bash
-pip install 'readcast[ml]'
-```
-
-These pull in `mlx-embeddings` (for vector embeddings via `BAAI/bge-small-en-v1.5`) and
-`mlx-lm` (for auto-tagging via `Qwen2.5-0.5B`). Both run locally on Apple Silicon via
-MLX — no torch, no CUDA, no cloud API. Models auto-download on first use (~600MB total).
-
-When installed from source via pixi, ML extras are included automatically.
+`pixi run start` handles setup and launches the web UI.
 
 ### CLI usage
 
@@ -77,8 +63,10 @@ If running from source, prefix commands with `pixi run readcast`.
 
 ## Browser extension
 
-A Chromium extension (works in Brave, Chrome, Edge) lets you capture articles while
-browsing:
+The browser extension captures articles while you browse. This is the one manual setup
+step — browser security policies require loading extensions by hand.
+
+**Setup** (Brave, Chrome, or Edge):
 
 1. Go to `brave://extensions/` (or `chrome://extensions/`)
 2. Enable **Developer mode**
@@ -89,18 +77,6 @@ The extension adds:
 - **Add Page** — sends the current page URL + rendered HTML to readcast
 - **Add Selection** — sends highlighted text as a new article
 - Right-click context menus for both actions
-
-## `kokoro-edge` dependency
-
-`readcast` talks to the local `kokoro-edge` daemon for text-to-speech. It does not
-bundle its own TTS runtime.
-
-`readcast` checks for `kokoro-edge` in this order:
-
-1. `READCAST_KOKORO_EDGE_BIN` environment variable
-2. `PATH`
-3. sibling dev build at `../kokoro-mlx/.build-xcode/stage/bin/kokoro-edge`
-4. installer URL via `KOKORO_EDGE_INSTALL_URL`
 
 ## Architecture
 
@@ -116,6 +92,9 @@ readcast stores everything in SQLite under `~/.readcast/`:
 Search uses hybrid Reciprocal Rank Fusion: FTS5 keyword results and cosine-similarity
 vector results are merged with `score(d) = Σ 1/(k + rank(d))`, so both exact matches
 and semantic matches surface without needing to normalize BM25 and cosine scores.
+
+`kokoro-edge` runs as a local daemon on `localhost:7777`, providing an OpenAI-compatible
+TTS API. readcast starts it automatically when needed.
 
 ## Status
 
@@ -141,6 +120,8 @@ or pointing your podcast app at `http://127.0.0.1:8765/feed.xml`.
 ## Development
 
 ```bash
+git clone https://github.com/grej/readcast.git
+cd readcast
 pixi install          # installs Python, ffmpeg, nodejs, and all dependencies
 pixi run test         # run tests
 pixi run lint         # run linter
