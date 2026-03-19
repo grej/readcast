@@ -51,8 +51,8 @@ tests:
 
 about:
   homepage: https://github.com/grej/readcast
-  doc_url: https://github.com/grej/readcast#install
-  dev_url: https://github.com/grej/readcast
+  documentation: https://github.com/grej/readcast#install
+  repository: https://github.com/grej/readcast
   license: MIT
   license_file: LICENSE
   summary: Personal knowledge engine for your Mac
