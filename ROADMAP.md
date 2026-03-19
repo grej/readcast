@@ -9,7 +9,13 @@
 - Inline metadata editing and paragraph-level text editing
 - RSS/podcast feed output
 - Conda packaging (anaconda.org/gjennings) with GitHub Actions publish
+- Batteries-included install: `pixi global install readcast` includes kokoro-edge
 - Port conflict detection on startup
+- Hybrid semantic search (FTS5 + vector embeddings via bge-small-en-v1.5 on MLX)
+- Auto-tagging with local LLM (topics, entities, summary, author via Qwen2.5-0.5B)
+- Knowledge graph (entity-relationship extraction, dedup, API endpoints)
+- Listen tracking (80% completion detection, listened badge)
+- Backfill pipeline (`readcast backfill` for tags + embeddings)
 
 ## Next Up
 
@@ -18,12 +24,6 @@
 - arXiv: extract title, authors, abstract from arxiv.org URLs
 - Twitter/X: authenticated API path via secondary account for thread capture
 - Substack: newsletter-specific metadata (newsletter name, subtitle)
-
-### Semantic Search (MLX Embeddings)
-- Local embedding model (nomic-embed-text or similar via mlx-community)
-- sqlite-vec for vector storage and cosine similarity queries
-- Hybrid search: FTS5 keyword + semantic similarity with weighted ranking
-- Backfill embeddings for existing articles
 
 ### Search & Library UI
 - Rich search with filters: author, source type, date range, tags
@@ -34,12 +34,6 @@
 - Tags and collections for organizing content
 
 ## Ideas / Future
-
-### MLX Author Extraction
-- Use a small local MLX model (Qwen2.5-0.5B or similar) to extract author name from article text
-- Run as post-processing step when HTML extraction returns no author
-- Could also extract publication name, date, and summary
-- Structured prompt: "Extract the author name from this text. Return only the name."
 
 ### AI-Assisted Content Parsing
 - Small model to handle formulas, images, complex layouts
