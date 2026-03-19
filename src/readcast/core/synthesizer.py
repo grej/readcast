@@ -141,6 +141,7 @@ def start_server(config: Config) -> dict[str, object]:
         pass
 
     binary = resolve_kokoro_edge_binary(config)
+    _strip_quarantine(binary)
     host, port = _server_host_port(config)
     result = subprocess.run(
         [str(binary), "serve", "-d", "--host", host, "--port", str(port)],
@@ -507,3 +508,14 @@ def _which_path(binary_name: Optional[str]) -> Optional[Path]:
         return None
     resolved = shutil.which(binary_name)
     return Path(resolved) if resolved else None
+
+
+def _strip_quarantine(binary: Path) -> None:
+    """Remove macOS quarantine attribute so Gatekeeper doesn't block unsigned binaries."""
+    import sys
+    if sys.platform != "darwin":
+        return
+    try:
+        subprocess.run(["xattr", "-d", "com.apple.quarantine", str(binary)], capture_output=True)
+    except FileNotFoundError:
+        pass
