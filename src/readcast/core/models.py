@@ -42,6 +42,11 @@ class Article:
     tts_model: Optional[str] = None
     speed: Optional[float] = None
     tags: list[str] = field(default_factory=list)
+    listened_at: Optional[str] = None
+    listen_count: int = 0
+    listened_complete: int = 0
+    last_digested_at: Optional[str] = None
+    digest_status: Optional[str] = None
 
     def to_dict(self) -> dict[str, Any]:
         return _strip_none(asdict(self))
@@ -50,6 +55,8 @@ class Article:
     def from_dict(cls, data: dict[str, Any]) -> "Article":
         payload = dict(data)
         payload["tags"] = list(payload.get("tags", []))
+        known = set(cls.__dataclass_fields__)
+        payload = {k: v for k, v in payload.items() if k in known}
         return cls(**payload)
 
 

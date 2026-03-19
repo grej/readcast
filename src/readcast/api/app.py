@@ -270,6 +270,47 @@ def create_app(base_dir: Optional[Path] = None) -> FastAPI:
             }
         }
 
+    # -- Entity endpoints -------------------------------------------------------
+
+    @app.get("/api/entities")
+    async def list_entities(request: Request, limit: int = Query(default=200)) -> dict[str, object]:
+        service = _service(request)
+        entities = service.store.list_entities(limit=limit)
+        return {"entities": entities}
+
+    @app.get("/api/entities/{entity_id}/articles")
+    async def entity_articles(request: Request, entity_id: int) -> dict[str, object]:
+        service = _service(request)
+        articles = service.store.get_entity_articles(entity_id)
+        return {"articles": [_serialize_article(service, a) for a in articles]}
+
+    @app.get("/api/articles/{article_id}/entities")
+    async def article_entities(request: Request, article_id: str) -> dict[str, object]:
+        service = _service(request)
+        article = service.get_article(article_id)
+        if article is None:
+            raise HTTPException(status_code=404, detail="Article not found")
+        entities = service.store.get_article_entities(article_id)
+        return {"entities": entities}
+
+    # -- Listen tracking -------------------------------------------------------
+
+    @app.post("/api/articles/{article_id}/listened")
+    async def record_listened(request: Request, article_id: str) -> dict[str, object]:
+        service = _service(request)
+        article = service.get_article(article_id)
+        if article is None:
+            raise HTTPException(status_code=404, detail="Article not found")
+        body: dict = {}
+        try:
+            body = await request.json()
+        except Exception:
+            pass
+        complete = bool(body.get("complete", False))
+        service.store.record_listen(article_id, complete=complete)
+        updated = service.get_article(article_id)
+        return {"article": _serialize_article(service, updated)}
+
     @app.get("/feed.xml")
     async def feed(request: Request) -> Response:
         service = _service(request)

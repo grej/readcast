@@ -35,7 +35,12 @@ CREATE TABLE IF NOT EXISTS articles (
     voice TEXT,
     tts_model TEXT,
     speed REAL,
-    tags TEXT NOT NULL DEFAULT '[]'
+    tags TEXT NOT NULL DEFAULT '[]',
+    listened_at TEXT,
+    listen_count INTEGER DEFAULT 0,
+    listened_complete INTEGER DEFAULT 0,
+    last_digested_at TEXT,
+    digest_status TEXT
 );
 
 CREATE TABLE IF NOT EXISTS articles_fts_content (
@@ -61,6 +66,62 @@ CREATE INDEX IF NOT EXISTS idx_articles_status ON articles(status);
 CREATE TABLE IF NOT EXISTS settings (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS concepts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    article_id TEXT NOT NULL REFERENCES articles(id) ON DELETE CASCADE,
+    content TEXT NOT NULL,
+    concept_type TEXT,
+    bloom_level TEXT,
+    prerequisite_of INTEGER REFERENCES concepts(id)
+);
+
+CREATE TABLE IF NOT EXISTS entities (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    entity_type TEXT NOT NULL,
+    first_seen_at TEXT NOT NULL,
+    last_referenced_at TEXT NOT NULL,
+    reference_count INTEGER DEFAULT 1,
+    UNIQUE(name, entity_type)
+);
+
+CREATE TABLE IF NOT EXISTS relationships (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    source_entity_id INTEGER REFERENCES entities(id),
+    target_entity_id INTEGER REFERENCES entities(id),
+    relationship_type TEXT NOT NULL,
+    source_article_id TEXT REFERENCES articles(id),
+    extracted_at TEXT NOT NULL,
+    confidence REAL DEFAULT 1.0,
+    exercise_generated INTEGER DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS article_entities (
+    article_id TEXT REFERENCES articles(id) ON DELETE CASCADE,
+    entity_id INTEGER REFERENCES entities(id) ON DELETE CASCADE,
+    PRIMARY KEY (article_id, entity_id)
+);
+
+CREATE TABLE IF NOT EXISTS embeddings (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    article_id TEXT NOT NULL REFERENCES articles(id) ON DELETE CASCADE,
+    chunk_index INTEGER NOT NULL,
+    chunk_text TEXT NOT NULL,
+    chunk_start INTEGER NOT NULL,
+    chunk_end INTEGER NOT NULL,
+    embedding BLOB NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS agent_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    agent_name TEXT NOT NULL,
+    action TEXT NOT NULL,
+    target_id TEXT,
+    payload TEXT,
+    created_at TEXT NOT NULL,
+    reviewed_by_user INTEGER DEFAULT 0
 );
 """
 
@@ -88,6 +149,11 @@ class Store:
         ("image_url", "TEXT"),
         ("canonical_url", "TEXT"),
         ("site_name", "TEXT"),
+        ("listened_at", "TEXT"),
+        ("listen_count", "INTEGER DEFAULT 0"),
+        ("listened_complete", "INTEGER DEFAULT 0"),
+        ("last_digested_at", "TEXT"),
+        ("digest_status", "TEXT"),
     ]
 
     def _initialize_db(self) -> None:
@@ -113,8 +179,10 @@ class Store:
                         ingested_at, word_count, estimated_read_min,
                         description, image_url, canonical_url, site_name,
                         language, status,
-                        error_message, audio_duration_sec, voice, tts_model, speed, tags
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        error_message, audio_duration_sec, voice, tts_model, speed, tags,
+                        listened_at, listen_count, listened_complete,
+                        last_digested_at, digest_status
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         article.id,
@@ -139,6 +207,11 @@ class Store:
                         article.tts_model,
                         article.speed,
                         json.dumps(article.tags),
+                        article.listened_at,
+                        article.listen_count,
+                        article.listened_complete,
+                        article.last_digested_at,
+                        article.digest_status,
                     ),
                 )
                 cursor = conn.execute(
@@ -353,7 +426,9 @@ class Store:
                     estimated_read_min = ?,
                     description = ?, image_url = ?, canonical_url = ?, site_name = ?,
                     language = ?, status = ?, error_message = ?,
-                    audio_duration_sec = ?, voice = ?, tts_model = ?, speed = ?, tags = ?
+                    audio_duration_sec = ?, voice = ?, tts_model = ?, speed = ?, tags = ?,
+                    listened_at = ?, listen_count = ?, listened_complete = ?,
+                    last_digested_at = ?, digest_status = ?
                 WHERE id = ?
                 """,
                 (
@@ -375,6 +450,11 @@ class Store:
                     article.tts_model,
                     article.speed,
                     json.dumps(article.tags),
+                    article.listened_at,
+                    article.listen_count,
+                    article.listened_complete,
+                    article.last_digested_at,
+                    article.digest_status,
                     article.id,
                 ),
             )
@@ -384,9 +464,181 @@ class Store:
     def _row_to_article(self, row: sqlite3.Row) -> Article:
         payload = dict(row)
         payload["tags"] = json.loads(payload.get("tags") or "[]")
-        for col in ("description", "image_url", "canonical_url", "site_name"):
+        for col in ("description", "image_url", "canonical_url", "site_name",
+                     "listened_at", "last_digested_at", "digest_status"):
             payload.setdefault(col, None)
+        for col in ("listen_count", "listened_complete"):
+            payload.setdefault(col, 0)
         return Article.from_dict(payload)
+
+    # -- Listen tracking -------------------------------------------------------
+
+    def record_listen(self, article_id: str, complete: bool = False) -> None:
+        from datetime import UTC, datetime
+        now = datetime.now(UTC).isoformat()
+        with closing(self._connect()) as conn:
+            conn.execute(
+                """
+                UPDATE articles
+                SET listened_at = ?, listen_count = listen_count + 1,
+                    listened_complete = CASE WHEN ? THEN 1 ELSE listened_complete END
+                WHERE id = ?
+                """,
+                (now, complete, article_id),
+            )
+            conn.commit()
+
+    # -- Entity / relationship storage -----------------------------------------
+
+    def upsert_entity(self, name: str, entity_type: str, seen_at: str) -> int:
+        with closing(self._connect()) as conn:
+            row = conn.execute(
+                "SELECT id FROM entities WHERE name = ? AND entity_type = ?",
+                (name, entity_type),
+            ).fetchone()
+            if row:
+                conn.execute(
+                    "UPDATE entities SET last_referenced_at = ?, reference_count = reference_count + 1 WHERE id = ?",
+                    (seen_at, row["id"]),
+                )
+                conn.commit()
+                return row["id"]
+            cursor = conn.execute(
+                "INSERT INTO entities (name, entity_type, first_seen_at, last_referenced_at) VALUES (?, ?, ?, ?)",
+                (name, entity_type, seen_at, seen_at),
+            )
+            conn.commit()
+            return cursor.lastrowid
+
+    def link_article_entity(self, article_id: str, entity_id: int) -> None:
+        with closing(self._connect()) as conn:
+            conn.execute(
+                "INSERT OR IGNORE INTO article_entities (article_id, entity_id) VALUES (?, ?)",
+                (article_id, entity_id),
+            )
+            conn.commit()
+
+    def add_relationship(
+        self, source_entity_id: int, target_entity_id: int,
+        relationship_type: str, source_article_id: str, extracted_at: str,
+        confidence: float = 1.0,
+    ) -> int:
+        with closing(self._connect()) as conn:
+            cursor = conn.execute(
+                """
+                INSERT INTO relationships
+                    (source_entity_id, target_entity_id, relationship_type, source_article_id, extracted_at, confidence)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (source_entity_id, target_entity_id, relationship_type, source_article_id, extracted_at, confidence),
+            )
+            conn.commit()
+            return cursor.lastrowid
+
+    def list_entities(self, limit: int = 200) -> list[dict]:
+        with closing(self._connect()) as conn:
+            rows = conn.execute(
+                """
+                SELECT e.*, COUNT(ae.article_id) as article_count
+                FROM entities e
+                LEFT JOIN article_entities ae ON ae.entity_id = e.id
+                GROUP BY e.id
+                ORDER BY e.reference_count DESC
+                LIMIT ?
+                """,
+                (limit,),
+            ).fetchall()
+        return [dict(row) for row in rows]
+
+    def get_entity_articles(self, entity_id: int) -> list[Article]:
+        with closing(self._connect()) as conn:
+            rows = conn.execute(
+                """
+                SELECT a.* FROM articles a
+                JOIN article_entities ae ON ae.article_id = a.id
+                WHERE ae.entity_id = ?
+                ORDER BY a.ingested_at DESC
+                """,
+                (entity_id,),
+            ).fetchall()
+        return [self._row_to_article(row) for row in rows]
+
+    def get_article_entities(self, article_id: str) -> list[dict]:
+        with closing(self._connect()) as conn:
+            rows = conn.execute(
+                """
+                SELECT e.* FROM entities e
+                JOIN article_entities ae ON ae.entity_id = e.id
+                WHERE ae.article_id = ?
+                ORDER BY e.reference_count DESC
+                """,
+                (article_id,),
+            ).fetchall()
+        return [dict(row) for row in rows]
+
+    # -- Embedding storage -----------------------------------------------------
+
+    def store_embeddings(self, article_id: str, chunks: list[dict]) -> None:
+        """Store embedding chunks. Each chunk: {chunk_index, chunk_text, chunk_start, chunk_end, embedding (bytes)}."""
+        with closing(self._connect()) as conn:
+            conn.execute("DELETE FROM embeddings WHERE article_id = ?", (article_id,))
+            for chunk in chunks:
+                conn.execute(
+                    """
+                    INSERT INTO embeddings (article_id, chunk_index, chunk_text, chunk_start, chunk_end, embedding)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                    """,
+                    (article_id, chunk["chunk_index"], chunk["chunk_text"],
+                     chunk["chunk_start"], chunk["chunk_end"], chunk["embedding"]),
+                )
+            conn.commit()
+
+    def get_all_embeddings(self) -> list[dict]:
+        with closing(self._connect()) as conn:
+            rows = conn.execute(
+                "SELECT id, article_id, chunk_index, chunk_text, embedding FROM embeddings"
+            ).fetchall()
+        return [dict(row) for row in rows]
+
+    def has_embeddings(self, article_id: str) -> bool:
+        with closing(self._connect()) as conn:
+            row = conn.execute(
+                "SELECT 1 FROM embeddings WHERE article_id = ? LIMIT 1", (article_id,)
+            ).fetchone()
+        return row is not None
+
+    def articles_without_embeddings(self) -> list[Article]:
+        with closing(self._connect()) as conn:
+            rows = conn.execute(
+                """
+                SELECT a.* FROM articles a
+                WHERE NOT EXISTS (SELECT 1 FROM embeddings e WHERE e.article_id = a.id)
+                ORDER BY a.ingested_at ASC
+                """
+            ).fetchall()
+        return [self._row_to_article(row) for row in rows]
+
+    def articles_without_tags(self) -> list[Article]:
+        with closing(self._connect()) as conn:
+            rows = conn.execute(
+                """
+                SELECT * FROM articles
+                WHERE tags = '[]' OR tags IS NULL
+                ORDER BY ingested_at ASC
+                """
+            ).fetchall()
+        return [self._row_to_article(row) for row in rows]
+
+    # -- Agent log -------------------------------------------------------------
+
+    def log_agent_action(self, agent_name: str, action: str, target_id: str = None, payload: str = None) -> None:
+        from datetime import UTC, datetime
+        with closing(self._connect()) as conn:
+            conn.execute(
+                "INSERT INTO agent_log (agent_name, action, target_id, payload, created_at) VALUES (?, ?, ?, ?, ?)",
+                (agent_name, action, target_id, payload, datetime.now(UTC).isoformat()),
+            )
+            conn.commit()
 
     @staticmethod
     def _write_json(path: Path, payload: object) -> None:

@@ -24828,6 +24828,7 @@
     const [saving, setSaving] = (0, import_react.useState)(false);
     const [textModified, setTextModified] = (0, import_react.useState)(false);
     const [message, setMessage] = (0, import_react.useState)("");
+    const [entities, setEntities] = (0, import_react.useState)([]);
     const paragraphs = (0, import_react.useMemo)(() => (fullText || "").split("\n\n").filter(Boolean), [fullText]);
     const activeParagraphs = (0, import_react.useMemo)(() => paragraphs.filter((_, i) => !removedIndices.has(i)), [paragraphs, removedIndices]);
     const liveWordCount = (0, import_react.useMemo)(() => activeParagraphs.reduce((sum, p) => sum + p.split(/\s+/).length, 0), [activeParagraphs]);
@@ -24837,6 +24838,7 @@
       setTextModified(false);
       setMessage("");
       apiGet(`/api/articles/${article.id}/text`).then((data) => setFullText(data.text || "")).catch(() => setFullText("(Could not load text)")).finally(() => setLoading(false));
+      apiGet(`/api/articles/${article.id}/entities`).then((data) => setEntities(data.entities || [])).catch(() => setEntities([]));
     }, [article.id]);
     const handleMetaSave = async (field, value) => {
       try {
@@ -24957,6 +24959,13 @@
           }
         )
       ] }),
+      entities.length > 0 ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.entitySection, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.entitySectionTitle, children: "Entities" }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.entityList, children: entities.map((e) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: styles.entityTag, title: e.entity_type, children: [
+          e.name,
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: styles.entityType, children: e.entity_type })
+        ] }, e.id)) })
+      ] }) : null,
       message ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.detailMessage, children: message }) : null,
       /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.detailTextWrap, children: loading ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.detailLoading, children: "Loading text..." }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.detailText, children: paragraphs.map((para, i) => {
         const removed = removedIndices.has(i);
@@ -25056,7 +25065,10 @@
               isFailed && article.error_message ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.cardError, children: article.error_message }) : null
             ] })
           ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.cardRight, children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: styles.voiceTag, children: article.voice || "default" }) })
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.cardRight, children: [
+            article.listened_at ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: styles.listenedBadge, children: "Listened" }) : null,
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: styles.voiceTag, children: article.voice || "default" })
+          ] })
         ]
       }
     );
@@ -25122,6 +25134,7 @@
     const [detailId, setDetailId] = (0, import_react.useState)(null);
     const audioRef = (0, import_react.useRef)(null);
     const searchRef = (0, import_react.useRef)(null);
+    const listenedFiredRef = (0, import_react.useRef)(null);
     const activeArticle = (0, import_react.useMemo)(() => articles.find((article) => article.id === activeId) || null, [articles, activeId]);
     const hasActiveWork = articles.some((article) => article.status === "queued" || article.status === "synthesizing");
     const selectedCount = selectedIds.length;
@@ -25188,7 +25201,14 @@
     (0, import_react.useEffect)(() => {
       const audio = audioRef.current;
       if (!audio) return void 0;
-      const onTimeUpdate = () => setCurrentTime(audio.currentTime || 0);
+      const onTimeUpdate = () => {
+        setCurrentTime(audio.currentTime || 0);
+        if (activeId && audio.duration > 0 && audio.currentTime / audio.duration > 0.8 && listenedFiredRef.current !== activeId) {
+          listenedFiredRef.current = activeId;
+          apiJson(`/api/articles/${activeId}/listened`, "POST", { complete: true }).catch(() => {
+          });
+        }
+      };
       const onLoaded = () => setDuration(audio.duration || 0);
       const onEnded = () => setIsPlaying(false);
       const onPause = () => setIsPlaying(false);
@@ -25338,6 +25358,7 @@
       setActiveId(article.id);
       setCurrentTime(0);
       setDuration(article.audio_duration_sec || 0);
+      listenedFiredRef.current = null;
       audio.src = article.audio_url;
       await audio.play();
     }
@@ -25760,6 +25781,50 @@ div[style]:hover > button[aria-label="Remove paragraph"]:hover { color: rgba(217
       padding: "3px 8px",
       borderRadius: 4,
       letterSpacing: "0.02em"
+    },
+    listenedBadge: {
+      fontSize: 10,
+      fontFamily: "'DM Sans', sans-serif",
+      color: "#7ec88b",
+      background: "rgba(126,200,139,0.12)",
+      padding: "2px 7px",
+      borderRadius: 4,
+      letterSpacing: "0.03em",
+      marginRight: 6,
+      fontWeight: 600,
+      textTransform: "uppercase"
+    },
+    entitySection: {
+      padding: "8px 16px",
+      borderBottom: `1px solid ${c.border}`
+    },
+    entitySectionTitle: {
+      fontSize: 11,
+      color: c.textMuted,
+      fontWeight: 600,
+      textTransform: "uppercase",
+      letterSpacing: "0.05em",
+      marginBottom: 6
+    },
+    entityList: {
+      display: "flex",
+      flexWrap: "wrap",
+      gap: 6
+    },
+    entityTag: {
+      display: "inline-flex",
+      alignItems: "center",
+      gap: 4,
+      fontSize: 12,
+      color: c.textSecondary,
+      background: "rgba(255,255,255,0.06)",
+      padding: "3px 8px",
+      borderRadius: 4
+    },
+    entityType: {
+      fontSize: 10,
+      color: c.textMuted,
+      fontStyle: "italic"
     },
     processingDot: {
       width: 8,
