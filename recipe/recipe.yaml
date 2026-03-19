@@ -61,3 +61,10 @@ about:
     threads, and text — search by keyword and meaning via hybrid semantic search,
     auto-tag with topics and entities using local ML, build a knowledge graph,
     and generate audio podcasts. Runs entirely on Apple Silicon with MLX.
+
+    Install with pixi (recommended):
+      pixi global install readcast -c https://conda.anaconda.org/gjennings -c conda-forge
+
+    This package requires conda-forge for its dependencies (httpx, fastapi, etc.).
+    The default conda install command above will not resolve — use pixi or add
+    -c conda-forge when installing with conda.
