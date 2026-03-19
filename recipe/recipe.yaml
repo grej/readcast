@@ -2,7 +2,7 @@ schema_version: 1
 
 context:
   name: readcast
-  version: ${{ env.get("READCAST_VERSION", "0.1.0") }}
+  version: ${{ env.get("READCAST_VERSION") }}
 
 package:
   name: ${{ name }}
