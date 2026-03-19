@@ -50,7 +50,9 @@ tests:
       - readcast --help
 
 about:
-  homepage: https://github.com/gjennings/readcast
+  homepage: https://github.com/grej/readcast
+  doc_url: https://github.com/grej/readcast#install
+  dev_url: https://github.com/grej/readcast
   license: MIT
   license_file: LICENSE
   summary: Personal knowledge engine for your Mac
