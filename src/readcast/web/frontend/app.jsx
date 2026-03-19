@@ -383,6 +383,7 @@ function ArticleDetail({ article, voices, onReprocess, onClose, onRefresh }) {
   const [saving, setSaving] = useState(false);
   const [textModified, setTextModified] = useState(false);
   const [message, setMessage] = useState("");
+  const [entities, setEntities] = useState([]);
 
   const paragraphs = useMemo(() => (fullText || "").split("\n\n").filter(Boolean), [fullText]);
   const activeParagraphs = useMemo(() => paragraphs.filter((_, i) => !removedIndices.has(i)), [paragraphs, removedIndices]);
@@ -397,6 +398,9 @@ function ArticleDetail({ article, voices, onReprocess, onClose, onRefresh }) {
       .then((data) => setFullText(data.text || ""))
       .catch(() => setFullText("(Could not load text)"))
       .finally(() => setLoading(false));
+    apiGet(`/api/articles/${article.id}/entities`)
+      .then((data) => setEntities(data.entities || []))
+      .catch(() => setEntities([]));
   }, [article.id]);
 
   const handleMetaSave = async (field, value) => {
@@ -508,6 +512,20 @@ function ArticleDetail({ article, voices, onReprocess, onClose, onRefresh }) {
           {reprocessing ? "Reprocessing..." : "Renarrate"}
         </button>
       </div>
+
+      {entities.length > 0 ? (
+        <div style={styles.entitySection}>
+          <div style={styles.entitySectionTitle}>Entities</div>
+          <div style={styles.entityList}>
+            {entities.map((e) => (
+              <span key={e.id} style={styles.entityTag} title={e.entity_type}>
+                {e.name}
+                <span style={styles.entityType}>{e.entity_type}</span>
+              </span>
+            ))}
+          </div>
+        </div>
+      ) : null}
 
       {message ? <div style={styles.detailMessage}>{message}</div> : null}
 
@@ -637,6 +655,7 @@ function ArticleCard({ article, isActive, isExpanded, selectionMode, selected, o
         </div>
       </div>
       <div style={styles.cardRight}>
+        {article.listened_at ? <span style={styles.listenedBadge}>Listened</span> : null}
         <span style={styles.voiceTag}>{article.voice || "default"}</span>
       </div>
     </div>
@@ -709,6 +728,7 @@ function ReadcastApp() {
   const [detailId, setDetailId] = useState(null);
   const audioRef = useRef(null);
   const searchRef = useRef(null);
+  const listenedFiredRef = useRef(null);
 
   const activeArticle = useMemo(() => articles.find((article) => article.id === activeId) || null, [articles, activeId]);
   const hasActiveWork = articles.some((article) => article.status === "queued" || article.status === "synthesizing");
@@ -786,7 +806,13 @@ function ReadcastApp() {
     const audio = audioRef.current;
     if (!audio) return undefined;
 
-    const onTimeUpdate = () => setCurrentTime(audio.currentTime || 0);
+    const onTimeUpdate = () => {
+      setCurrentTime(audio.currentTime || 0);
+      if (activeId && audio.duration > 0 && audio.currentTime / audio.duration > 0.8 && listenedFiredRef.current !== activeId) {
+        listenedFiredRef.current = activeId;
+        apiJson(`/api/articles/${activeId}/listened`, "POST", { complete: true }).catch(() => {});
+      }
+    };
     const onLoaded = () => setDuration(audio.duration || 0);
     const onEnded = () => setIsPlaying(false);
     const onPause = () => setIsPlaying(false);
@@ -950,6 +976,7 @@ function ReadcastApp() {
     setActiveId(article.id);
     setCurrentTime(0);
     setDuration(article.audio_duration_sec || 0);
+    listenedFiredRef.current = null;
     audio.src = article.audio_url;
     await audio.play();
   }
@@ -1395,6 +1422,50 @@ const styles = {
     padding: "3px 8px",
     borderRadius: 4,
     letterSpacing: "0.02em",
+  },
+  listenedBadge: {
+    fontSize: 10,
+    fontFamily: "'DM Sans', sans-serif",
+    color: "#7ec88b",
+    background: "rgba(126,200,139,0.12)",
+    padding: "2px 7px",
+    borderRadius: 4,
+    letterSpacing: "0.03em",
+    marginRight: 6,
+    fontWeight: 600,
+    textTransform: "uppercase",
+  },
+  entitySection: {
+    padding: "8px 16px",
+    borderBottom: `1px solid ${c.border}`,
+  },
+  entitySectionTitle: {
+    fontSize: 11,
+    color: c.textMuted,
+    fontWeight: 600,
+    textTransform: "uppercase",
+    letterSpacing: "0.05em",
+    marginBottom: 6,
+  },
+  entityList: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: 6,
+  },
+  entityTag: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 4,
+    fontSize: 12,
+    color: c.textSecondary,
+    background: "rgba(255,255,255,0.06)",
+    padding: "3px 8px",
+    borderRadius: 4,
+  },
+  entityType: {
+    fontSize: 10,
+    color: c.textMuted,
+    fontStyle: "italic",
   },
   processingDot: {
     width: 8,

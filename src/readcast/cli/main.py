@@ -347,6 +347,82 @@ def feed_generate() -> None:
     raise click.ClickException("Feed generation is not implemented in Phase 1.")
 
 
+# -- Backfill commands -------------------------------------------------------
+
+@cli.group(name="tags", invoke_without_command=True)
+@click.pass_context
+def tags_group(ctx: click.Context) -> None:
+    """Article tagging commands."""
+    if ctx.invoked_subcommand is None:
+        click.echo(ctx.get_help())
+
+
+@tags_group.command("backfill")
+@click.pass_context
+def tags_backfill(ctx: click.Context) -> None:
+    """Run auto-tagging on all untagged articles."""
+    service: ReadcastService = ctx.obj["service"]
+    store = service.store
+    articles = store.articles_without_tags()
+    if not articles:
+        console.print("All articles already have tags.")
+        return
+    console.print(f"Tagging {len(articles)} article(s)...")
+    from readcast.core.tagger import tag_article, apply_tag_result
+    for article in articles:
+        text = store.get_full_text(article.id)
+        if not text:
+            console.print(f"  [yellow]skip[/yellow] {article.id} (no text)")
+            continue
+        try:
+            result = tag_article(text)
+            apply_tag_result(article.id, result, store)
+            console.print(f"  [green]tagged[/green] {article.id} ({len(result.topics)} topics, {len(result.entities)} entities)")
+        except Exception as exc:
+            console.print(f"  [red]failed[/red] {article.id}: {exc}")
+
+
+@cli.group(name="embeddings", invoke_without_command=True)
+@click.pass_context
+def embeddings_group(ctx: click.Context) -> None:
+    """Embedding commands."""
+    if ctx.invoked_subcommand is None:
+        click.echo(ctx.get_help())
+
+
+@embeddings_group.command("backfill")
+@click.pass_context
+def embeddings_backfill(ctx: click.Context) -> None:
+    """Generate embeddings for all articles that don't have them."""
+    service: ReadcastService = ctx.obj["service"]
+    store = service.store
+    articles = store.articles_without_embeddings()
+    if not articles:
+        console.print("All articles already have embeddings.")
+        return
+    console.print(f"Embedding {len(articles)} article(s)...")
+    from readcast.core.embedder import embed_article
+    for article in articles:
+        try:
+            count = embed_article(article.id, store)
+            console.print(f"  [green]embedded[/green] {article.id} ({count} chunks)")
+        except Exception as exc:
+            console.print(f"  [red]failed[/red] {article.id}: {exc}")
+
+
+@cli.command()
+@click.pass_context
+def backfill(ctx: click.Context) -> None:
+    """Run all backfill steps in order: tags -> graph -> embeddings."""
+    console.print("[bold]Step 1/2: Tags + knowledge graph[/bold]")
+    ctx.invoke(tags_backfill)
+    console.print()
+    console.print("[bold]Step 2/2: Embeddings[/bold]")
+    ctx.invoke(embeddings_backfill)
+    console.print()
+    console.print("[green]Backfill complete.[/green]")
+
+
 def _process_articles(service: ReadcastService, articles: list[Article]) -> None:
     for article in articles:
         with Progress(

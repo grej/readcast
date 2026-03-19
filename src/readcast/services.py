@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 import hashlib
+import logging
 import math
 from pathlib import Path
 import re
@@ -23,6 +24,8 @@ from .core.synthesizer import (
     fetch_server_status,
     synthesize,
 )
+
+log = logging.getLogger(__name__)
 
 
 @dataclass(slots=True)
@@ -60,7 +63,14 @@ class ReadcastService:
         return self.store.list_articles(status=status, limit=limit)
 
     def search_articles(self, query: str, limit: int = 20) -> list[Article]:
-        return self.store.search(query, limit=limit)
+        try:
+            from .core.embedder import hybrid_search
+            return hybrid_search(query, self.store, limit=limit)
+        except ImportError:
+            return self.store.search(query, limit=limit)
+        except Exception:
+            log.debug("Hybrid search failed, falling back to FTS", exc_info=True)
+            return self.store.search(query, limit=limit)
 
     def get_article(self, article_id: str) -> Optional[Article]:
         return self.store.get_article(article_id)
@@ -137,8 +147,6 @@ class ReadcastService:
     def update_article_text(self, article_id: str, new_text: str) -> Article:
         article = self._require_article(article_id)
         paragraphs = [part.strip() for part in re.split(r"\n\s*\n+", new_text) if part.strip()]
-        title_text = paragraphs[0] if paragraphs else article.title
-
         chunks = [Chunk(idx=0, chunk_type="title", text=article.title, html_tag="title")]
         for idx, paragraph in enumerate(paragraphs, start=1):
             normalized = re.sub(r"\s+", " ", paragraph).strip()
@@ -150,6 +158,16 @@ class ReadcastService:
         article.estimated_read_min = max(1, math.ceil(article.word_count / 238))
         self.store.update_article(article)
         self.store.update_full_text(article_id, full_text, chunks)
+
+        # Re-embed after text change
+        try:
+            from .core.embedder import embed_article
+            embed_article(article_id, self.store, text=full_text)
+        except ImportError:
+            pass
+        except Exception:
+            log.debug("Embedding failed for %s", article_id, exc_info=True)
+
         return article
 
     def retry_article(self, article_id: str) -> Article:
@@ -195,7 +213,10 @@ class ReadcastService:
         stripped = input_value.strip()
         if stripped.startswith(("http://", "https://")):
             return self.add_source(stripped, voice=voice, speed=speed, tags=tags, html=html)
-        return self.add_text(stripped, voice=voice, speed=speed, tags=tags, source_url=source_url, author=author, published_date=published_date)
+        return self.add_text(
+            stripped, voice=voice, speed=speed, tags=tags,
+            source_url=source_url, author=author, published_date=published_date,
+        )
 
     def add_text(
         self,
@@ -290,6 +311,17 @@ class ReadcastService:
             return AddArticleResult(article=existing, created=False)
 
         self.store.update_article(article)
+
+        # Generate embeddings for search (best-effort, don't block ingestion)
+        full_text = "\n\n".join(chunk.text for chunk in chunks)
+        try:
+            from .core.embedder import embed_article
+            embed_article(article.id, self.store, text=full_text)
+        except ImportError:
+            pass
+        except Exception:
+            log.debug("Embedding failed for %s", article.id, exc_info=True)
+
         stored = self.store.get_article(article.id)
         if stored is None:
             raise RuntimeError(f"Stored article {article.id} could not be loaded after insertion.")

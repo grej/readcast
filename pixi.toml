@@ -12,7 +12,7 @@ pip = "*"
 ffmpeg = "*"
 
 [pypi-dependencies]
-readcast = { path = ".", editable = true }
+readcast = { path = ".", editable = true, extras = ["ml"] }
 
 [feature.dev.dependencies]
 nodejs = ">=20"

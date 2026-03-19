@@ -1,13 +1,30 @@
 # readcast
 
-Turn articles into podcasts on your Mac.
+A personal knowledge engine for your Mac.
 
-`readcast` is a local-first personal knowledge base and podcast system. Capture web
-articles, Twitter threads, or pasted text from anywhere — search your collection by
-keyword or meaning, and automatically generate audio podcasts. It runs on Apple Silicon,
-uses `kokoro-edge` for speech synthesis, and keeps everything on your machine.
+`readcast` is a local-first knowledge engine that captures web articles, Twitter threads,
+or pasted text — then makes them searchable by keyword and meaning, auto-tags them with
+topics and entities, builds a knowledge graph, and generates audio podcasts. Everything
+runs locally on Apple Silicon using MLX for embeddings and inference, `kokoro-edge` for
+speech synthesis, and SQLite for storage. No cloud, no API keys, no data leaves your machine.
 
 ![readcast web UI](docs/assets/readcast-ui.svg)
+
+## Features
+
+- **Hybrid search** — keyword (FTS5) and semantic (vector embeddings) search fused via
+  Reciprocal Rank Fusion. Search "BLAS" and find articles about GPU linear algebra even
+  if they never use that exact word.
+- **Auto-tagging** — local LLM extracts topics, entities, relationships, summaries, and
+  authors from every article on ingestion.
+- **Knowledge graph** — entities (people, companies, technologies) and their relationships
+  are extracted and linked across articles.
+- **Audio podcasts** — turn any article into a narrated podcast via `kokoro-edge` TTS.
+  Subscribe in your podcast app via RSS.
+- **Listen tracking** — tracks when you've listened to an article (>80% completion).
+- **Browser extension** — capture articles directly from Brave, Chrome, or Edge.
+- **Backfill pipeline** — `readcast backfill` runs tagging, entity extraction, and
+  embedding generation across your entire library.
 
 ## Install
 
@@ -31,14 +48,29 @@ pixi run start
 
 `pixi run start` handles setup and launches the web UI at `http://127.0.0.1:8765`.
 
+### ML extras
+
+Semantic search and auto-tagging require the `ml` optional dependencies:
+
+```bash
+pip install 'readcast[ml]'
+```
+
+These pull in `mlx-embeddings` (for vector embeddings via `BAAI/bge-small-en-v1.5`) and
+`mlx-lm` (for auto-tagging via `Qwen2.5-0.5B`). Both run locally on Apple Silicon via
+MLX — no torch, no CUDA, no cloud API. Models auto-download on first use (~600MB total).
+
+When installed from source via pixi, ML extras are included automatically.
+
 ### CLI usage
 
 ```bash
 readcast add --process https://example.com/article
-readcast add --process article.html
-readcast add --process article.txt
 readcast list
-readcast search "strategic defeat"
+readcast search "BLAS"
+readcast backfill             # tags + entities + embeddings for all articles
+readcast tags backfill        # auto-tag untagged articles
+readcast embeddings backfill  # generate embeddings for un-embedded articles
 ```
 
 If running from source, prefix commands with `pixi run readcast`.
@@ -70,20 +102,36 @@ bundle its own TTS runtime.
 3. sibling dev build at `../kokoro-mlx/.build-xcode/stage/bin/kokoro-edge`
 4. installer URL via `KOKORO_EDGE_INSTALL_URL`
 
+## Architecture
+
+readcast stores everything in SQLite under `~/.readcast/`:
+
+- **articles** — metadata, full text, TTS audio, tags, listen history
+- **embeddings** — 384-dim vectors (bge-small-en-v1.5) for semantic search
+- **entities / relationships** — knowledge graph extracted by local LLM
+- **article_entities** — links articles to entities
+- **concepts** — reserved for future extensions
+- **agent_log** — audit trail of automated actions
+
+Search uses hybrid Reciprocal Rank Fusion: FTS5 keyword results and cosine-similarity
+vector results are merged with `score(d) = Σ 1/(k + rank(d))`, so both exact matches
+and semantic matches surface without needing to normalize BM25 and cosine scores.
+
 ## Status
 
 `readcast` is early but usable:
 
 - macOS 15+, Apple Silicon only
 - localhost-only (all data stays on your machine)
-- no cloud TTS, no hosted backend
+- no cloud dependencies — TTS, embeddings, and LLM inference all run locally
+- extensible schema — reserved columns and tables for future extensions
 
 ## Privacy and storage
 
 All data lives locally under `~/.readcast/`:
 
 - `config.toml` — configuration
-- `index.db` — SQLite database with full-text search
+- `index.db` — SQLite database with full-text search, embeddings, and knowledge graph
 - `articles/{id}/` — extracted text, metadata, chunks, and audio
 - `output/` — symlinks to generated audio files
 
