@@ -14,6 +14,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
+from readcast import __version__
 from readcast.core.config import Config
 from readcast.core.models import Article
 from readcast.core.synthesizer import (
@@ -232,7 +233,7 @@ def create_app(base_dir: Optional[Path] = None) -> FastAPI:
         worker = _worker(request)
 
         return {
-            "readcast": {"ok": True},
+            "readcast": {"ok": True, "version": __version__},
             "kokoro_edge": _kokoro_status_payload(service),
             "worker": {
                 "running": worker.is_running(),
@@ -311,6 +312,10 @@ def create_app(base_dir: Optional[Path] = None) -> FastAPI:
         service.store.record_listen(article_id, complete=complete)
         updated = service.get_article(article_id)
         return {"article": _serialize_article(service, updated)}
+
+    @app.get("/api/update-check")
+    async def update_check() -> dict[str, object]:
+        return _check_latest_version()
 
     @app.get("/api/extension.zip")
     async def download_extension() -> Response:
@@ -475,3 +480,43 @@ def _feed_date(article: Article) -> str:
     if parsed.tzinfo is None:
         parsed = parsed.replace(tzinfo=UTC)
     return format_datetime(parsed)
+
+
+_REPODATA_URL = "https://conda.anaconda.org/gjennings/noarch/repodata.json"
+_update_cache: dict[str, object] = {}
+
+
+def _check_latest_version() -> dict[str, object]:
+    import time
+    now = time.monotonic()
+    if _update_cache and now - _update_cache.get("_ts", 0) < 3600:
+        return {k: v for k, v in _update_cache.items() if k != "_ts"}
+
+    import httpx
+    from packaging.version import Version
+    current = __version__
+    try:
+        resp = httpx.get(_REPODATA_URL, timeout=5.0)
+        resp.raise_for_status()
+        data = resp.json()
+        versions = [
+            v["version"]
+            for v in data.get("packages.conda", {}).values()
+            if v.get("name") == "readcast"
+        ]
+        if not versions:
+            result: dict[str, object] = {"current": current, "latest": current, "update_available": False}
+        else:
+            latest = str(max(versions, key=Version))
+            result = {
+                "current": current,
+                "latest": latest,
+                "update_available": Version(latest) > Version(current),
+            }
+    except Exception:
+        result = {"current": current, "latest": None, "update_available": False}
+
+    _update_cache.clear()
+    _update_cache.update(result)
+    _update_cache["_ts"] = now
+    return {k: v for k, v in result.items() if k != "_ts"}

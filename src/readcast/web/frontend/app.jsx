@@ -843,6 +843,8 @@ function ReadcastApp() {
   const [daemonMessage, setDaemonMessage] = useState("");
   const [daemonState, setDaemonState] = useState("offline");
   const [detailId, setDetailId] = useState(null);
+  const [updateInfo, setUpdateInfo] = useState(null);
+  const [updateDismissed, setUpdateDismissed] = useState(false);
   const audioRef = useRef(null);
   const searchRef = useRef(null);
   const listenedFiredRef = useRef(null);
@@ -897,6 +899,9 @@ function ReadcastApp() {
     refreshVoices();
     refreshPreferences();
     refreshStatus();
+    apiGet("/api/update-check").then((data) => {
+      if (data.update_available) setUpdateInfo(data);
+    }).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -1181,6 +1186,16 @@ function ReadcastApp() {
       ) : null}
       {deleteError ? <div style={{ ...styles.banner, ...styles.bannerError }}>{deleteError}</div> : null}
 
+      {updateInfo && !updateDismissed ? (
+        <div style={{ ...styles.banner, ...styles.bannerUpdate }}>
+          <span>
+            readcast {updateInfo.latest} is available (you have {updateInfo.current}).
+            {" "}Run <code style={styles.updateCode}>pixi global upgrade readcast</code> to update.
+          </span>
+          <button onClick={() => setUpdateDismissed(true)} style={styles.updateDismiss} aria-label="Dismiss">✕</button>
+        </div>
+      ) : null}
+
       {selectionMode ? (
         <div style={styles.bulkBar}>
           <div style={styles.bulkText}>
@@ -1431,6 +1446,31 @@ const styles = {
     border: `1px solid rgba(92, 184, 92, 0.25)`,
     background: "rgba(92, 184, 92, 0.08)",
     color: "#cfe8cf",
+  },
+  bannerUpdate: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    border: `1px solid rgba(212, 149, 106, 0.3)`,
+    background: "rgba(212, 149, 106, 0.08)",
+    color: "#e8cdb8",
+  },
+  updateCode: {
+    padding: "2px 6px",
+    borderRadius: 4,
+    background: "rgba(0,0,0,0.3)",
+    fontFamily: "'DM Sans', monospace",
+    fontSize: 12,
+  },
+  updateDismiss: {
+    background: "none",
+    border: "none",
+    color: "rgba(255,255,255,0.4)",
+    cursor: "pointer",
+    fontSize: 14,
+    padding: "0 4px",
+    fontFamily: "inherit",
+    flexShrink: 0,
   },
   bulkBar: {
     display: "flex",

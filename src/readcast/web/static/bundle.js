@@ -25229,6 +25229,8 @@
     const [daemonMessage, setDaemonMessage] = (0, import_react.useState)("");
     const [daemonState, setDaemonState] = (0, import_react.useState)("offline");
     const [detailId, setDetailId] = (0, import_react.useState)(null);
+    const [updateInfo, setUpdateInfo] = (0, import_react.useState)(null);
+    const [updateDismissed, setUpdateDismissed] = (0, import_react.useState)(false);
     const audioRef = (0, import_react.useRef)(null);
     const searchRef = (0, import_react.useRef)(null);
     const listenedFiredRef = (0, import_react.useRef)(null);
@@ -25277,6 +25279,10 @@
       refreshVoices();
       refreshPreferences();
       refreshStatus();
+      apiGet("/api/update-check").then((data) => {
+        if (data.update_available) setUpdateInfo(data);
+      }).catch(() => {
+      });
     }, []);
     (0, import_react.useEffect)(() => {
       const timeout = window.setTimeout(() => {
@@ -25527,6 +25533,20 @@
       ] }),
       daemonError || daemonState !== "ready" ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { ...styles.banner, ...daemonError ? styles.bannerError : styles.bannerInfo }, children: daemonError || daemonMessage }) : null,
       deleteError ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { ...styles.banner, ...styles.bannerError }, children: deleteError }) : null,
+      updateInfo && !updateDismissed ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { ...styles.banner, ...styles.bannerUpdate }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { children: [
+          "readcast ",
+          updateInfo.latest,
+          " is available (you have ",
+          updateInfo.current,
+          ").",
+          " ",
+          "Run ",
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("code", { style: styles.updateCode, children: "pixi global upgrade readcast" }),
+          " to update."
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: () => setUpdateDismissed(true), style: styles.updateDismiss, "aria-label": "Dismiss", children: "\u2715" })
+      ] }) : null,
       selectionMode ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.bulkBar, children: [
         /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.bulkText, children: selectedCount ? `${selectedCount} selected` : "Select articles to delete" }),
         /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
@@ -25771,6 +25791,31 @@ div[style]:hover > button[aria-label="Remove paragraph"]:hover { color: rgba(217
       border: `1px solid rgba(92, 184, 92, 0.25)`,
       background: "rgba(92, 184, 92, 0.08)",
       color: "#cfe8cf"
+    },
+    bannerUpdate: {
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      border: `1px solid rgba(212, 149, 106, 0.3)`,
+      background: "rgba(212, 149, 106, 0.08)",
+      color: "#e8cdb8"
+    },
+    updateCode: {
+      padding: "2px 6px",
+      borderRadius: 4,
+      background: "rgba(0,0,0,0.3)",
+      fontFamily: "'DM Sans', monospace",
+      fontSize: 12
+    },
+    updateDismiss: {
+      background: "none",
+      border: "none",
+      color: "rgba(255,255,255,0.4)",
+      cursor: "pointer",
+      fontSize: 14,
+      padding: "0 4px",
+      fontFamily: "inherit",
+      flexShrink: 0
     },
     bulkBar: {
       display: "flex",
