@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import re
 
+from num2words import num2words
+
 from .models import Chunk, TTSSegment
 
 
@@ -9,8 +11,76 @@ SENTENCE_BOUNDARY = re.compile(r"(?<=[.!?])\s+")
 CLAUSE_BOUNDARY = re.compile(r"(?<=[,;:])\s+")
 WORD_BOUNDARY = re.compile(r"\s+")
 
+_ORDINAL = re.compile(r"\b(\d+)(st|nd|rd|th)\b", re.IGNORECASE)
+_CURRENCY = re.compile(r"\$(\d+(?:\.\d{1,2})?)\b")
+_PERCENT = re.compile(r"\b(\d+(?:\.\d+)?)%")
+_DECIMAL = re.compile(r"\b(\d+)\.(\d+)\b")
+_INTEGER = re.compile(r"\b(\d+)\b")
+_MULTI_HYPHEN = re.compile(r"-{2,}")
 
-def create_tts_segments(chunks: list[Chunk], max_chars: int = 12000) -> list[TTSSegment]:
+
+def _number_to_words(match: re.Match[str]) -> str:
+    try:
+        return num2words(int(match.group(1)), to="ordinal")
+    except (ValueError, OverflowError):
+        return match.group(0)
+
+
+def _currency_to_words(match: re.Match[str]) -> str:
+    try:
+        value = float(match.group(1))
+        dollars = int(value)
+        cents = round((value - dollars) * 100)
+        if cents:
+            return f"{num2words(dollars)} dollars and {num2words(cents)} cents"
+        return f"{num2words(dollars)} dollars"
+    except (ValueError, OverflowError):
+        return match.group(0)
+
+
+def _percent_to_words(match: re.Match[str]) -> str:
+    try:
+        text = match.group(1)
+        if "." in text:
+            whole, frac = text.split(".", 1)
+            return f"{num2words(int(whole))} point {' '.join(num2words(int(d)) for d in frac)} percent"
+        return f"{num2words(int(text))} percent"
+    except (ValueError, OverflowError):
+        return match.group(0)
+
+
+def _decimal_to_words(match: re.Match[str]) -> str:
+    try:
+        whole = match.group(1)
+        frac = match.group(2)
+        return f"{num2words(int(whole))} point {' '.join(num2words(int(d)) for d in frac)}"
+    except (ValueError, OverflowError):
+        return match.group(0)
+
+
+def _integer_to_words(match: re.Match[str]) -> str:
+    try:
+        return num2words(int(match.group(1)))
+    except (ValueError, OverflowError):
+        return match.group(0)
+
+
+def _preprocess_for_tts(text: str) -> str:
+    text = text.replace("\r", "")
+    text = text.replace("\u00a0", " ")
+    text = text.replace("\u200b", "")
+    text = text.replace("\u2014", ", ")  # em-dash
+    text = text.replace("\u2013", "-")   # en-dash
+    text = _MULTI_HYPHEN.sub(", ", text)
+    text = _ORDINAL.sub(_number_to_words, text)
+    text = _CURRENCY.sub(_currency_to_words, text)
+    text = _PERCENT.sub(_percent_to_words, text)
+    text = _DECIMAL.sub(_decimal_to_words, text)
+    text = _INTEGER.sub(_integer_to_words, text)
+    return text
+
+
+def create_tts_segments(chunks: list[Chunk], max_chars: int = 800) -> list[TTSSegment]:
     segments: list[TTSSegment] = []
     segment_idx = 0
     current_texts: list[str] = []
@@ -37,7 +107,7 @@ def create_tts_segments(chunks: list[Chunk], max_chars: int = 12000) -> list[TTS
         current_length = 0
 
     for chunk in chunks:
-        text = chunk.text.strip()
+        text = _preprocess_for_tts(chunk.text.strip())
         if not text:
             continue
         if len(text) > max_chars:

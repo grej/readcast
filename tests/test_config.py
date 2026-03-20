@@ -11,7 +11,7 @@ def test_config_created_with_defaults(base_dir) -> None:
     assert config.tts.model == "kokoro-82m"
     assert config.tts.voice == "af_sky"
     assert config.tts.language == "en-us"
-    assert config.tts.max_chunk_chars == 12000
+    assert config.tts.max_chunk_chars == 800
     assert config.kokoro_edge.server_url == "http://127.0.0.1:7777"
     assert config.kokoro_edge.auto_start is True
     assert config.web.host == "127.0.0.1"

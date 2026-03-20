@@ -38,6 +38,7 @@ requirements:
     - rich >=13.0
     - fastapi >=0.115
     - uvicorn >=0.30
+    - num2words >=0.5
 
 tests:
   - python:
