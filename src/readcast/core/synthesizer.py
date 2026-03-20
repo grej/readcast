@@ -7,6 +7,7 @@ from pathlib import Path
 import re
 import shutil
 import subprocess
+import sys
 import time
 from typing import Optional, Protocol
 from urllib.parse import urlparse
@@ -95,7 +96,7 @@ def with_runtime_overrides(config: Config, voice: Optional[str] = None, speed: O
 def resolve_kokoro_edge_binary(config: Config) -> Path:
     env_override = _env_path("READCAST_KOKORO_EDGE_BIN")
     configured = Path(config.kokoro_edge.binary).expanduser() if config.kokoro_edge.binary else None
-    if configured and configured.exists():
+    if configured and configured.is_file():
         configured_path = configured
     else:
         configured_path = _which_path(config.kokoro_edge.binary) if config.kokoro_edge.binary else None
@@ -104,6 +105,7 @@ def resolve_kokoro_edge_binary(config: Config) -> Path:
         env_override,
         configured_path,
         _which_path("kokoro-edge"),
+        Path(sys.executable).parent / "kokoro-edge",
         Path(__file__).resolve().parents[3] / "kokoro-mlx" / ".build-xcode" / "stage" / "bin" / "kokoro-edge",
     ]
     for candidate in candidates:
@@ -512,10 +514,21 @@ def _which_path(binary_name: Optional[str]) -> Optional[Path]:
 
 def _strip_quarantine(binary: Path) -> None:
     """Remove macOS quarantine attribute so Gatekeeper doesn't block unsigned binaries."""
-    import sys
     if sys.platform != "darwin":
         return
     try:
         subprocess.run(["xattr", "-d", "com.apple.quarantine", str(binary)], capture_output=True)
     except FileNotFoundError:
-        pass
+        return
+
+    bin_dir = binary.parent
+    lib_dir = bin_dir.parent / "lib"
+    for directory in (bin_dir, lib_dir):
+        if not directory.is_dir():
+            continue
+        for entry in directory.iterdir():
+            if entry.suffix in (".bundle", ".framework"):
+                try:
+                    subprocess.run(["xattr", "-cr", str(entry)], capture_output=True)
+                except FileNotFoundError:
+                    pass
