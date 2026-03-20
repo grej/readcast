@@ -1,6 +1,6 @@
 [project]
 name = "readcast"
-version = "0.1.11"
+version = "0.1.12"
 description = "Personal knowledge engine for your Mac"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -32,6 +32,7 @@ dependencies = [
   "fastapi>=0.115",
   "uvicorn>=0.30",
   "num2words>=0.5",
+  "packaging>=23.0",
 ]
 
 [project.optional-dependencies]

@@ -2505,8 +2505,8 @@ packages:
   - cchardet ; extra == 'speed'
 - pypi: ./
   name: readcast
-  version: 0.1.11
-  sha256: 2fa64e02f056824ade2e5d5b89e64b58825a973d85178e3a45935a158dc8f9fe
+  version: 0.1.12
+  sha256: edcdeb3c731552095c0f99daaaa835f5fa68bae4139c94cd937bae546619c435
   requires_dist:
   - httpx>=0.27
   - readability-lxml>=0.8
@@ -2518,6 +2518,7 @@ packages:
   - fastapi>=0.115
   - uvicorn>=0.30
   - num2words>=0.5
+  - packaging>=23.0
   - mlx-embeddings @ git+https://github.com/Blaizzy/mlx-embeddings.git ; extra == 'ml'
   - mlx-lm ; extra == 'ml'
   - pytest>=8.0 ; extra == 'dev'
