@@ -15,6 +15,11 @@ DIST_DIR = ROOT / "dist"
 STATIC_EXPECTED = [
     "readcast/web/static/index.html",
     "readcast/web/static/bundle.js",
+    "readcast/web/extension/manifest.json",
+    "readcast/web/extension/background.js",
+    "readcast/web/extension/content.js",
+    "readcast/web/extension/popup.html",
+    "readcast/web/extension/popup.js",
 ]
 
 

@@ -1,6 +1,6 @@
 [project]
 name = "readcast"
-version = "0.1.8"
+version = "0.1.9"
 description = "Personal knowledge engine for your Mac"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -61,6 +61,7 @@ include = [
   "src/readcast/**/*.py",
   "src/readcast/web/static/*.html",
   "src/readcast/web/static/*.js",
+  "src/readcast/web/extension/**",
 ]
 
 [tool.hatch.build.targets.wheel]

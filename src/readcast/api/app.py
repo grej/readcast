@@ -26,6 +26,7 @@ from readcast.services import PreviewResult, ProcessingWorker, ReadcastService
 
 
 STATIC_DIR = Path(__file__).resolve().parents[1] / "web" / "static"
+EXTENSION_DIR = Path(__file__).resolve().parents[1] / "web" / "extension"
 
 
 class AddArticleRequest(BaseModel):
@@ -310,6 +311,24 @@ def create_app(base_dir: Optional[Path] = None) -> FastAPI:
         service.store.record_listen(article_id, complete=complete)
         updated = service.get_article(article_id)
         return {"article": _serialize_article(service, updated)}
+
+    @app.get("/api/extension.zip")
+    async def download_extension() -> Response:
+        if not EXTENSION_DIR.is_dir():
+            raise HTTPException(status_code=404, detail="Extension files not bundled")
+        import io
+        import zipfile
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+            for path in sorted(EXTENSION_DIR.rglob("*")):
+                if path.is_file() and not path.name.startswith("."):
+                    zf.write(path, f"readcast-extension/{path.relative_to(EXTENSION_DIR)}")
+        buf.seek(0)
+        return Response(
+            content=buf.getvalue(),
+            media_type="application/zip",
+            headers={"Content-Disposition": "attachment; filename=readcast-extension.zip"},
+        )
 
     @app.get("/feed.xml")
     async def feed(request: Request) -> Response:

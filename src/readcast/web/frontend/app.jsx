@@ -171,6 +171,122 @@ function DeleteConfirmPanel({ count, deleting, onConfirm, onClose }) {
   );
 }
 
+const BROWSERS = {
+  chrome:  { name: "Chrome",  url: "chrome://extensions" },
+  brave:   { name: "Brave",   url: "brave://extensions" },
+  edge:    { name: "Edge",    url: "edge://extensions" },
+  opera:   { name: "Opera",   url: "opera://extensions" },
+  vivaldi: { name: "Vivaldi", url: "vivaldi://extensions" },
+};
+
+function detectBrowser() {
+  const ua = navigator.userAgent;
+  if (ua.includes("Edg/")) return "edge";
+  if (ua.includes("Brave")) return "brave";
+  if (ua.includes("OPR/") || ua.includes("Opera")) return "opera";
+  if (ua.includes("Vivaldi")) return "vivaldi";
+  if (ua.includes("Chrome/")) return "chrome";
+  return "chrome";
+}
+
+function ExtensionIcon({ size = 16 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M10.5 3.5a2.5 2.5 0 015 0V5h-5zM3.5 13.5a2.5 2.5 0 010-5H5v5z" />
+      <rect x="5" y="5" width="14" height="14" rx="2" />
+    </svg>
+  );
+}
+
+function DownloadIcon({ size = 16 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 3v13M5 12l7 7 7-7" />
+      <path d="M5 20h14" />
+    </svg>
+  );
+}
+
+function ExtensionPanel({ onClose }) {
+  const [browser, setBrowser] = useState(detectBrowser);
+  const info = BROWSERS[browser] || BROWSERS.chrome;
+
+  useEffect(() => {
+    const onKey = (event) => { if (event.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  return (
+    <div style={styles.addPanel} role="presentation">
+      <div style={styles.extensionPanelInner} role="dialog" aria-modal="true">
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+          <h2 style={styles.addTitle}>Browser Extension</h2>
+          <button onClick={onClose} style={styles.closeBtn} aria-label="Close">✕</button>
+        </div>
+
+        <div style={styles.extensionBrowserRow}>
+          {Object.entries(BROWSERS).map(([key, b]) => (
+            <button
+              key={key}
+              onClick={() => setBrowser(key)}
+              style={browser === key ? styles.voiceChipActive : styles.voiceChip}
+            >
+              {b.name}
+            </button>
+          ))}
+        </div>
+
+        <div style={styles.extensionStep}>
+          <div style={styles.extensionStepNumber}>1</div>
+          <div style={styles.extensionStepBody}>
+            <div style={styles.extensionStepTitle}>Download the extension</div>
+            <div style={styles.extensionStepDetail}>
+              <a href="/api/extension.zip" download style={styles.extensionDownloadBtn}>
+                <DownloadIcon size={15} />
+                <span>Download Extension</span>
+              </a>
+              <div style={{ marginTop: 8 }}>Unzip the file after downloading.</div>
+            </div>
+          </div>
+        </div>
+
+        <div style={styles.extensionStep}>
+          <div style={styles.extensionStepNumber}>2</div>
+          <div style={styles.extensionStepBody}>
+            <div style={styles.extensionStepTitle}>Open your extensions page</div>
+            <div style={styles.extensionStepDetail}>
+              Copy and paste this into your address bar:
+              <div style={{ marginTop: 6 }}>
+                <code style={styles.extensionCode}>{info.url}</code>
+              </div>
+              <div style={{ marginTop: 6, fontSize: 12, opacity: 0.6 }}>
+                Browsers block direct links to this page for security.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style={styles.extensionStep}>
+          <div style={styles.extensionStepNumber}>3</div>
+          <div style={styles.extensionStepBody}>
+            <div style={styles.extensionStepTitle}>Load the extension</div>
+            <div style={styles.extensionStepDetail}>
+              Enable <strong>Developer mode</strong> (top-right toggle), click{" "}
+              <strong>Load unpacked</strong>, and select the extracted{" "}
+              <code style={styles.extensionCode}>readcast-extension</code> folder.
+            </div>
+          </div>
+        </div>
+
+        <div style={{ marginTop: 8, fontSize: 13, color: c.textMuted, lineHeight: 1.5 }}>
+          The extension adds right-click menus to send any page or text selection to readcast.
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function AddPanel({ voices, defaultVoice, onAdd, onPreview, onClose, onSaveDefaultVoice, error }) {
   const [inputValue, setInputValue] = useState("");
   const [preview, setPreview] = useState(null);
@@ -723,6 +839,7 @@ function ReadcastApp() {
   const [deleteError, setDeleteError] = useState("");
   const [deleting, setDeleting] = useState(false);
   const [feedCopied, setFeedCopied] = useState(false);
+  const [showExtension, setShowExtension] = useState(false);
   const [daemonMessage, setDaemonMessage] = useState("");
   const [daemonState, setDaemonState] = useState("offline");
   const [detailId, setDetailId] = useState(null);
@@ -843,6 +960,10 @@ function ReadcastApp() {
 
   useEffect(() => {
     const onKeyDown = (event) => {
+      if (showExtension && event.key === "Escape") {
+        setShowExtension(false);
+        return;
+      }
       if (showAdd && event.key === "Escape") {
         setAddError("");
         setShowAdd(false);
@@ -868,7 +989,7 @@ function ReadcastApp() {
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [showAdd, activeArticle, playbackRate]);
+  }, [showAdd, showExtension, activeArticle, playbackRate]);
 
   async function handleAdd(payload) {
     setAddError("");
@@ -1038,6 +1159,10 @@ function ReadcastApp() {
           <button onClick={handleCopyFeed} style={styles.headerBtn} aria-label="Copy podcast feed URL">
             <span>{feedCopied ? "Feed Copied" : "Copy Feed"}</span>
           </button>
+          <button onClick={() => setShowExtension(true)} style={styles.headerBtn} aria-label="Browser extension setup">
+            <ExtensionIcon size={15} />
+            <span>Extension</span>
+          </button>
           <button onClick={handleSelectionModeToggle} style={selectionMode ? styles.headerBtnActive : styles.headerBtn}>
             <CheckIcon size={15} />
             <span>{selectionMode ? "Done" : "Select"}</span>
@@ -1089,7 +1214,21 @@ function ReadcastApp() {
       <div style={styles.library}>
         {!articles.length ? (
           <div style={styles.empty}>
-            {search ? "No articles match your search." : "No articles yet. Add one to get started."}
+            {search ? "No articles match your search." : (
+              <>
+                No articles yet. Add one with the{" "}
+                <span
+                  onClick={() => setShowExtension(true)}
+                  style={{ color: c.accent, cursor: "pointer", textDecoration: "underline" }}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => { if (e.key === "Enter") setShowExtension(true); }}
+                >
+                  browser extension
+                </span>{" "}
+                or the Add Article button above.
+              </>
+            )}
           </div>
         ) : (
           articles.map((article) => (
@@ -1155,6 +1294,10 @@ function ReadcastApp() {
             setShowDeleteConfirm(false);
           }}
         />
+      ) : null}
+
+      {showExtension ? (
+        <ExtensionPanel onClose={() => setShowExtension(false)} />
       ) : null}
     </div>
   );
@@ -1981,6 +2124,79 @@ const styles = {
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
+  },
+  extensionPanelInner: {
+    background: c.surface,
+    border: `1px solid ${c.border}`,
+    borderRadius: 16,
+    padding: 28,
+    width: "100%",
+    maxWidth: 520,
+    maxHeight: "90vh",
+    overflow: "auto",
+  },
+  extensionBrowserRow: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: 6,
+    marginBottom: 22,
+  },
+  extensionStep: {
+    display: "flex",
+    gap: 14,
+    marginBottom: 20,
+  },
+  extensionStepNumber: {
+    width: 28,
+    height: 28,
+    borderRadius: "50%",
+    background: c.accentDim,
+    color: c.accent,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: 13,
+    fontWeight: 700,
+    flexShrink: 0,
+  },
+  extensionStepBody: {
+    flex: 1,
+  },
+  extensionStepTitle: {
+    fontSize: 14,
+    fontWeight: 600,
+    marginBottom: 6,
+  },
+  extensionStepDetail: {
+    fontSize: 13,
+    color: c.textMuted,
+    lineHeight: 1.5,
+  },
+  extensionCode: {
+    display: "inline-block",
+    padding: "3px 8px",
+    borderRadius: 4,
+    background: "rgba(0,0,0,0.3)",
+    fontFamily: "'DM Sans', monospace",
+    fontSize: 13,
+    color: c.accent,
+    letterSpacing: "0.02em",
+    userSelect: "all",
+  },
+  extensionDownloadBtn: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 8,
+    padding: "8px 16px",
+    borderRadius: 8,
+    border: "none",
+    background: c.accent,
+    color: "#141416",
+    fontSize: 13,
+    fontWeight: 600,
+    fontFamily: c.sans,
+    cursor: "pointer",
+    textDecoration: "none",
   },
 };
 

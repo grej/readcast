@@ -24628,6 +24628,102 @@
       ] })
     ] }) });
   }
+  var BROWSERS = {
+    chrome: { name: "Chrome", url: "chrome://extensions" },
+    brave: { name: "Brave", url: "brave://extensions" },
+    edge: { name: "Edge", url: "edge://extensions" },
+    opera: { name: "Opera", url: "opera://extensions" },
+    vivaldi: { name: "Vivaldi", url: "vivaldi://extensions" }
+  };
+  function detectBrowser() {
+    const ua = navigator.userAgent;
+    if (ua.includes("Edg/")) return "edge";
+    if (ua.includes("Brave")) return "brave";
+    if (ua.includes("OPR/") || ua.includes("Opera")) return "opera";
+    if (ua.includes("Vivaldi")) return "vivaldi";
+    if (ua.includes("Chrome/")) return "chrome";
+    return "chrome";
+  }
+  function ExtensionIcon({ size = 16 }) {
+    return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("svg", { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("path", { d: "M10.5 3.5a2.5 2.5 0 015 0V5h-5zM3.5 13.5a2.5 2.5 0 010-5H5v5z" }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("rect", { x: "5", y: "5", width: "14", height: "14", rx: "2" })
+    ] });
+  }
+  function DownloadIcon({ size = 16 }) {
+    return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("svg", { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2.2", strokeLinecap: "round", strokeLinejoin: "round", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("path", { d: "M12 3v13M5 12l7 7 7-7" }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("path", { d: "M5 20h14" })
+    ] });
+  }
+  function ExtensionPanel({ onClose }) {
+    const [browser, setBrowser] = (0, import_react.useState)(detectBrowser);
+    const info = BROWSERS[browser] || BROWSERS.chrome;
+    (0, import_react.useEffect)(() => {
+      const onKey = (event) => {
+        if (event.key === "Escape") onClose();
+      };
+      window.addEventListener("keydown", onKey);
+      return () => window.removeEventListener("keydown", onKey);
+    }, [onClose]);
+    return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.addPanel, role: "presentation", children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.extensionPanelInner, role: "dialog", "aria-modal": "true", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", { style: styles.addTitle, children: "Browser Extension" }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: onClose, style: styles.closeBtn, "aria-label": "Close", children: "\u2715" })
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.extensionBrowserRow, children: Object.entries(BROWSERS).map(([key, b]) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+        "button",
+        {
+          onClick: () => setBrowser(key),
+          style: browser === key ? styles.voiceChipActive : styles.voiceChip,
+          children: b.name
+        },
+        key
+      )) }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.extensionStep, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.extensionStepNumber, children: "1" }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.extensionStepBody, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.extensionStepTitle, children: "Download the extension" }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.extensionStepDetail, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("a", { href: "/api/extension.zip", download: true, style: styles.extensionDownloadBtn, children: [
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)(DownloadIcon, { size: 15 }),
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "Download Extension" })
+            ] }),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { marginTop: 8 }, children: "Unzip the file after downloading." })
+          ] })
+        ] })
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.extensionStep, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.extensionStepNumber, children: "2" }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.extensionStepBody, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.extensionStepTitle, children: "Open your extensions page" }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.extensionStepDetail, children: [
+            "Copy and paste this into your address bar:",
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { marginTop: 6 }, children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("code", { style: styles.extensionCode, children: info.url }) }),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { marginTop: 6, fontSize: 12, opacity: 0.6 }, children: "Browsers block direct links to this page for security." })
+          ] })
+        ] })
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.extensionStep, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.extensionStepNumber, children: "3" }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.extensionStepBody, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.extensionStepTitle, children: "Load the extension" }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.extensionStepDetail, children: [
+            "Enable ",
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", { children: "Developer mode" }),
+            " (top-right toggle), click",
+            " ",
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", { children: "Load unpacked" }),
+            ", and select the extracted",
+            " ",
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("code", { style: styles.extensionCode, children: "readcast-extension" }),
+            " folder."
+          ] })
+        ] })
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { marginTop: 8, fontSize: 13, color: c.textMuted, lineHeight: 1.5 }, children: "The extension adds right-click menus to send any page or text selection to readcast." })
+    ] }) });
+  }
   function AddPanel({ voices, defaultVoice, onAdd, onPreview, onClose, onSaveDefaultVoice, error }) {
     const [inputValue, setInputValue] = (0, import_react.useState)("");
     const [preview, setPreview] = (0, import_react.useState)(null);
@@ -25129,6 +25225,7 @@
     const [deleteError, setDeleteError] = (0, import_react.useState)("");
     const [deleting, setDeleting] = (0, import_react.useState)(false);
     const [feedCopied, setFeedCopied] = (0, import_react.useState)(false);
+    const [showExtension, setShowExtension] = (0, import_react.useState)(false);
     const [daemonMessage, setDaemonMessage] = (0, import_react.useState)("");
     const [daemonState, setDaemonState] = (0, import_react.useState)("offline");
     const [detailId, setDetailId] = (0, import_react.useState)(null);
@@ -25235,6 +25332,10 @@
     }, [playbackRate]);
     (0, import_react.useEffect)(() => {
       const onKeyDown = (event) => {
+        if (showExtension && event.key === "Escape") {
+          setShowExtension(false);
+          return;
+        }
         if (showAdd && event.key === "Escape") {
           setAddError("");
           setShowAdd(false);
@@ -25260,7 +25361,7 @@
       };
       window.addEventListener("keydown", onKeyDown);
       return () => window.removeEventListener("keydown", onKeyDown);
-    }, [showAdd, activeArticle, playbackRate]);
+    }, [showAdd, showExtension, activeArticle, playbackRate]);
     async function handleAdd(payload) {
       setAddError("");
       try {
@@ -25410,6 +25511,10 @@
         ] }),
         /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.headerActions, children: [
           /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: handleCopyFeed, style: styles.headerBtn, "aria-label": "Copy podcast feed URL", children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: feedCopied ? "Feed Copied" : "Copy Feed" }) }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", { onClick: () => setShowExtension(true), style: styles.headerBtn, "aria-label": "Browser extension setup", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ExtensionIcon, { size: 15 }),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "Extension" })
+          ] }),
           /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", { onClick: handleSelectionModeToggle, style: selectionMode ? styles.headerBtnActive : styles.headerBtn, children: [
             /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CheckIcon, { size: 15 }),
             /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: selectionMode ? "Done" : "Select" })
@@ -25453,7 +25558,25 @@
         ),
         search ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: () => setSearch(""), style: styles.searchClear, "aria-label": "Clear search", children: "\u2715" }) : null
       ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.library, children: !articles.length ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.empty, children: search ? "No articles match your search." : "No articles yet. Add one to get started." }) : articles.map((article) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_react.default.Fragment, { children: [
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.library, children: !articles.length ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.empty, children: search ? "No articles match your search." : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+        "No articles yet. Add one with the",
+        " ",
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+          "span",
+          {
+            onClick: () => setShowExtension(true),
+            style: { color: c.accent, cursor: "pointer", textDecoration: "underline" },
+            role: "button",
+            tabIndex: 0,
+            onKeyDown: (e) => {
+              if (e.key === "Enter") setShowExtension(true);
+            },
+            children: "browser extension"
+          }
+        ),
+        " ",
+        "or the Add Article button above."
+      ] }) }) : articles.map((article) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_react.default.Fragment, { children: [
         /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
           ArticleCard,
           {
@@ -25518,7 +25641,8 @@
             setShowDeleteConfirm(false);
           }
         }
-      ) : null
+      ) : null,
+      showExtension ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ExtensionPanel, { onClose: () => setShowExtension(false) }) : null
     ] });
   }
   var globalStyles = `
@@ -26340,6 +26464,79 @@ div[style]:hover > button[aria-label="Remove paragraph"]:hover { color: rgba(217
       alignItems: "center",
       justifyContent: "center",
       gap: 8
+    },
+    extensionPanelInner: {
+      background: c.surface,
+      border: `1px solid ${c.border}`,
+      borderRadius: 16,
+      padding: 28,
+      width: "100%",
+      maxWidth: 520,
+      maxHeight: "90vh",
+      overflow: "auto"
+    },
+    extensionBrowserRow: {
+      display: "flex",
+      flexWrap: "wrap",
+      gap: 6,
+      marginBottom: 22
+    },
+    extensionStep: {
+      display: "flex",
+      gap: 14,
+      marginBottom: 20
+    },
+    extensionStepNumber: {
+      width: 28,
+      height: 28,
+      borderRadius: "50%",
+      background: c.accentDim,
+      color: c.accent,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      fontSize: 13,
+      fontWeight: 700,
+      flexShrink: 0
+    },
+    extensionStepBody: {
+      flex: 1
+    },
+    extensionStepTitle: {
+      fontSize: 14,
+      fontWeight: 600,
+      marginBottom: 6
+    },
+    extensionStepDetail: {
+      fontSize: 13,
+      color: c.textMuted,
+      lineHeight: 1.5
+    },
+    extensionCode: {
+      display: "inline-block",
+      padding: "3px 8px",
+      borderRadius: 4,
+      background: "rgba(0,0,0,0.3)",
+      fontFamily: "'DM Sans', monospace",
+      fontSize: 13,
+      color: c.accent,
+      letterSpacing: "0.02em",
+      userSelect: "all"
+    },
+    extensionDownloadBtn: {
+      display: "inline-flex",
+      alignItems: "center",
+      gap: 8,
+      padding: "8px 16px",
+      borderRadius: 8,
+      border: "none",
+      background: c.accent,
+      color: "#141416",
+      fontSize: 13,
+      fontWeight: 600,
+      fontFamily: c.sans,
+      cursor: "pointer",
+      textDecoration: "none"
     }
   };
   (0, import_client.createRoot)(document.getElementById("root")).render(/* @__PURE__ */ (0, import_jsx_runtime.jsx)(ReadcastApp, {}));
