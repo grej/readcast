@@ -8,7 +8,7 @@ topics and entities, builds a knowledge graph, and generates audio podcasts. Eve
 runs locally on Apple Silicon using MLX for embeddings and inference, `kokoro-edge` for
 speech synthesis, and SQLite for storage. No cloud, no API keys, no data leaves your machine.
 
-![readcast web UI](docs/assets/readcast-ui.svg)
+![readcast web UI](docs/assets/readcast-ui.png)
 
 ## Features
 
