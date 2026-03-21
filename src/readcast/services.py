@@ -63,14 +63,7 @@ class ReadcastService:
         return self.store.list_articles(status=status, limit=limit)
 
     def search_articles(self, query: str, limit: int = 20) -> list[Article]:
-        try:
-            from .core.embedder import hybrid_search
-            return hybrid_search(query, self.store, limit=limit)
-        except ImportError:
-            return self.store.search(query, limit=limit)
-        except Exception:
-            log.debug("Hybrid search failed, falling back to FTS", exc_info=True)
-            return self.store.search(query, limit=limit)
+        return self.store.search(query, limit=limit)
 
     def get_article(self, article_id: str) -> Optional[Article]:
         return self.store.get_article(article_id)
@@ -161,10 +154,7 @@ class ReadcastService:
 
         # Re-embed after text change
         try:
-            from .core.embedder import embed_article
-            embed_article(article_id, self.store, text=full_text)
-        except ImportError:
-            pass
+            self.store.embed_article(article_id)
         except Exception:
             log.debug("Embedding failed for %s", article_id, exc_info=True)
 
@@ -311,16 +301,6 @@ class ReadcastService:
             return AddArticleResult(article=existing, created=False)
 
         self.store.update_article(article)
-
-        # Generate embeddings for search (best-effort, don't block ingestion)
-        full_text = "\n\n".join(chunk.text for chunk in chunks)
-        try:
-            from .core.embedder import embed_article
-            embed_article(article.id, self.store, text=full_text)
-        except ImportError:
-            pass
-        except Exception:
-            log.debug("Embedding failed for %s", article.id, exc_info=True)
 
         stored = self.store.get_article(article.id)
         if stored is None:

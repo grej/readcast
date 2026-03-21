@@ -3,6 +3,7 @@ const DEFAULT_SERVER = "http://127.0.0.1:8765";
 const $ = (id) => document.getElementById(id);
 let currentTab = null;
 let serverUrl = DEFAULT_SERVER;
+let currentPlugin = null;
 
 document.addEventListener("DOMContentLoaded", async () => {
   const stored = await chrome.storage.local.get("readcastServer");
@@ -15,6 +16,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   $("pageUrl").textContent = tab?.url || "";
 
   await checkServer();
+  checkLLMStatus();
+  checkActivePlugin(tab);
 
   // Check for text selection via message to content script
   if (tab?.id) {
@@ -72,6 +75,40 @@ async function handleAddPage() {
   const btn = $("addPageBtn");
   btn.disabled = true;
   btn.innerHTML = '<div class="spinner"></div>';
+
+  // If a plugin is active, run it instead of adding the page as an article
+  if (currentPlugin && currentTab.id) {
+    try {
+      const count = parseInt($("pluginCount")?.value || "20", 10);
+      const scraped = await chrome.tabs.sendMessage(currentTab.id, { type: "scrapePlugin", plugin: currentPlugin, limit: count });
+      const data = scraped?.data || [];
+      const response = await new Promise((resolve, reject) => {
+        chrome.runtime.sendMessage(
+          { type: "runPlugin", plugin: currentPlugin, data },
+          (resp) => resp ? resolve(resp) : reject(new Error("No response from background")),
+        );
+      });
+      if (response.success) {
+        btn.textContent = `Briefing queued (${data.length} items)`;
+        btn.style.background = "#5cb85c";
+        setTimeout(() => {
+          loadRecentJobs();
+          btn.textContent = `Brief ${currentPlugin}`;
+          btn.style.background = "";
+          btn.disabled = false;
+        }, 3000);
+      } else {
+        showFeedback(response.error || "Plugin failed", "error");
+        btn.textContent = `Brief ${currentPlugin}`;
+        btn.disabled = false;
+      }
+    } catch (err) {
+      showFeedback(err.message, "error");
+      btn.textContent = `Brief ${currentPlugin}`;
+      btn.disabled = false;
+    }
+    return;
+  }
 
   try {
     // Try smart extraction via content script message
@@ -216,6 +253,51 @@ async function loadRecentJobs() {
     }
   } catch {
     // Server not available
+  }
+}
+
+async function checkLLMStatus() {
+  try {
+    const response = await fetch(`${serverUrl}/api/llm/status`, { signal: AbortSignal.timeout(3000) });
+    if (!response.ok) return;
+    const data = await response.json();
+    const el = $("llmStatus");
+    const text = $("llmStatusText");
+    el.style.display = "flex";
+    text.textContent = data.available
+      ? `${data.provider} (${data.status})`
+      : `${data.provider} — ${data.status}`;
+    text.style.color = data.available ? "#5cb85c" : "#999";
+  } catch {
+    // LLM status endpoint not available
+  }
+}
+
+async function checkActivePlugin(tab) {
+  if (!tab?.id) return;
+  try {
+    const response = await chrome.tabs.sendMessage(tab.id, { type: "getActivePlugin" });
+    if (response?.plugin) {
+      currentPlugin = response.plugin;
+      // Show plugin indicator
+      const el = $("pluginStatus");
+      const text = $("pluginStatusText");
+      el.style.display = "flex";
+      text.textContent = response.plugin;
+      text.style.color = "#6c63ff";
+      // Swap buttons: full-width plugin action, hide selection
+      const btn = $("addPageBtn");
+      btn.textContent = `Brief ${response.plugin}`;
+      $("addSelectionBtn").style.display = "none";
+      $("tagsInput").style.display = "none";
+      // Show email count slider
+      $("pluginOptions").style.display = "block";
+      $("pluginCount").addEventListener("input", () => {
+        $("pluginCountLabel").textContent = $("pluginCount").value;
+      });
+    }
+  } catch {
+    // Content script not loaded
   }
 }
 

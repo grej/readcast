@@ -1,68 +1,24 @@
 from __future__ import annotations
 
 from contextlib import closing
+from datetime import UTC, datetime
 import json
+import logging
 from pathlib import Path
 import shutil
 import sqlite3
 from typing import Optional
 
+from localknowledge.models import Document
+from localknowledge.service import KnowledgeService
+
 from .models import Article, Chunk, slugify
 
 
-SCHEMA = """
-PRAGMA foreign_keys = ON;
+log = logging.getLogger(__name__)
 
-CREATE TABLE IF NOT EXISTS articles (
-    id TEXT PRIMARY KEY,
-    source_url TEXT UNIQUE,
-    source_file TEXT,
-    title TEXT NOT NULL,
-    author TEXT,
-    publication TEXT,
-    published_date TEXT,
-    ingested_at TEXT NOT NULL,
-    word_count INTEGER NOT NULL,
-    estimated_read_min INTEGER NOT NULL,
-    description TEXT,
-    image_url TEXT,
-    canonical_url TEXT,
-    site_name TEXT,
-    language TEXT NOT NULL DEFAULT 'en',
-    status TEXT NOT NULL DEFAULT 'queued',
-    error_message TEXT,
-    audio_duration_sec REAL,
-    voice TEXT,
-    tts_model TEXT,
-    speed REAL,
-    tags TEXT NOT NULL DEFAULT '[]',
-    listened_at TEXT,
-    listen_count INTEGER DEFAULT 0,
-    listened_complete INTEGER DEFAULT 0,
-    last_digested_at TEXT,
-    digest_status TEXT
-);
 
-CREATE TABLE IF NOT EXISTS articles_fts_content (
-    rowid INTEGER PRIMARY KEY AUTOINCREMENT,
-    article_id TEXT NOT NULL REFERENCES articles(id) ON DELETE CASCADE,
-    title TEXT,
-    author TEXT,
-    publication TEXT,
-    full_text TEXT
-);
-
-CREATE VIRTUAL TABLE IF NOT EXISTS articles_fts USING fts5(
-    title,
-    author,
-    publication,
-    full_text,
-    content='articles_fts_content',
-    content_rowid='rowid'
-);
-
-CREATE INDEX IF NOT EXISTS idx_articles_status ON articles(status);
-
+READCAST_EXTRA_SCHEMA = """
 CREATE TABLE IF NOT EXISTS settings (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL
@@ -70,7 +26,7 @@ CREATE TABLE IF NOT EXISTS settings (
 
 CREATE TABLE IF NOT EXISTS concepts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    article_id TEXT NOT NULL REFERENCES articles(id) ON DELETE CASCADE,
+    article_id TEXT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
     content TEXT NOT NULL,
     concept_type TEXT,
     bloom_level TEXT,
@@ -92,26 +48,16 @@ CREATE TABLE IF NOT EXISTS relationships (
     source_entity_id INTEGER REFERENCES entities(id),
     target_entity_id INTEGER REFERENCES entities(id),
     relationship_type TEXT NOT NULL,
-    source_article_id TEXT REFERENCES articles(id),
+    source_article_id TEXT REFERENCES documents(id),
     extracted_at TEXT NOT NULL,
     confidence REAL DEFAULT 1.0,
     exercise_generated INTEGER DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS article_entities (
-    article_id TEXT REFERENCES articles(id) ON DELETE CASCADE,
+    article_id TEXT REFERENCES documents(id) ON DELETE CASCADE,
     entity_id INTEGER REFERENCES entities(id) ON DELETE CASCADE,
     PRIMARY KEY (article_id, entity_id)
-);
-
-CREATE TABLE IF NOT EXISTS embeddings (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    article_id TEXT NOT NULL REFERENCES articles(id) ON DELETE CASCADE,
-    chunk_index INTEGER NOT NULL,
-    chunk_text TEXT NOT NULL,
-    chunk_start INTEGER NOT NULL,
-    chunk_end INTEGER NOT NULL,
-    embedding BLOB NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS agent_log (
@@ -125,6 +71,14 @@ CREATE TABLE IF NOT EXISTS agent_log (
 );
 """
 
+_STATUS_TO_INGEST = {
+    "queued": "raw",
+    "synthesizing": "processed",
+    "done": "indexed",
+    "error": "error",
+    "failed": "error",
+}
+
 
 class Store:
     def __init__(self, base_dir: Path = Path("~/.readcast").expanduser()):
@@ -133,111 +87,61 @@ class Store:
         self.articles_dir = self.base_dir / "articles"
         self.output_dir = self.base_dir / "output"
         self.feed_dir = self.base_dir / "feed"
-        self.db_path = self.base_dir / "index.db"
         for directory in (self.articles_dir, self.output_dir, self.feed_dir):
             directory.mkdir(parents=True, exist_ok=True)
-        self._initialize_db()
+
+        # Shared knowledge DB: use ~/.localknowledge for production,
+        # co-locate in base_dir for tests (non-default base_dir)
+        default_base = Path("~/.readcast").expanduser()
+        if self.base_dir == default_base:
+            self._svc = KnowledgeService()  # ~/.localknowledge
+        else:
+            self._svc = KnowledgeService(base_dir=self.base_dir)  # test isolation
+
+        self._initialize_readcast_tables()
 
     def _connect(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row
-        conn.execute("PRAGMA foreign_keys = ON")
-        return conn
+        return self._svc.db.connect()
 
-    _MIGRATION_COLUMNS = [
-        ("description", "TEXT"),
-        ("image_url", "TEXT"),
-        ("canonical_url", "TEXT"),
-        ("site_name", "TEXT"),
-        ("listened_at", "TEXT"),
-        ("listen_count", "INTEGER DEFAULT 0"),
-        ("listened_complete", "INTEGER DEFAULT 0"),
-        ("last_digested_at", "TEXT"),
-        ("digest_status", "TEXT"),
-    ]
-
-    def _initialize_db(self) -> None:
+    def _initialize_readcast_tables(self) -> None:
         with closing(self._connect()) as conn:
-            conn.executescript(SCHEMA)
-            self._migrate(conn)
-            conn.commit()
+            conn.executescript(READCAST_EXTRA_SCHEMA)
 
-    def _migrate(self, conn: sqlite3.Connection) -> None:
-        existing = {row[1] for row in conn.execute("PRAGMA table_info(articles)").fetchall()}
-        for col_name, col_type in self._MIGRATION_COLUMNS:
-            if col_name not in existing:
-                conn.execute(f"ALTER TABLE articles ADD COLUMN {col_name} {col_type}")
+    # -- Article CRUD ----------------------------------------------------------
 
     def add_article(self, article: Article, chunks: list[Chunk], full_text: str) -> bool:
         article_dir = self.get_article_dir(article.id)
-        try:
+
+        if article.source_url:
             with closing(self._connect()) as conn:
-                conn.execute(
-                    """
-                    INSERT INTO articles (
-                        id, source_url, source_file, title, author, publication, published_date,
-                        ingested_at, word_count, estimated_read_min,
-                        description, image_url, canonical_url, site_name,
-                        language, status,
-                        error_message, audio_duration_sec, voice, tts_model, speed, tags,
-                        listened_at, listen_count, listened_complete,
-                        last_digested_at, digest_status
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    """,
-                    (
-                        article.id,
-                        article.source_url,
-                        article.source_file,
-                        article.title,
-                        article.author,
-                        article.publication,
-                        article.published_date,
-                        article.ingested_at,
-                        article.word_count,
-                        article.estimated_read_min,
-                        article.description,
-                        article.image_url,
-                        article.canonical_url,
-                        article.site_name,
-                        article.language,
-                        article.status,
-                        article.error_message,
-                        article.audio_duration_sec,
-                        article.voice,
-                        article.tts_model,
-                        article.speed,
-                        json.dumps(article.tags),
-                        article.listened_at,
-                        article.listen_count,
-                        article.listened_complete,
-                        article.last_digested_at,
-                        article.digest_status,
-                    ),
-                )
-                cursor = conn.execute(
-                    """
-                    INSERT INTO articles_fts_content (article_id, title, author, publication, full_text)
-                    VALUES (?, ?, ?, ?, ?)
-                    """,
-                    (
-                        article.id,
-                        article.title,
-                        article.author,
-                        article.publication,
-                        full_text,
-                    ),
-                )
-                rowid = cursor.lastrowid
-                conn.execute(
-                    """
-                    INSERT INTO articles_fts(rowid, title, author, publication, full_text)
-                    VALUES (?, ?, ?, ?, ?)
-                    """,
-                    (rowid, article.title, article.author, article.publication, full_text),
-                )
-                conn.commit()
-        except sqlite3.IntegrityError:
+                existing = conn.execute(
+                    "SELECT id FROM documents WHERE source_uri = ? AND deleted_at IS NULL",
+                    (article.source_url,),
+                ).fetchone()
+                if existing:
+                    return False
+
+        try:
+            self._svc.docs.create(
+                title=article.title,
+                source_type="article",
+                source_product="readcast",
+                id=article.id,
+                content=full_text,
+                language=article.language,
+                source_uri=article.source_url,
+                canonical_uri=article.canonical_url,
+                ingest_status=_STATUS_TO_INGEST.get(article.status, "raw"),
+                metadata=article.to_dict(),
+            )
+        except Exception:
             return False
+
+        # Auto-embed (best-effort, don't block article creation)
+        try:
+            self._svc.embed_document(article.id)
+        except Exception:
+            pass
 
         self._write_json(article_dir / "meta.json", article.to_dict())
         self._write_text(article_dir / "source.txt", full_text)
@@ -245,41 +149,42 @@ class Store:
         return True
 
     def get_article(self, article_id: str) -> Optional[Article]:
-        with closing(self._connect()) as conn:
-            row = conn.execute("SELECT * FROM articles WHERE id = ?", (article_id,)).fetchone()
-        return self._row_to_article(row) if row else None
+        doc = self._svc.docs.get(article_id)
+        return self._doc_to_article(doc) if doc else None
 
     def list_articles(self, status: Optional[str] = None, limit: int = 50) -> list[Article]:
-        query = "SELECT * FROM articles"
-        params: list[object] = []
+        fetch_limit = limit * 5 if status else limit
+        docs = self._svc.docs.list(source_product="readcast", limit=fetch_limit)
+        articles = [self._doc_to_article(d) for d in docs]
         if status:
-            query += " WHERE status = ?"
-            params.append(status)
-        query += " ORDER BY ingested_at DESC LIMIT ?"
-        params.append(limit)
-        with closing(self._connect()) as conn:
-            rows = conn.execute(query, params).fetchall()
-        return [self._row_to_article(row) for row in rows]
+            articles = [a for a in articles if a.status == status]
+        return articles[:limit]
 
     def update_status(self, article_id: str, status: str, error_message: Optional[str] = None) -> None:
-        with closing(self._connect()) as conn:
-            conn.execute(
-                "UPDATE articles SET status = ?, error_message = ? WHERE id = ?",
-                (status, error_message, article_id),
-            )
-            conn.commit()
+        doc = self._svc.docs.get(article_id, include_deleted=True)
+        if not doc:
+            return
+        meta = doc.metadata or {}
+        meta["status"] = status
+        meta["error_message"] = error_message
+        doc.ingest_status = _STATUS_TO_INGEST.get(status, "raw")
+        doc.metadata = meta
+        self._svc.docs.update(doc)
 
     def update_audio_metadata(self, article_id: str, duration_sec: float, voice: str, model: str, speed: float) -> None:
-        with closing(self._connect()) as conn:
-            conn.execute(
-                """
-                UPDATE articles
-                SET audio_duration_sec = ?, voice = ?, tts_model = ?, speed = ?, status = ?, error_message = NULL
-                WHERE id = ?
-                """,
-                (duration_sec, voice, model, speed, "done", article_id),
-            )
-            conn.commit()
+        doc = self._svc.docs.get(article_id, include_deleted=True)
+        if not doc:
+            return
+        meta = doc.metadata or {}
+        meta["audio_duration_sec"] = duration_sec
+        meta["voice"] = voice
+        meta["tts_model"] = model
+        meta["speed"] = speed
+        meta["status"] = "done"
+        meta["error_message"] = None
+        doc.ingest_status = "indexed"
+        doc.metadata = meta
+        self._svc.docs.update(doc)
 
     def get_setting(self, key: str) -> Optional[str]:
         with closing(self._connect()) as conn:
@@ -301,27 +206,22 @@ class Store:
             conn.commit()
 
     def search(self, query: str, limit: int = 20) -> list[Article]:
-        with closing(self._connect()) as conn:
-            rows = conn.execute(
-                """
-                SELECT a.*
-                FROM articles_fts
-                JOIN articles_fts_content c ON c.rowid = articles_fts.rowid
-                JOIN articles a ON a.id = c.article_id
-                WHERE articles_fts MATCH ?
-                ORDER BY bm25(articles_fts)
-                LIMIT ?
-                """,
-                (query, limit),
-            ).fetchall()
-        return [self._row_to_article(row) for row in rows]
+        try:
+            results = self._svc.search(query, limit=limit * 3)
+        except Exception:
+            results = self._svc.search(query, mode="fts", limit=limit * 3)
+        return [
+            self._doc_to_article(r.document)
+            for r in results
+            if r.document.source_product == "readcast"
+        ][:limit]
 
     def get_queued(self) -> list[Article]:
-        with closing(self._connect()) as conn:
-            rows = conn.execute(
-                "SELECT * FROM articles WHERE status = 'queued' ORDER BY ingested_at ASC"
-            ).fetchall()
-        return [self._row_to_article(row) for row in rows]
+        docs = self._svc.docs.list(source_product="readcast", limit=1000)
+        articles = [self._doc_to_article(d) for d in docs]
+        queued = [a for a in articles if a.status == "queued"]
+        queued.sort(key=lambda a: a.ingested_at)
+        return queued
 
     def get_chunks(self, article_id: str) -> list[Chunk]:
         path = self.get_article_dir(article_id) / "chunks.json"
@@ -346,33 +246,10 @@ class Store:
         self._write_text(article_dir / "source.txt", full_text)
         self._write_json(article_dir / "chunks.json", [chunk.to_dict() for chunk in chunks])
 
-        with closing(self._connect()) as conn:
-            row = conn.execute(
-                "SELECT rowid FROM articles_fts_content WHERE article_id = ?", (article_id,)
-            ).fetchone()
-            if row:
-                conn.execute("DELETE FROM articles_fts WHERE rowid = ?", (row["rowid"],))
-                conn.execute("DELETE FROM articles_fts_content WHERE rowid = ?", (row["rowid"],))
-
-            article = self._row_to_article(
-                conn.execute("SELECT * FROM articles WHERE id = ?", (article_id,)).fetchone()
-            )
-            cursor = conn.execute(
-                """
-                INSERT INTO articles_fts_content (article_id, title, author, publication, full_text)
-                VALUES (?, ?, ?, ?, ?)
-                """,
-                (article_id, article.title, article.author, article.publication, full_text),
-            )
-            rowid = cursor.lastrowid
-            conn.execute(
-                """
-                INSERT INTO articles_fts(rowid, title, author, publication, full_text)
-                VALUES (?, ?, ?, ?, ?)
-                """,
-                (rowid, article.title, article.author, article.publication, full_text),
-            )
-            conn.commit()
+        doc = self._svc.docs.get(article_id, include_deleted=True)
+        if doc:
+            doc.content = full_text
+            self._svc.docs.update(doc)
 
     def create_output_symlink(self, article: Article, audio_path: Path) -> Path:
         slug = slugify(article.title) or article.id
@@ -398,95 +275,48 @@ class Store:
         if article is None:
             return False
 
-        with closing(self._connect()) as conn:
-            row = conn.execute(
-                "SELECT rowid FROM articles_fts_content WHERE article_id = ?", (article_id,)
-            ).fetchone()
-            if row:
-                conn.execute("DELETE FROM articles_fts WHERE rowid = ?", (row["rowid"],))
-                conn.execute("DELETE FROM articles_fts_content WHERE rowid = ?", (row["rowid"],))
-            conn.execute("DELETE FROM articles WHERE id = ?", (article_id,))
-            conn.commit()
+        self._svc.docs.delete(article_id, hard=True)
 
         article_dir = self.articles_dir / article_id
         if article_dir.exists():
             shutil.rmtree(article_dir)
 
         for path in self.output_dir.iterdir():
-            if path.is_symlink() and path.resolve().parent == article_dir:
-                path.unlink()
+            if path.is_symlink():
+                try:
+                    if path.resolve().parent == article_dir:
+                        path.unlink()
+                except OSError:
+                    pass
         return True
 
     def update_article(self, article: Article) -> None:
-        with closing(self._connect()) as conn:
-            conn.execute(
-                """
-                UPDATE articles
-                SET title = ?, author = ?, publication = ?, published_date = ?, word_count = ?,
-                    estimated_read_min = ?,
-                    description = ?, image_url = ?, canonical_url = ?, site_name = ?,
-                    language = ?, status = ?, error_message = ?,
-                    audio_duration_sec = ?, voice = ?, tts_model = ?, speed = ?, tags = ?,
-                    listened_at = ?, listen_count = ?, listened_complete = ?,
-                    last_digested_at = ?, digest_status = ?
-                WHERE id = ?
-                """,
-                (
-                    article.title,
-                    article.author,
-                    article.publication,
-                    article.published_date,
-                    article.word_count,
-                    article.estimated_read_min,
-                    article.description,
-                    article.image_url,
-                    article.canonical_url,
-                    article.site_name,
-                    article.language,
-                    article.status,
-                    article.error_message,
-                    article.audio_duration_sec,
-                    article.voice,
-                    article.tts_model,
-                    article.speed,
-                    json.dumps(article.tags),
-                    article.listened_at,
-                    article.listen_count,
-                    article.listened_complete,
-                    article.last_digested_at,
-                    article.digest_status,
-                    article.id,
-                ),
-            )
-            conn.commit()
+        doc = self._svc.docs.get(article.id, include_deleted=True)
+        if not doc:
+            return
+        doc.title = article.title
+        doc.language = article.language
+        doc.source_uri = article.source_url
+        doc.canonical_uri = article.canonical_url
+        doc.ingest_status = _STATUS_TO_INGEST.get(article.status, "raw")
+        doc.metadata = article.to_dict()
+        self._svc.docs.update(doc)
         self._write_json(self.get_article_dir(article.id) / "meta.json", article.to_dict())
-
-    def _row_to_article(self, row: sqlite3.Row) -> Article:
-        payload = dict(row)
-        payload["tags"] = json.loads(payload.get("tags") or "[]")
-        for col in ("description", "image_url", "canonical_url", "site_name",
-                     "listened_at", "last_digested_at", "digest_status"):
-            payload.setdefault(col, None)
-        for col in ("listen_count", "listened_complete"):
-            payload.setdefault(col, 0)
-        return Article.from_dict(payload)
 
     # -- Listen tracking -------------------------------------------------------
 
     def record_listen(self, article_id: str, complete: bool = False) -> None:
-        from datetime import UTC, datetime
+        doc = self._svc.docs.get(article_id, include_deleted=True)
+        if not doc:
+            return
         now = datetime.now(UTC).isoformat()
-        with closing(self._connect()) as conn:
-            conn.execute(
-                """
-                UPDATE articles
-                SET listened_at = ?, listen_count = listen_count + 1,
-                    listened_complete = CASE WHEN ? THEN 1 ELSE listened_complete END
-                WHERE id = ?
-                """,
-                (now, complete, article_id),
-            )
-            conn.commit()
+        meta = doc.metadata or {}
+        meta["listened_at"] = now
+        meta["listen_count"] = meta.get("listen_count", 0) + 1
+        if complete:
+            meta["listened_complete"] = 1
+        doc.metadata = meta
+        self._svc.docs.update(doc)
 
     # -- Entity / relationship storage -----------------------------------------
 
@@ -554,14 +384,14 @@ class Store:
         with closing(self._connect()) as conn:
             rows = conn.execute(
                 """
-                SELECT a.* FROM articles a
-                JOIN article_entities ae ON ae.article_id = a.id
+                SELECT d.* FROM documents d
+                JOIN article_entities ae ON ae.article_id = d.id
                 WHERE ae.entity_id = ?
-                ORDER BY a.ingested_at DESC
+                ORDER BY d.created_at DESC
                 """,
                 (entity_id,),
             ).fetchall()
-        return [self._row_to_article(row) for row in rows]
+        return [self._doc_to_article(Document.from_row(row)) for row in rows]
 
     def get_article_entities(self, article_id: str) -> list[dict]:
         with closing(self._connect()) as conn:
@@ -576,69 +406,47 @@ class Store:
             ).fetchall()
         return [dict(row) for row in rows]
 
-    # -- Embedding storage -----------------------------------------------------
-
-    def store_embeddings(self, article_id: str, chunks: list[dict]) -> None:
-        """Store embedding chunks. Each chunk: {chunk_index, chunk_text, chunk_start, chunk_end, embedding (bytes)}."""
-        with closing(self._connect()) as conn:
-            conn.execute("DELETE FROM embeddings WHERE article_id = ?", (article_id,))
-            for chunk in chunks:
-                conn.execute(
-                    """
-                    INSERT INTO embeddings (article_id, chunk_index, chunk_text, chunk_start, chunk_end, embedding)
-                    VALUES (?, ?, ?, ?, ?, ?)
-                    """,
-                    (article_id, chunk["chunk_index"], chunk["chunk_text"],
-                     chunk["chunk_start"], chunk["chunk_end"], chunk["embedding"]),
-                )
-            conn.commit()
-
-    def get_all_embeddings(self) -> list[dict]:
-        with closing(self._connect()) as conn:
-            rows = conn.execute(
-                "SELECT id, article_id, chunk_index, chunk_text, embedding FROM embeddings"
-            ).fetchall()
-        return [dict(row) for row in rows]
+    # -- Embedding storage (delegates to KnowledgeService) ---------------------
 
     def has_embeddings(self, article_id: str) -> bool:
         with closing(self._connect()) as conn:
             row = conn.execute(
-                "SELECT 1 FROM embeddings WHERE article_id = ? LIMIT 1", (article_id,)
+                "SELECT 1 FROM embeddings_dense_v2 WHERE document_id = ? LIMIT 1",
+                (article_id,),
             ).fetchone()
         return row is not None
 
     def articles_without_embeddings(self) -> list[Article]:
-        with closing(self._connect()) as conn:
-            rows = conn.execute(
-                """
-                SELECT a.* FROM articles a
-                WHERE NOT EXISTS (SELECT 1 FROM embeddings e WHERE e.article_id = a.id)
-                ORDER BY a.ingested_at ASC
-                """
-            ).fetchall()
-        return [self._row_to_article(row) for row in rows]
+        docs = self._svc.docs.list_unembedded()
+        return [self._doc_to_article(d) for d in docs if d.source_product == "readcast"]
 
     def articles_without_tags(self) -> list[Article]:
-        with closing(self._connect()) as conn:
-            rows = conn.execute(
-                """
-                SELECT * FROM articles
-                WHERE tags = '[]' OR tags IS NULL
-                ORDER BY ingested_at ASC
-                """
-            ).fetchall()
-        return [self._row_to_article(row) for row in rows]
+        docs = self._svc.docs.list(source_product="readcast", limit=1000)
+        return [
+            self._doc_to_article(d)
+            for d in docs
+            if not (d.metadata or {}).get("tags")
+        ]
+
+    def embed_article(self, article_id: str) -> bool:
+        """Embed a single article using KnowledgeService."""
+        return self._svc.embed_document(article_id)
 
     # -- Agent log -------------------------------------------------------------
 
     def log_agent_action(self, agent_name: str, action: str, target_id: str = None, payload: str = None) -> None:
-        from datetime import UTC, datetime
         with closing(self._connect()) as conn:
             conn.execute(
                 "INSERT INTO agent_log (agent_name, action, target_id, payload, created_at) VALUES (?, ?, ?, ?, ?)",
                 (agent_name, action, target_id, payload, datetime.now(UTC).isoformat()),
             )
             conn.commit()
+
+    # -- Helpers ---------------------------------------------------------------
+
+    def _doc_to_article(self, doc: Document) -> Article:
+        meta = doc.metadata or {}
+        return Article.from_dict(meta)
 
     @staticmethod
     def _write_json(path: Path, payload: object) -> None:

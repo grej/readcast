@@ -401,11 +401,10 @@ def embeddings_backfill(ctx: click.Context) -> None:
         console.print("All articles already have embeddings.")
         return
     console.print(f"Embedding {len(articles)} article(s)...")
-    from readcast.core.embedder import embed_article
     for article in articles:
         try:
-            count = embed_article(article.id, store)
-            console.print(f"  [green]embedded[/green] {article.id} ({count} chunks)")
+            store.embed_article(article.id)
+            console.print(f"  [green]embedded[/green] {article.id}")
         except Exception as exc:
             console.print(f"  [red]failed[/red] {article.id}: {exc}")
 

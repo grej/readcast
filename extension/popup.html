@@ -217,6 +217,15 @@
       placeholder="Tags (comma-separated, optional)"
     >
 
+    <div id="pluginOptions" style="display:none; margin-bottom:10px">
+      <div style="display:flex; align-items:center; gap:8px">
+        <label for="pluginCount" style="font-size:12px; color:#999; white-space:nowrap">Emails:</label>
+        <input type="range" id="pluginCount" min="5" max="50" value="20"
+          style="flex:1; accent-color:#6c63ff">
+        <span id="pluginCountLabel" style="font-size:12px; color:#ccc; min-width:20px">20</span>
+      </div>
+    </div>
+
     <div class="actions">
       <button class="btn btn-primary" id="addPageBtn" disabled>
         Add Page
@@ -227,6 +236,16 @@
     </div>
 
     <div id="feedback" style="display:none"></div>
+  </div>
+
+  <div id="llmStatus" class="settings-row" style="display:none">
+    <span>LLM:</span>
+    <span id="llmStatusText" style="color:#999">--</span>
+  </div>
+
+  <div id="pluginStatus" class="settings-row" style="display:none">
+    <span>Plugin:</span>
+    <span id="pluginStatusText" style="color:#999">--</span>
   </div>
 
   <div id="recentJobs" class="jobs" style="display:none">

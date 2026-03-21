@@ -16,6 +16,7 @@ from pydantic import BaseModel, Field
 
 from readcast import __version__
 from readcast.core.config import Config
+from readcast.core.llm import complete as llm_complete, ensure_llm_running, llm_status as get_llm_status, stop_llm_server
 from readcast.core.models import Article
 from readcast.core.synthesizer import (
     ServerError,
@@ -68,6 +69,18 @@ class PreferencesRequest(BaseModel):
     playback_rate: Optional[float] = None
 
 
+class LLMCompleteRequest(BaseModel):
+    messages: list[dict] = Field(min_length=1)
+    max_tokens: Optional[int] = 1024
+    temperature: Optional[float] = 0.3
+
+
+class PluginRunRequest(BaseModel):
+    plugin_name: str = Field(min_length=1)
+    scraped_data: Any = None
+    prompt_template: Optional[str] = None
+
+
 def create_app(base_dir: Optional[Path] = None) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -80,6 +93,7 @@ def create_app(base_dir: Optional[Path] = None) -> FastAPI:
         worker.start()
         yield
         worker.stop()
+        stop_llm_server(config)
 
     app = FastAPI(title="readcast", lifespan=lifespan)
     app.add_middleware(
@@ -271,6 +285,68 @@ def create_app(base_dir: Optional[Path] = None) -> FastAPI:
                 "available_playback_rates": list(service.PLAYBACK_RATES),
             }
         }
+
+    # -- LLM endpoints ----------------------------------------------------------
+
+    @app.get("/api/llm/status")
+    async def api_llm_status(request: Request) -> dict[str, object]:
+        config: Config = request.app.state.config
+        return get_llm_status(config)
+
+    @app.post("/api/llm/complete")
+    async def api_llm_complete(request: Request, payload: LLMCompleteRequest) -> dict[str, object]:
+        config: Config = request.app.state.config
+        try:
+            ensure_llm_running(config)
+            content = llm_complete(
+                payload.messages,
+                config,
+                max_tokens=payload.max_tokens or 1024,
+                temperature=payload.temperature if payload.temperature is not None else 0.3,
+            )
+        except RuntimeError as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+        return {"content": content}
+
+    # -- Plugin endpoints -------------------------------------------------------
+
+    @app.post("/api/plugins/run")
+    async def run_plugin(request: Request, payload: PluginRunRequest) -> dict[str, object]:
+        config: Config = request.app.state.config
+        service = _service(request)
+        worker = _worker(request)
+
+        prompt = payload.prompt_template or _default_plugin_prompt(payload.plugin_name)
+        import json as _json
+        scraped_json = _json.dumps(payload.scraped_data, indent=2, default=str)
+        count = len(payload.scraped_data) if isinstance(payload.scraped_data, list) else 1
+
+        messages = [
+            {
+                "role": "user",
+                "content": prompt.replace("{count}", str(count)).replace("{scraped_data_json}", scraped_json),
+            }
+        ]
+
+        try:
+            ensure_llm_running(config)
+            analysis = llm_complete(messages, config, max_tokens=2048)
+        except RuntimeError as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+        # Create an article from the analysis for TTS synthesis
+        try:
+            result = service.add_input(analysis, source_url=f"plugin:{payload.plugin_name}")
+            worker.kick()
+            article_id = result.article.id
+        except Exception:
+            article_id = None
+
+        return {"analysis": analysis, "article_id": article_id}
 
     # -- Entity endpoints -------------------------------------------------------
 
@@ -480,6 +556,34 @@ def _feed_date(article: Article) -> str:
     if parsed.tzinfo is None:
         parsed = parsed.replace(tzinfo=UTC)
     return format_datetime(parsed)
+
+
+_GMAIL_PROMPT = """\
+You are an email assistant producing an audio briefing.
+Analyze these {count} emails and categorize each as: spam, bulk/corporate, \
+system notification (git/confluence/jira/automated), or important (needs human response).
+
+Output a natural spoken briefing in this format:
+1. One-line summary: "In the last 24 hours you received X emails..."
+2. Counts by category
+3. For important emails: 1-2 sentence summary of each, including sender and what action is needed
+4. For bulk/system: one sentence summarizing the general topics
+5. Skip spam entirely
+
+Emails:
+{scraped_data_json}"""
+
+
+def _default_plugin_prompt(plugin_name: str) -> str:
+    prompts: dict[str, str] = {
+        "gmail": _GMAIL_PROMPT,
+    }
+    if plugin_name in prompts:
+        return prompts[plugin_name]
+    return (
+        "Analyze the following scraped data and produce a concise, natural-language "
+        "audio briefing suitable for text-to-speech.\n\nData:\n{scraped_data_json}"
+    )
 
 
 _REPODATA_URL = "https://conda.anaconda.org/gjennings/noarch/repodata.json"

@@ -50,6 +50,16 @@ class WebConfig:
 
 
 @dataclass(slots=True)
+class LLMConfig:
+    provider: str = "local"  # "local" | "openai" | "anthropic"
+    local_model: str = "mlx-community/Qwen3.5-4B-MLX-4bit"
+    local_server_url: str = "http://127.0.0.1:8090"
+    api_key: str = ""
+    auto_start: bool = True
+    startup_timeout_sec: int = 120
+
+
+@dataclass(slots=True)
 class ExtractionConfig:
     publications: dict[str, str] = field(default_factory=lambda: dict(DEFAULT_PUBLICATIONS))
 
@@ -61,6 +71,7 @@ class Config:
     kokoro_edge: KokoroEdgeConfig = field(default_factory=KokoroEdgeConfig)
     web: WebConfig = field(default_factory=WebConfig)
     extraction: ExtractionConfig = field(default_factory=ExtractionConfig)
+    llm: LLMConfig = field(default_factory=LLMConfig)
     base_dir: Path = field(default_factory=lambda: Path("~/.readcast").expanduser())
 
     @property
@@ -88,6 +99,7 @@ class Config:
         kokoro_edge_data = _known_fields(KokoroEdgeConfig, data.get("kokoro_edge", {}))
         web_data = _known_fields(WebConfig, data.get("web", {}))
         extraction_data = data.get("extraction", {})
+        llm_data = _known_fields(LLMConfig, data.get("llm", {}))
         config.readcast = ReadcastConfig(**{**asdict(config.readcast), **readcast_data})
         config.tts = TTSConfig(**{**asdict(config.tts), **tts_data})
         config.kokoro_edge = KokoroEdgeConfig(**{**asdict(config.kokoro_edge), **kokoro_edge_data})
@@ -95,6 +107,7 @@ class Config:
         config.extraction = ExtractionConfig(
             publications={**DEFAULT_PUBLICATIONS, **extraction_data.get("publications", {})}
         )
+        config.llm = LLMConfig(**{**asdict(config.llm), **llm_data})
         config.output_dir.mkdir(parents=True, exist_ok=True)
         return config
 
@@ -124,6 +137,7 @@ class Config:
             "kokoro_edge": asdict(self.kokoro_edge),
             "web": asdict(self.web),
             "extraction": {"publications": dict(self.extraction.publications)},
+            "llm": asdict(self.llm),
         }
 
     def _to_toml(self) -> str:
@@ -154,6 +168,15 @@ class Config:
         lines.append(f'host = {json.dumps(self.web.host)}')
         lines.append(f"port = {self.web.port}")
         lines.append(f"open_browser = {str(self.web.open_browser).lower()}")
+        lines.append("")
+
+        lines.append("[llm]")
+        lines.append(f'provider = {json.dumps(self.llm.provider)}')
+        lines.append(f'local_model = {json.dumps(self.llm.local_model)}')
+        lines.append(f'local_server_url = {json.dumps(self.llm.local_server_url)}')
+        lines.append(f'api_key = {json.dumps(self.llm.api_key)}')
+        lines.append(f"auto_start = {str(self.llm.auto_start).lower()}")
+        lines.append(f"startup_timeout_sec = {self.llm.startup_timeout_sec}")
         lines.append("")
 
         lines.append("[extraction]")

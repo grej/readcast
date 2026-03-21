@@ -64,6 +64,37 @@ async function addToReadcast(server, payload) {
   }
 }
 
+// -- Plugin execution --------------------------------------------------------
+
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (message.type === "runPlugin") {
+    handleRunPlugin(message.plugin, message.data).then(sendResponse);
+    return true; // async response
+  }
+});
+
+async function handleRunPlugin(pluginName, scrapedData) {
+  const server = await getServer();
+  try {
+    const response = await fetch(`${server}/api/plugins/run`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        plugin_name: pluginName,
+        scraped_data: scrapedData,
+      }),
+    });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      return { success: false, error: data.detail || `Server error (${response.status})` };
+    }
+    const result = await response.json();
+    return { success: true, analysis: result.analysis, article_id: result.article_id };
+  } catch (err) {
+    return { success: false, error: "Could not connect to readcast server" };
+  }
+}
+
 async function getServer() {
   const result = await chrome.storage.local.get("readcastServer");
   return result.readcastServer || DEFAULT_SERVER;

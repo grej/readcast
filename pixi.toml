@@ -13,6 +13,7 @@ ffmpeg = "*"
 
 [pypi-dependencies]
 readcast = { path = ".", editable = true, extras = ["ml"] }
+localknowledge-core = { path = "../local-knowledge/packages/core", editable = true }
 
 [feature.dev.dependencies]
 nodejs = ">=20"

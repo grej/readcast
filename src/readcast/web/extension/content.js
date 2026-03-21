@@ -7,6 +7,29 @@ document.addEventListener("selectionchange", () => {
   }
 });
 
+// -- Plugin system -----------------------------------------------------------
+
+const PLUGIN_MATCHES = [
+  { name: "gmail", patterns: ["*://mail.google.com/*"], hostCheck: (h) => h === "mail.google.com" },
+];
+
+let activePlugin = null;
+
+function checkPlugins() {
+  const host = window.location.hostname;
+  for (const plugin of PLUGIN_MATCHES) {
+    if (plugin.hostCheck(host)) {
+      activePlugin = plugin.name;
+      return;
+    }
+  }
+}
+
+// Run plugin check after a short delay to let plugin scripts register
+setTimeout(checkPlugins, 100);
+
+// -- Message listeners -------------------------------------------------------
+
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message.type === "getPageHTML") {
     sendResponse({ html: document.documentElement.outerHTML });
@@ -17,6 +40,17 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   }
   if (message.type === "extractArticle") {
     sendResponse(extractArticle());
+  }
+  if (message.type === "getActivePlugin") {
+    sendResponse({ plugin: activePlugin });
+  }
+  if (message.type === "scrapePlugin") {
+    const plugin = globalThis.__readcastPlugins?.[message.plugin];
+    if (plugin && typeof plugin.scrape === "function") {
+      sendResponse({ data: plugin.scrape(message.limit) });
+    } else {
+      sendResponse({ data: null });
+    }
   }
   return true; // keep message channel open for async
 });

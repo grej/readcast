@@ -20,6 +20,11 @@
       "matches": ["<all_urls>"],
       "js": ["content.js"],
       "run_at": "document_idle"
+    },
+    {
+      "matches": ["*://mail.google.com/*"],
+      "js": ["plugins/gmail.js"],
+      "run_at": "document_idle"
     }
   ],
   "icons": {

@@ -194,6 +194,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/83/e4/d04a086285c20886c0daad0e026f250869201013d18f81d9ff5eada73a88/uvicorn-0.41.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/79/35/0429ee11d035fc33abe32dca1b2b69e8c18d236547b9a9b72c1929189b9a/xxhash-3.6.0-cp312-cp312-macosx_11_0_arm64.whl
       - pypi: https://files.pythonhosted.org/packages/19/2a/725ecc166d53438bc88f76822ed4b1e3b10756e790bafd7b523fe97c322d/yarl-1.23.0-cp312-cp312-macosx_11_0_arm64.whl
+      - pypi: ../local-knowledge/packages/core
       - pypi: ./
   dev:
     channels:
@@ -389,6 +390,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/83/e4/d04a086285c20886c0daad0e026f250869201013d18f81d9ff5eada73a88/uvicorn-0.41.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/79/35/0429ee11d035fc33abe32dca1b2b69e8c18d236547b9a9b72c1929189b9a/xxhash-3.6.0-cp312-cp312-macosx_11_0_arm64.whl
       - pypi: https://files.pythonhosted.org/packages/19/2a/725ecc166d53438bc88f76822ed4b1e3b10756e790bafd7b523fe97c322d/yarl-1.23.0-cp312-cp312-macosx_11_0_arm64.whl
+      - pypi: ../local-knowledge/packages/core
       - pypi: ./
 packages:
 - pypi: https://files.pythonhosted.org/packages/0f/15/5bf3b99495fb160b63f95972b81750f18f7f4e02ad051373b669d17d44f2/aiohappyeyeballs-2.6.1-py3-none-any.whl
@@ -1918,6 +1920,14 @@ packages:
   purls: []
   size: 46438
   timestamp: 1727963202283
+- pypi: ../local-knowledge/packages/core
+  name: localknowledge-core
+  version: 0.2.0
+  sha256: 531a9a85c18bf24b7fa12016e806bf4092a461bd253722ba35c79a0669afd964
+  requires_dist:
+  - httpx
+  - numpy
+  requires_python: '>=3.12'
 - pypi: https://files.pythonhosted.org/packages/f3/c8/8ff2bc6b920c84355146cd1ab7d181bc543b89241cfb1ebee824a7c81457/lxml-6.0.2-cp312-cp312-macosx_10_13_universal2.whl
   name: lxml
   version: 6.0.2
@@ -2505,8 +2515,8 @@ packages:
   - cchardet ; extra == 'speed'
 - pypi: ./
   name: readcast
-  version: 0.1.12
-  sha256: edcdeb3c731552095c0f99daaaa835f5fa68bae4139c94cd937bae546619c435
+  version: 2.0.0
+  sha256: fbc6b10d1c5575ba807e2b2d3d172cbeaf114477d6a975a92684244383a372cb
   requires_dist:
   - httpx>=0.27
   - readability-lxml>=0.8
@@ -2519,8 +2529,10 @@ packages:
   - uvicorn>=0.30
   - num2words>=0.5
   - packaging>=23.0
+  - localknowledge-core>=0.2.0
   - mlx-embeddings @ git+https://github.com/Blaizzy/mlx-embeddings.git ; extra == 'ml'
   - mlx-lm ; extra == 'ml'
+  - huggingface-hub>=0.20 ; extra == 'ml'
   - pytest>=8.0 ; extra == 'dev'
   - pytest-cov>=5.0 ; extra == 'dev'
   - ruff>=0.5 ; extra == 'dev'
