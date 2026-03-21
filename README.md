@@ -28,15 +28,40 @@ speech synthesis, and SQLite for storage. No cloud, no API keys, no data leaves 
 
 ## Install
 
+The recommended way to run readcast is as part of
+[Local Knowledge](https://github.com/grej/local-knowledge), which manages all services
+from a single menu bar icon:
+
 ```bash
-pixi global install readcast -c https://conda.anaconda.org/gjennings -c conda-forge
+pixi global install local-knowledge --channel gjennings --channel conda-forge
+lk-desktop
+```
+
+This installs readcast, the knowledge base, web UI, MCP server, TTS engine, and the
+menu bar launcher. `lk-desktop` starts everything — click **Readcast** to open the web UI.
+
+### Readcast only
+
+If you just want readcast without the full ecosystem:
+
+```bash
+pixi global install readcast --channel gjennings --channel conda-forge
 readcast web
 ```
 
-That's it. This installs readcast, `kokoro-edge` (TTS engine), Python, ffmpeg, and all
-dependencies in an isolated environment. The web UI launches at `http://127.0.0.1:8765`.
+The web UI launches at `http://127.0.0.1:8765`. ML models (~600MB for embeddings + TTS)
+download automatically on first use.
 
-ML models (~600MB for embeddings + TTS) download automatically on first use.
+### Local Knowledge ecosystem
+
+readcast builds on [local-knowledge](https://github.com/grej/local-knowledge) (>=0.2.0),
+which provides the shared knowledge base, search engine, and embedding infrastructure.
+Articles you add in readcast land in the shared database at `~/.localknowledge/store.db`
+and are automatically:
+
+- searchable via `lk search` CLI and the `lk-ui` web interface
+- available to Claude and other LLM tools via the `lk-mcp` MCP server
+- cross-referenced with documents from other products like Spock
 
 ### From source
 
@@ -80,14 +105,14 @@ The extension adds:
 
 ## Architecture
 
-readcast stores everything in SQLite under `~/.readcast/`:
+readcast stores article files under `~/.readcast/` and uses the shared Local Knowledge
+database at `~/.localknowledge/store.db`:
 
-- **articles** — metadata, full text, TTS audio, tags, listen history
-- **embeddings** — 384-dim vectors (bge-small-en-v1.5) for semantic search
-- **entities / relationships** — knowledge graph extracted by local LLM
-- **article_entities** — links articles to entities
-- **concepts** — reserved for future extensions
-- **agent_log** — audit trail of automated actions
+- **`~/.localknowledge/store.db`** — shared SQLite database (documents, embeddings, tags,
+  entities, knowledge graph)
+- **`~/.readcast/articles/{id}/`** — extracted text, metadata, chunks, and audio per article
+- **`~/.readcast/config.toml`** — readcast-specific configuration
+- **`~/.readcast/output/`** — symlinks to generated audio files
 
 Search uses hybrid Reciprocal Rank Fusion: FTS5 keyword results and cosine-similarity
 vector results are merged with `score(d) = Σ 1/(k + rank(d))`, so both exact matches
@@ -107,12 +132,11 @@ TTS API. readcast starts it automatically when needed.
 
 ## Privacy and storage
 
-All data lives locally under `~/.readcast/`:
+All data lives locally in two directories:
 
-- `config.toml` — configuration
-- `index.db` — SQLite database with full-text search, embeddings, and knowledge graph
-- `articles/{id}/` — extracted text, metadata, chunks, and audio
-- `output/` — symlinks to generated audio files
+- **`~/.readcast/`** — config, article files, audio, output symlinks
+- **`~/.localknowledge/store.db`** — shared knowledge database (documents, embeddings,
+  tags, knowledge graph)
 
 Subscribe to your articles as a podcast by copying the feed URL from the web UI
 or pointing your podcast app at `http://127.0.0.1:8765/feed.xml`.
