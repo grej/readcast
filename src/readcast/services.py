@@ -481,6 +481,10 @@ class ProcessingWorker:
                 article = queued[0]
                 if article.id in self._cancelled:
                     self._cancelled.discard(article.id)
+                    try:
+                        self.service.cancel_article(article.id)
+                    except (KeyError, ValueError):
+                        pass
                     continue
                 try:
                     self.service.process_articles([article])

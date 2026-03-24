@@ -4,9 +4,11 @@ from io import BytesIO
 from pathlib import Path
 import wave
 
+import pytest
+
 from readcast.core.models import Article, Chunk
 from readcast.core.config import Config
-from readcast.services import ReadcastService
+from readcast.services import ProcessingWorker, ReadcastService
 
 
 def _wav_bytes(duration: float = 0.1) -> bytes:
@@ -158,3 +160,117 @@ def test_process_article_keeps_segments_on_failure(monkeypatch, base_dir) -> Non
     assert result.success is False
     assert latest is not None and latest.status == "failed"
     assert (article_dir / "segments").exists()
+
+
+def test_cancel_article_sets_status_to_added(base_dir) -> None:
+    service = ReadcastService(Config.load(base_dir))
+    added = service.add_text("Cancel title\n\nParagraph one.")
+    assert added.article.status == "queued"
+
+    cancelled = service.cancel_article(added.article.id)
+
+    assert cancelled.status == "added"
+    assert cancelled.error_message is None
+    # Should no longer appear in queued list
+    assert len(service.store.get_queued()) == 0
+
+
+def test_cancel_article_rejects_non_processing_status(base_dir) -> None:
+    service = ReadcastService(Config.load(base_dir))
+    added = service.add_text("Cancel title\n\nParagraph one.", duplicate_window_sec=0)
+    # Set to "added" (non-processing) status
+    service.cancel_article(added.article.id)
+
+    with pytest.raises(ValueError, match="Cannot cancel"):
+        service.cancel_article(added.article.id)
+
+
+def test_remove_audio_deletes_files_and_resets_status(monkeypatch, base_dir) -> None:
+    service = ReadcastService(Config.load(base_dir))
+    added = service.add_text("Audio title\n\nParagraph one.\n\nParagraph two.")
+    article_dir = service.store.get_article_dir(added.article.id)
+
+    # Simulate completed synthesis
+    monkeypatch.setattr("readcast.services.ensure_server_running", lambda config: {"model": "kokoro-82m"})
+
+    def fake_synthesize(segments, article_dir: Path, config, progress=None):
+        audio_path = article_dir / "audio.mp3"
+        audio_path.write_bytes(_wav_bytes())
+        return audio_path
+
+    monkeypatch.setattr("readcast.services.synthesize", fake_synthesize)
+    monkeypatch.setattr("readcast.services.audio_duration", lambda path: 2.5)
+
+    service.process_articles([added.article])
+    assert (article_dir / "audio.mp3").exists()
+
+    # Now remove the audio
+    result = service.remove_audio(added.article.id)
+
+    assert result.status == "added"
+    assert result.audio_duration_sec is None
+    assert not (article_dir / "audio.mp3").exists()
+
+
+def test_remove_audio_from_article_without_audio(base_dir) -> None:
+    service = ReadcastService(Config.load(base_dir))
+    added = service.add_text("No audio\n\nParagraph one.")
+    service.cancel_article(added.article.id)  # set to "added"
+
+    result = service.remove_audio(added.article.id)
+
+    assert result.status == "added"
+
+
+def test_processing_worker_skips_cancelled_articles(monkeypatch, base_dir) -> None:
+    service = ReadcastService(Config.load(base_dir))
+    added = service.add_text("Worker cancel\n\nParagraph body.")
+
+    monkeypatch.setattr("readcast.services.ensure_server_running", lambda config: {"model": "kokoro-82m"})
+
+    processed_ids: list[str] = []
+
+    def fake_synthesize(segments, article_dir: Path, config, progress=None):
+        # Record which articles get processed
+        processed_ids.append(article_dir.name)
+        audio_path = article_dir / "audio.mp3"
+        audio_path.write_bytes(_wav_bytes())
+        return audio_path
+
+    monkeypatch.setattr("readcast.services.synthesize", fake_synthesize)
+    monkeypatch.setattr("readcast.services.audio_duration", lambda path: 1.0)
+
+    worker = ProcessingWorker(service)
+    worker.cancel(added.article.id)
+
+    # Process queued — the cancelled article should be skipped
+    worker.start()
+    import time
+    time.sleep(1)
+    worker.stop()
+
+    assert added.article.id not in processed_ids
+
+
+def test_update_article_text_updates_word_count(base_dir) -> None:
+    service = ReadcastService(Config.load(base_dir))
+    added = service.add_text("Title\n\nOne two three four five.")
+    original_wc = added.article.word_count
+
+    updated = service.update_article_text(added.article.id, "Title\n\nOne two.")
+    assert updated.word_count < original_wc
+
+
+def test_add_text_with_source_url_and_author(base_dir) -> None:
+    service = ReadcastService(Config.load(base_dir))
+    result = service.add_text(
+        "Custom source\n\nBody text here.",
+        source_url="https://custom.com/page",
+        author="Jane Doe",
+        published_date="2026-01-15",
+    )
+
+    assert result.created is True
+    assert result.article.source_url == "https://custom.com/page"
+    assert result.article.author == "Jane Doe"
+    assert result.article.published_date == "2026-01-15"

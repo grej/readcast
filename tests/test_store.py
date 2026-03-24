@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import closing
 from pathlib import Path
 
 from readcast.core.models import Article, Chunk
@@ -89,4 +90,74 @@ def test_create_output_symlink_adds_suffix(base_dir: Path) -> None:
 
     assert first.name == "drone-war-notes.mp3"
     assert second.name == "drone-war-notes-2.mp3"
+
+
+def test_doc_to_article_with_partial_metadata(base_dir: Path) -> None:
+    """Migrated documents may have partial metadata (missing id, title, etc).
+    _doc_to_article should reconstruct the Article from Document fields."""
+    store = Store(base_dir)
+    # Directly create a document via the knowledge service with minimal metadata
+    # (simulating what the migration script does)
+    store._svc.docs.create(
+        title="Migrated Article",
+        source_type="article",
+        source_product="readcast",
+        id="migrated1",
+        content="Some text",
+        language="en",
+        source_uri="https://example.com/migrated",
+        ingest_status="indexed",
+        metadata={"author": "Test Author", "word_count": 42},
+    )
+
+    article = store.get_article("migrated1")
+
+    assert article is not None
+    assert article.id == "migrated1"
+    assert article.title == "Migrated Article"
+    assert article.source_url == "https://example.com/migrated"
+    assert article.author == "Test Author"
+    assert article.word_count == 42
+    assert article.status == "done"  # ingest_status "indexed" maps to "done"
+
+
+def test_doc_to_article_with_full_metadata(base_dir: Path) -> None:
+    """Articles added normally have full metadata. Verify no regression."""
+    store = Store(base_dir)
+    article = _article()
+    store.add_article(article, _chunks(), "full text here")
+
+    loaded = store.get_article(article.id)
+
+    assert loaded is not None
+    assert loaded.id == article.id
+    assert loaded.title == article.title
+    assert loaded.author == article.author
+
+
+def test_delete_article_removes_entity_links(base_dir: Path) -> None:
+    store = Store(base_dir)
+    article = _article()
+    store.add_article(article, _chunks(), "drone war text")
+
+    entity_id = store.upsert_entity("TestCorp", "company", "2026-01-01T00:00:00Z")
+    store.link_article_entity(article.id, entity_id)
+
+    assert len(store.get_article_entities(article.id)) == 1
+
+    store.delete_article(article.id)
+
+    assert store.get_article(article.id) is None
+
+
+def test_settings_round_trip(base_dir: Path) -> None:
+    store = Store(base_dir)
+
+    assert store.get_setting("test_key") is None
+
+    store.set_setting("test_key", "test_value")
+    assert store.get_setting("test_key") == "test_value"
+
+    store.set_setting("test_key", "updated_value")
+    assert store.get_setting("test_key") == "updated_value"
 

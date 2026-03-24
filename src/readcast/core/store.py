@@ -79,6 +79,8 @@ _STATUS_TO_INGEST = {
     "failed": "error",
 }
 
+_INGEST_TO_STATUS = {v: k for k, v in _STATUS_TO_INGEST.items() if k != "failed"}
+
 
 class Store:
     def __init__(self, base_dir: Path = Path("~/.readcast").expanduser()):
@@ -446,7 +448,22 @@ class Store:
 
     def _doc_to_article(self, doc: Document) -> Article:
         meta = doc.metadata or {}
-        return Article.from_dict(meta)
+        # Ensure core Document fields are present (migration may store partial metadata)
+        defaults = {
+            "id": doc.id,
+            "title": doc.title or "",
+            "source_url": doc.source_uri,
+            "source_file": meta.get("source_file"),
+            "author": meta.get("author"),
+            "publication": meta.get("publication"),
+            "published_date": meta.get("published_date"),
+            "ingested_at": doc.created_at or "",
+            "word_count": meta.get("word_count", 0),
+            "estimated_read_min": meta.get("estimated_read_min", 0),
+            "status": meta.get("status") or _INGEST_TO_STATUS.get(doc.ingest_status, "queued"),
+        }
+        merged = {**defaults, **meta}
+        return Article.from_dict(merged)
 
     @staticmethod
     def _write_json(path: Path, payload: object) -> None:

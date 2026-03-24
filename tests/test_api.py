@@ -207,3 +207,102 @@ def test_api_status_reports_ready_details(monkeypatch, base_dir) -> None:
         assert payload["connected"] is True
         assert payload["ready"] is True
         assert payload["state"] == "ready"
+
+
+def test_api_cancel_queued_article(base_dir) -> None:
+    app = create_app(base_dir)
+    with TestClient(app) as client:
+        article = client.post("/api/articles", json={"input": "Cancel me\n\nBody.", "process": True}).json()["article"]
+        assert article["status"] == "queued"
+
+        response = client.post(f"/api/articles/{article['id']}/cancel")
+
+        assert response.status_code == 200
+        assert response.json()["article"]["status"] == "added"
+
+
+def test_api_cancel_non_queued_article_returns_400(base_dir) -> None:
+    app = create_app(base_dir)
+    with TestClient(app) as client:
+        article = client.post("/api/articles", json={"input": "Not queued\n\nBody.", "process": False}).json()["article"]
+
+        response = client.post(f"/api/articles/{article['id']}/cancel")
+
+        assert response.status_code == 400
+
+
+def test_api_cancel_missing_article_returns_404(base_dir) -> None:
+    app = create_app(base_dir)
+    with TestClient(app) as client:
+        response = client.post("/api/articles/nonexistent/cancel")
+        assert response.status_code == 404
+
+
+def test_api_remove_audio_deletes_audio_and_resets(base_dir) -> None:
+    app = create_app(base_dir)
+    with TestClient(app) as client:
+        service = client.app.state.service
+        article = service.add_text("Audio removal\n\nBody.").article
+        article_dir = service.store.get_article_dir(article.id)
+        audio_path = article_dir / "audio.mp3"
+        audio_path.write_bytes(_wav_bytes())
+        service.store.update_audio_metadata(article.id, duration_sec=0.5, voice="af_sky", model="kokoro-82m", speed=1.0)
+
+        response = client.delete(f"/api/articles/{article.id}/audio")
+
+        assert response.status_code == 200
+        updated = response.json()["article"]
+        assert updated["status"] == "added"
+        assert updated["has_audio"] is False
+        assert not audio_path.exists()
+
+
+def test_api_remove_audio_missing_article_returns_404(base_dir) -> None:
+    app = create_app(base_dir)
+    with TestClient(app) as client:
+        response = client.delete("/api/articles/nonexistent/audio")
+        assert response.status_code == 404
+
+
+def test_api_update_metadata_fields(base_dir) -> None:
+    app = create_app(base_dir)
+    with TestClient(app) as client:
+        article = client.post("/api/articles", json={"input": "Edit me\n\nBody text.", "process": False}).json()["article"]
+
+        response = client.put(f"/api/articles/{article['id']}", json={
+            "title": "New Title",
+            "author": "New Author",
+            "tags": ["tag1", "tag2"],
+        })
+
+        assert response.status_code == 200
+        updated = response.json()["article"]
+        assert updated["title"] == "New Title"
+        assert updated["author"] == "New Author"
+        assert updated["tags"] == ["tag1", "tag2"]
+
+
+def test_api_update_text_and_get_text(base_dir) -> None:
+    app = create_app(base_dir)
+    with TestClient(app) as client:
+        article = client.post("/api/articles", json={"input": "Original title\n\nOriginal body.", "process": False}).json()["article"]
+
+        client.put(f"/api/articles/{article['id']}/text", json={"text": "Updated title\n\nUpdated body."})
+
+        text_resp = client.get(f"/api/articles/{article['id']}/text")
+        assert text_resp.status_code == 200
+        assert "Updated" in text_resp.json()["text"]
+
+
+def test_api_search_returns_matching_articles(base_dir) -> None:
+    app = create_app(base_dir)
+    with TestClient(app) as client:
+        client.post("/api/articles", json={"input": "Quantum computing breakthrough\n\nNew research in quantum entanglement.", "process": False})
+        client.post("/api/articles", json={"input": "Cooking pasta\n\nBoil water and add salt.", "process": False})
+
+        response = client.get("/api/articles?q=quantum")
+
+        assert response.status_code == 200
+        articles = response.json()["articles"]
+        assert len(articles) >= 1
+        assert any("quantum" in a["title"].lower() or "quantum" in str(a.get("description", "")).lower() for a in articles)
