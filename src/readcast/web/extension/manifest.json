@@ -25,6 +25,16 @@
       "matches": ["*://mail.google.com/*"],
       "js": ["plugins/gmail.js"],
       "run_at": "document_idle"
+    },
+    {
+      "matches": ["*://www.reddit.com/*", "*://old.reddit.com/*"],
+      "js": ["plugins/reddit.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["*://www.youtube.com/watch*"],
+      "js": ["plugins/youtube.js"],
+      "run_at": "document_idle"
     }
   ],
   "icons": {

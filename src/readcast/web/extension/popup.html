@@ -2,36 +2,40 @@
 <html>
 <head>
   <meta charset="utf-8">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      width: 340px;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background: #1a1a2e;
+      width: 360px;
+      font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #0f1117;
       color: #e0e0e0;
       font-size: 13px;
     }
+
+    /* Header */
     .header {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 12px 14px 8px;
-      border-bottom: 1px solid #2a2a4a;
+      padding: 14px 16px 10px;
+      border-bottom: 1px solid #1e2030;
     }
     .logo {
-      font-size: 15px;
+      font-size: 11px;
       font-weight: 700;
-      letter-spacing: -0.3px;
-      color: #e0e0e0;
+      letter-spacing: 0.12em;
+      color: #8a8fa8;
       text-decoration: none;
     }
-    .logo:hover { color: #6c63ff; }
+    .logo:hover { color: #6c8cff; }
     .status {
       display: flex;
       align-items: center;
-      gap: 5px;
+      gap: 6px;
       font-size: 11px;
-      color: #999;
+      font-weight: 500;
+      color: #6b7080;
     }
     .status-dot {
       width: 7px;
@@ -39,21 +43,58 @@
       border-radius: 50%;
       background: #d9534f;
     }
-    .status-dot.connected { background: #5cb85c; }
+    .status-dot.connected { background: #34d399; }
     .status-dot.checking { background: #d4af37; }
 
-    .body { padding: 12px 14px; }
+    /* Body */
+    .body { padding: 14px 16px; }
 
-    .page-info {
-      background: #252545;
-      border-radius: 6px;
-      padding: 10px 12px;
+    /* Content card */
+    .content-card {
+      background: #1a1d27;
+      border-radius: 10px;
+      padding: 14px;
+      margin-bottom: 14px;
+      border: 1px solid #252838;
+    }
+    .content-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 3px 8px;
+      border-radius: 4px;
       margin-bottom: 10px;
     }
-    .page-title {
-      font-size: 13px;
+    .content-label.page {
+      background: rgba(108, 140, 255, 0.12);
+      color: #6c8cff;
+    }
+    .content-label.selection {
+      background: rgba(168, 130, 255, 0.12);
+      color: #a882ff;
+    }
+    .content-label.plugin {
+      background: rgba(108, 140, 255, 0.12);
+      color: #6c8cff;
+    }
+    .content-label-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+    }
+    .content-label.page .content-label-dot { background: #6c8cff; }
+    .content-label.selection .content-label-dot { background: #a882ff; }
+    .content-label.plugin .content-label-dot { background: #6c8cff; }
+
+    .content-title {
+      font-size: 14px;
       font-weight: 600;
-      line-height: 1.3;
+      line-height: 1.35;
+      color: #e8eaed;
       margin-bottom: 4px;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -61,129 +102,346 @@
       -webkit-line-clamp: 2;
       -webkit-box-orient: vertical;
     }
-    .page-url {
+    .content-domain {
       font-size: 11px;
-      color: #888;
+      color: #6b7080;
+    }
+
+    .selection-quote {
+      border-left: 3px solid #a882ff;
+      padding: 8px 12px;
+      margin: 8px 0;
+      font-size: 12px;
+      line-height: 1.5;
+      color: #c0c4d0;
+      font-style: italic;
       overflow: hidden;
       text-overflow: ellipsis;
-      white-space: nowrap;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+    }
+    .selection-source {
+      font-size: 11px;
+      color: #6b7080;
     }
 
-    .tags-input {
-      width: 100%;
-      background: #252545;
-      border: 1px solid #3a3a5a;
-      border-radius: 6px;
-      padding: 7px 10px;
-      color: #e0e0e0;
-      font-size: 12px;
+    /* Plugin options */
+    .plugin-options {
+      display: none;
       margin-bottom: 10px;
-      outline: none;
+      padding: 0 2px;
     }
-    .tags-input:focus { border-color: #6c63ff; }
-    .tags-input::placeholder { color: #666; }
+    .plugin-options .opt-row {
+      margin-bottom: 8px;
+    }
+    .plugin-options .opt-row:last-child { margin-bottom: 0; }
+    .plugin-options .opt-label {
+      font-size: 11px;
+      font-weight: 500;
+      color: #6b7080;
+      margin-bottom: 5px;
+    }
 
-    .actions { display: flex; gap: 8px; }
-
-    .btn {
-      flex: 1;
-      padding: 8px 12px;
-      border: none;
+    /* Select (segmented buttons) */
+    .opt-select {
+      display: inline-flex;
+      background: #1a1d27;
       border-radius: 6px;
+      border: 1px solid #252838;
+      overflow: hidden;
+    }
+    .opt-select button {
+      background: none;
+      border: none;
+      color: #6b7080;
+      font-family: inherit;
+      font-size: 11px;
+      font-weight: 500;
+      padding: 5px 12px;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+    .opt-select button:hover { color: #c0c4d0; }
+    .opt-select button.active {
+      background: #6c8cff;
+      color: #fff;
+    }
+    .opt-select button + button {
+      border-left: 1px solid #252838;
+    }
+
+    /* Slider */
+    .opt-slider {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .opt-slider input[type="range"] {
+      flex: 1;
+      accent-color: #6c8cff;
+    }
+    .opt-slider .opt-slider-value {
+      font-size: 12px;
+      color: #c0c4d0;
+      min-width: 24px;
+      text-align: right;
+    }
+
+    /* Toggle */
+    .opt-toggle-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .opt-toggle-row span {
+      font-size: 11px;
+      color: #6b7080;
+    }
+    .opt-toggle {
+      position: relative;
+      width: 32px;
+      height: 18px;
+      flex-shrink: 0;
+    }
+    .opt-toggle input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    .opt-toggle .track {
+      position: absolute;
+      inset: 0;
+      background: #252838;
+      border-radius: 9px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .opt-toggle .track::after {
+      content: "";
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 14px;
+      height: 14px;
+      background: #6b7080;
+      border-radius: 50%;
+      transition: transform 0.2s, background 0.2s;
+    }
+    .opt-toggle input:checked + .track {
+      background: rgba(108, 140, 255, 0.3);
+    }
+    .opt-toggle input:checked + .track::after {
+      transform: translateX(14px);
+      background: #6c8cff;
+    }
+
+    /* Triage buttons */
+    .triage-buttons {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .triage-btn {
+      flex: 1;
+      padding: 10px 8px;
+      border: none;
+      border-radius: 8px;
+      font-family: inherit;
       font-size: 12px;
       font-weight: 600;
       cursor: pointer;
       display: flex;
+      flex-direction: column;
       align-items: center;
-      justify-content: center;
-      gap: 5px;
-      transition: opacity 0.15s;
+      gap: 4px;
+      transition: transform 0.1s, opacity 0.15s;
     }
-    .btn:disabled { opacity: 0.5; cursor: default; }
+    .triage-btn:hover:not(:disabled) { transform: translateY(-1px); }
+    .triage-btn:active:not(:disabled) { transform: translateY(0); }
+    .triage-btn:disabled { opacity: 0.45; cursor: default; }
+    .triage-btn .btn-icon { font-size: 16px; }
+    .triage-btn .btn-label { font-size: 11px; }
+    .triage-btn .btn-sub { font-size: 9px; opacity: 0.7; }
 
-    .btn-primary {
-      background: #6c63ff;
+    .triage-btn.save {
+      background: #6c8cff;
       color: #fff;
     }
-    .btn-primary:hover:not(:disabled) { background: #5a52e0; }
+    .triage-btn.save:hover:not(:disabled) { background: #5a7af0; }
 
-    .btn-secondary {
-      background: #2a2a4a;
-      color: #ccc;
+    .triage-btn.listen {
+      background: #d4a03c;
+      color: #fff;
     }
-    .btn-secondary:hover:not(:disabled) { background: #3a3a5a; }
+    .triage-btn.listen:hover:not(:disabled) { background: #c29335; }
 
-    .feedback {
-      padding: 8px 12px;
-      border-radius: 6px;
-      margin-top: 10px;
-      font-size: 12px;
-      text-align: center;
+    .triage-btn.study {
+      background: #2a2440;
+      color: #a882ff;
+      border: 1px solid #352e50;
     }
-    .feedback.success { background: #1a3a2a; color: #5cb85c; }
-    .feedback.error { background: #3a1a1a; color: #d9534f; }
+    .triage-btn.study:hover:not(:disabled) { background: #332b4d; }
 
-    .settings-row {
+    /* Tags */
+    .tags-section { margin-bottom: 12px; }
+    .tags-toggle {
       display: flex;
       align-items: center;
       gap: 6px;
-      padding: 8px 14px;
-      border-top: 1px solid #2a2a4a;
+      background: none;
+      border: none;
+      color: #6b7080;
+      font-family: inherit;
       font-size: 11px;
-      color: #777;
+      font-weight: 500;
+      cursor: pointer;
+      padding: 4px 0;
     }
-    .settings-input {
-      flex: 1;
-      background: #252545;
-      border: 1px solid #3a3a5a;
-      border-radius: 4px;
-      padding: 4px 6px;
-      color: #ccc;
-      font-size: 11px;
+    .tags-toggle:hover { color: #8a8fa8; }
+    .tags-toggle .arrow {
+      font-size: 9px;
+      transition: transform 0.2s;
+    }
+    .tags-toggle .arrow.open { transform: rotate(90deg); }
+    .tags-input {
+      display: none;
+      width: 100%;
+      background: #1a1d27;
+      border: 1px solid #252838;
+      border-radius: 6px;
+      padding: 8px 10px;
+      color: #e0e0e0;
+      font-family: inherit;
+      font-size: 12px;
+      margin-top: 6px;
       outline: none;
     }
-    .settings-input:focus { border-color: #6c63ff; }
+    .tags-input:focus { border-color: #6c8cff; }
+    .tags-input::placeholder { color: #3d4150; }
+    .tags-input.visible { display: block; }
 
-    .jobs {
-      border-top: 1px solid #2a2a4a;
-      padding: 8px 14px;
-      max-height: 160px;
+    /* Recent articles */
+    .recent-section {
+      border-top: 1px solid #1e2030;
+      padding: 10px 16px;
+      max-height: 170px;
       overflow-y: auto;
+      display: none;
     }
-    .jobs-header {
+    .recent-header {
       font-size: 10px;
       font-weight: 600;
       text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: #666;
-      margin-bottom: 6px;
+      letter-spacing: 0.06em;
+      color: #4a4f60;
+      margin-bottom: 8px;
     }
-    .job-item {
+    .recent-item {
       display: flex;
       align-items: center;
       gap: 8px;
-      padding: 4px 0;
-      font-size: 12px;
+      padding: 5px 0;
     }
-    .job-title {
+    .recent-title {
       flex: 1;
+      font-size: 12px;
+      color: #9a9fb0;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
-      color: #ccc;
     }
-    .job-status {
-      font-size: 10px;
+    .recent-badge {
+      font-size: 9px;
       font-weight: 600;
       padding: 2px 6px;
       border-radius: 4px;
       white-space: nowrap;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
     }
-    .job-status.done { background: #1a3a2a; color: #5cb85c; }
-    .job-status.queued { background: #3a3a1a; color: #d4af37; }
-    .job-status.synthesizing { background: #3a2a1a; color: #d4956a; }
-    .job-status.failed { background: #3a1a1a; color: #d9534f; }
+    .recent-badge.done { background: rgba(52, 211, 153, 0.12); color: #34d399; }
+    .recent-badge.queued { background: rgba(212, 175, 55, 0.12); color: #d4af37; }
+    .recent-badge.synthesizing { background: rgba(212, 149, 106, 0.12); color: #d4956a; }
+    .recent-badge.failed { background: rgba(217, 83, 79, 0.12); color: #d9534f; }
+    .recent-badge.added { background: rgba(108, 140, 255, 0.12); color: #6c8cff; }
 
+    /* Settings */
+    .settings-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      border-top: 1px solid #1e2030;
+      font-size: 11px;
+      color: #4a4f60;
+    }
+    .settings-input {
+      flex: 1;
+      background: #1a1d27;
+      border: 1px solid #252838;
+      border-radius: 4px;
+      padding: 4px 8px;
+      color: #8a8fa8;
+      font-family: inherit;
+      font-size: 11px;
+      outline: none;
+    }
+    .settings-input:focus { border-color: #6c8cff; }
+
+    /* Success view */
+    .success-view {
+      display: none;
+      padding: 32px 24px;
+      text-align: center;
+    }
+    .success-icon {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: rgba(52, 211, 153, 0.12);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 16px;
+      font-size: 28px;
+    }
+    .success-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #e8eaed;
+      margin-bottom: 6px;
+    }
+    .success-snippet {
+      font-size: 12px;
+      color: #6b7080;
+      line-height: 1.4;
+      margin-bottom: 4px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+    }
+    .success-estimate {
+      font-size: 11px;
+      color: #d4a03c;
+      margin-bottom: 16px;
+    }
+    .done-btn {
+      background: #1a1d27;
+      color: #8a8fa8;
+      border: 1px solid #252838;
+      border-radius: 8px;
+      padding: 8px 24px;
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .done-btn:hover { background: #252838; color: #e0e0e0; }
+
+    /* Spinner */
     .spinner {
       width: 14px;
       height: 14px;
@@ -191,71 +449,98 @@
       border-top-color: #fff;
       border-radius: 50%;
       animation: spin 0.7s linear infinite;
+      margin: 0 auto;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Error banner */
+    .error-banner {
+      display: none;
+      background: rgba(217, 83, 79, 0.1);
+      border: 1px solid rgba(217, 83, 79, 0.2);
+      border-radius: 6px;
+      padding: 8px 12px;
+      margin-bottom: 12px;
+      font-size: 11px;
+      color: #d9534f;
+    }
   </style>
 </head>
 <body>
-  <div class="header">
-    <a href="#" id="logoLink" class="logo">readcast</a>
-    <div class="status">
-      <div class="status-dot checking" id="statusDot"></div>
-      <span id="statusText">Checking...</span>
-    </div>
-  </div>
-
-  <div class="body">
-    <div class="page-info">
-      <div class="page-title" id="pageTitle">Loading...</div>
-      <div class="page-url" id="pageUrl"></div>
-    </div>
-
-    <input
-      type="text"
-      class="tags-input"
-      id="tagsInput"
-      placeholder="Tags (comma-separated, optional)"
-    >
-
-    <div id="pluginOptions" style="display:none; margin-bottom:10px">
-      <div style="display:flex; align-items:center; gap:8px">
-        <label for="pluginCount" style="font-size:12px; color:#999; white-space:nowrap">Emails:</label>
-        <input type="range" id="pluginCount" min="5" max="50" value="20"
-          style="flex:1; accent-color:#6c63ff">
-        <span id="pluginCountLabel" style="font-size:12px; color:#ccc; min-width:20px">20</span>
+  <!-- Main view -->
+  <div id="mainView">
+    <div class="header">
+      <a href="#" id="logoLink" class="logo">LOCAL KNOWLEDGE</a>
+      <div class="status">
+        <div class="status-dot checking" id="statusDot"></div>
+        <span id="statusText">Checking…</span>
       </div>
     </div>
 
-    <div class="actions">
-      <button class="btn btn-primary" id="addPageBtn" disabled>
-        Add Page
-      </button>
-      <button class="btn btn-secondary" id="addSelectionBtn" disabled title="Select text on the page first">
-        Add Selection
-      </button>
+    <div class="body">
+      <div class="content-card" id="contentCard">
+        <div class="content-label page" id="contentLabel">
+          <span class="content-label-dot"></span>
+          <span id="contentLabelText">Full page</span>
+        </div>
+        <div class="content-title" id="contentTitle">Loading…</div>
+        <div class="content-domain" id="contentDomain"></div>
+        <div class="selection-quote" id="selectionQuote" style="display:none"></div>
+        <div class="selection-source" id="selectionSource" style="display:none"></div>
+      </div>
+
+      <div class="plugin-options" id="pluginOptions"></div>
+
+      <div id="errorBanner" class="error-banner"></div>
+
+      <div class="triage-buttons" id="triageButtons">
+        <button class="triage-btn save" id="saveBtn" disabled>
+          <span class="btn-icon">+</span>
+          <span class="btn-label">Save</span>
+        </button>
+        <button class="triage-btn listen" id="listenBtn" disabled>
+          <span class="btn-icon">▶</span>
+          <span class="btn-label">Save + Listen</span>
+        </button>
+        <button class="triage-btn study" id="studyBtn" disabled>
+          <span class="btn-icon">◆</span>
+          <span class="btn-label">Study</span>
+          <span class="btn-sub">coming soon</span>
+        </button>
+      </div>
+
+      <div class="tags-section" id="tagsSection">
+        <button class="tags-toggle" id="tagsToggle">
+          <span class="arrow" id="tagsArrow">▶</span>
+          Tags
+        </button>
+        <input
+          type="text"
+          class="tags-input"
+          id="tagsInput"
+          placeholder="comma-separated tags"
+        >
+      </div>
     </div>
 
-    <div id="feedback" style="display:none"></div>
+    <div class="recent-section" id="recentSection">
+      <div class="recent-header">Recent</div>
+      <div id="recentList"></div>
+    </div>
+
+    <div class="settings-row">
+      <span>Server</span>
+      <input type="text" class="settings-input" id="serverInput" placeholder="http://127.0.0.1:8765">
+    </div>
   </div>
 
-  <div id="llmStatus" class="settings-row" style="display:none">
-    <span>LLM:</span>
-    <span id="llmStatusText" style="color:#999">--</span>
-  </div>
-
-  <div id="pluginStatus" class="settings-row" style="display:none">
-    <span>Plugin:</span>
-    <span id="pluginStatusText" style="color:#999">--</span>
-  </div>
-
-  <div id="recentJobs" class="jobs" style="display:none">
-    <div class="jobs-header">Recent</div>
-    <div id="jobsList"></div>
-  </div>
-
-  <div class="settings-row">
-    <span>Server:</span>
-    <input type="text" class="settings-input" id="serverInput" placeholder="http://127.0.0.1:8765">
+  <!-- Success view -->
+  <div class="success-view" id="successView">
+    <div class="success-icon" id="successIcon">✓</div>
+    <div class="success-title" id="successTitle">Saved to Knowledge Base</div>
+    <div class="success-snippet" id="successSnippet"></div>
+    <div class="success-estimate" id="successEstimate"></div>
+    <button class="done-btn" id="doneBtn">Done</button>
   </div>
 
   <script src="popup.js"></script>

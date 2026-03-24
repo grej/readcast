@@ -11,6 +11,8 @@ document.addEventListener("selectionchange", () => {
 
 const PLUGIN_MATCHES = [
   { name: "gmail", patterns: ["*://mail.google.com/*"], hostCheck: (h) => h === "mail.google.com" },
+  { name: "reddit", patterns: ["*://www.reddit.com/*"], hostCheck: (h) => h.includes("reddit.com") },
+  { name: "youtube", patterns: ["*://www.youtube.com/watch*"], hostCheck: (h) => h.includes("youtube.com") },
 ];
 
 let activePlugin = null;
@@ -44,10 +46,14 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message.type === "getActivePlugin") {
     sendResponse({ plugin: activePlugin });
   }
+  if (message.type === "getPluginOptions") {
+    const plugin = globalThis.__readcastPlugins?.[message.plugin];
+    sendResponse({ options: plugin?.options || [] });
+  }
   if (message.type === "scrapePlugin") {
     const plugin = globalThis.__readcastPlugins?.[message.plugin];
     if (plugin && typeof plugin.scrape === "function") {
-      sendResponse({ data: plugin.scrape(message.limit) });
+      sendResponse({ data: plugin.scrape(message.options || {}) });
     } else {
       sendResponse({ data: null });
     }

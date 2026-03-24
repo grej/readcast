@@ -106,6 +106,8 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/wheel-0.46.3-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/x264-1!164.3095-h57fd34a_2.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/x265-3.5-hbc6ce65_3.tar.bz2
+      - conda: https://conda.anaconda.org/conda-forge/noarch/yt-dlp-2026.3.17-pyhcf101f3_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/noarch/yt-dlp-ejs-0.8.0-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/zstd-1.5.7-hbf9d68e_6.conda
       - pypi: https://files.pythonhosted.org/packages/0f/15/5bf3b99495fb160b63f95972b81750f18f7f4e02ad051373b669d17d44f2/aiohappyeyeballs-2.6.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/5d/43/4be01406b78e1be8320bb8316dc9c42dbab553d281c40364e0f862d5661c/aiohttp-3.13.3-cp312-cp312-macosx_11_0_arm64.whl
@@ -302,6 +304,8 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/wheel-0.46.3-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/x264-1!164.3095-h57fd34a_2.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/x265-3.5-hbc6ce65_3.tar.bz2
+      - conda: https://conda.anaconda.org/conda-forge/noarch/yt-dlp-2026.3.17-pyhcf101f3_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/noarch/yt-dlp-ejs-0.8.0-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/zstd-1.5.7-hbf9d68e_6.conda
       - pypi: https://files.pythonhosted.org/packages/0f/15/5bf3b99495fb160b63f95972b81750f18f7f4e02ad051373b669d17d44f2/aiohappyeyeballs-2.6.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/5d/43/4be01406b78e1be8320bb8316dc9c42dbab553d281c40364e0f862d5661c/aiohttp-3.13.3-cp312-cp312-macosx_11_0_arm64.whl
@@ -3163,6 +3167,42 @@ packages:
   - multidict>=4.0
   - propcache>=0.2.1
   requires_python: '>=3.10'
+- conda: https://conda.anaconda.org/conda-forge/noarch/yt-dlp-2026.3.17-pyhcf101f3_0.conda
+  sha256: 99edb5578993bf5eb112e7e7d9fc17770b615cdcc1c0f729a65dd2355e4985a8
+  md5: 739e3f581a8558a5289929c93a51cad6
+  depends:
+  - python >=3.10
+  - yt-dlp-ejs ==0.8.0
+  - python
+  constrains:
+  - brotli
+  - brotlicffi
+  - certifi
+  - mutagen
+  - pycryptodomex
+  - requests <3,>=2.32.2
+  - urllib3 >=2.0.2,<3
+  - websockets >=13.0
+  - autopep8 >=2.0,<3.dev0
+  - ruff >=0.15.0,<0.16.dev0
+  - deno >=2.6.6
+  license: Unlicense
+  purls:
+  - pkg:pypi/yt-dlp?source=hash-mapping
+  size: 2201696
+  timestamp: 1773850423101
+- conda: https://conda.anaconda.org/conda-forge/noarch/yt-dlp-ejs-0.8.0-pyhcf101f3_0.conda
+  sha256: 00b939c4c82c1ceb33db8dd4e2138c60f81c2321d5dcba9d31dcdd04ba975fad
+  md5: 33a55762ed2269c973c0f1531e5e9b0d
+  depends:
+  - python >=3.10
+  - yt-dlp
+  - python
+  license: Unlicense
+  purls:
+  - pkg:pypi/yt-dlp-ejs?source=hash-mapping
+  size: 58815
+  timestamp: 1773847913870
 - conda: https://conda.anaconda.org/conda-forge/osx-arm64/zstd-1.5.7-hbf9d68e_6.conda
   sha256: 9485ba49e8f47d2b597dd399e88f4802e100851b27c21d7525625b0b4025a5d9
   md5: ab136e4c34e97f34fb621d2592a393d8

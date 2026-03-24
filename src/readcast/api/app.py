@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from email.utils import format_datetime
@@ -13,6 +14,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
+
+log = logging.getLogger(__name__)
 
 from readcast import __version__
 from readcast.core.config import Config
@@ -79,6 +82,7 @@ class PluginRunRequest(BaseModel):
     plugin_name: str = Field(min_length=1)
     scraped_data: Any = None
     prompt_template: Optional[str] = None
+    process: bool = True
 
 
 def create_app(base_dir: Optional[Path] = None) -> FastAPI:
@@ -199,6 +203,10 @@ def create_app(base_dir: Optional[Path] = None) -> FastAPI:
 
         if payload.process:
             worker.kick()
+        elif result.created:
+            # Save-only: mark as "added" so the worker doesn't pick it up for TTS
+            result.article.status = "added"
+            service.store.update_article(result.article)
         return {"article": _serialize_article(service, result.article), "created": result.created}
 
     @app.delete("/api/articles/{article_id}", status_code=204)
@@ -338,10 +346,27 @@ def create_app(base_dir: Optional[Path] = None) -> FastAPI:
         except Exception as exc:
             raise HTTPException(status_code=500, detail=str(exc)) from exc
 
-        # Create an article from the analysis for TTS synthesis
+        # If the plugin has a backend extractor (e.g. YouTube transcript), run it
+        from readcast.extractors import get_extractor
+        extractor = get_extractor(payload.plugin_name)
+        transcript = ""
+        if extractor and isinstance(payload.scraped_data, dict):
+            try:
+                transcript = extractor(payload.scraped_data)
+            except Exception:
+                log.exception("Extractor failed for %s", payload.plugin_name)
+
+        # Build article content: transcript (if any) + LLM analysis
+        content = transcript + "\n\n---\n\n" + analysis if transcript else analysis
+
+        # Create an article from the content
         try:
-            result = service.add_input(analysis, source_url=f"plugin:{payload.plugin_name}")
-            worker.kick()
+            result = service.add_input(content, source_url=f"plugin:{payload.plugin_name}")
+            if payload.process:
+                worker.kick()
+            elif result.created:
+                result.article.status = "added"
+                service.store.update_article(result.article)
             article_id = result.article.id
         except Exception:
             article_id = None

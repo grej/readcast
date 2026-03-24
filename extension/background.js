@@ -68,12 +68,12 @@ async function addToReadcast(server, payload) {
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message.type === "runPlugin") {
-    handleRunPlugin(message.plugin, message.data).then(sendResponse);
+    handleRunPlugin(message.plugin, message.data, message.process).then(sendResponse);
     return true; // async response
   }
 });
 
-async function handleRunPlugin(pluginName, scrapedData) {
+async function handleRunPlugin(pluginName, scrapedData, process = true) {
   const server = await getServer();
   try {
     const response = await fetch(`${server}/api/plugins/run`, {
@@ -82,6 +82,7 @@ async function handleRunPlugin(pluginName, scrapedData) {
       body: JSON.stringify({
         plugin_name: pluginName,
         scraped_data: scrapedData,
+        process: process,
       }),
     });
     if (!response.ok) {

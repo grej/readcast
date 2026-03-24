@@ -4488,15 +4488,15 @@
             };
           }
           var warnValidStyle$1 = warnValidStyle;
-          function createDangerousStringForStyles(styles2) {
+          function createDangerousStringForStyles(styles) {
             {
               var serialized = "";
               var delimiter = "";
-              for (var styleName in styles2) {
-                if (!styles2.hasOwnProperty(styleName)) {
+              for (var styleName in styles) {
+                if (!styles.hasOwnProperty(styleName)) {
                   continue;
                 }
-                var styleValue = styles2[styleName];
+                var styleValue = styles[styleName];
                 if (styleValue != null) {
                   var isCustomProperty = styleName.indexOf("--") === 0;
                   serialized += delimiter + (isCustomProperty ? styleName : hyphenateStyleName(styleName)) + ":";
@@ -4507,19 +4507,19 @@
               return serialized || null;
             }
           }
-          function setValueForStyles(node, styles2) {
+          function setValueForStyles(node, styles) {
             var style2 = node.style;
-            for (var styleName in styles2) {
-              if (!styles2.hasOwnProperty(styleName)) {
+            for (var styleName in styles) {
+              if (!styles.hasOwnProperty(styleName)) {
                 continue;
               }
               var isCustomProperty = styleName.indexOf("--") === 0;
               {
                 if (!isCustomProperty) {
-                  warnValidStyle$1(styleName, styles2[styleName]);
+                  warnValidStyle$1(styleName, styles[styleName]);
                 }
               }
-              var styleValue = dangerousStyleValue(styleName, styles2[styleName], isCustomProperty);
+              var styleValue = dangerousStyleValue(styleName, styles[styleName], isCustomProperty);
               if (styleName === "float") {
                 styleName = "cssFloat";
               }
@@ -4533,9 +4533,9 @@
           function isValueEmpty(value) {
             return value == null || typeof value === "boolean" || value === "";
           }
-          function expandShorthandMap(styles2) {
+          function expandShorthandMap(styles) {
             var expanded = {};
-            for (var key in styles2) {
+            for (var key in styles) {
               var longhands = shorthandToLonghand[key] || [key];
               for (var i = 0; i < longhands.length; i++) {
                 expanded[longhands[i]] = key;
@@ -24498,15 +24498,6 @@
     const s = whole % 60;
     return `${m}:${String(s).padStart(2, "0")}`;
   }
-  function formatDate(iso) {
-    if (!iso) return "";
-    const date = new Date(iso);
-    const days = Math.floor((Date.now() - date.getTime()) / 864e5);
-    if (days <= 0) return "Today";
-    if (days === 1) return "Yesterday";
-    if (days < 7) return `${days}d ago`;
-    return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-  }
   function voiceLabel(name) {
     const parts = String(name || "").split("_");
     const displayName = parts[1] ? parts[1][0].toUpperCase() + parts[1].slice(1) : name;
@@ -24553,6 +24544,141 @@
     if (response.status === 204) return null;
     return response.json();
   }
+  var font = {
+    sans: "'DM Sans', 'Avenir Next', system-ui, sans-serif",
+    mono: "'JetBrains Mono', 'SF Mono', monospace",
+    serif: "'Source Serif 4', Georgia, serif"
+  };
+  var c = {
+    bg: "#0c0d12",
+    bgDeep: "#08090d",
+    surface: "#13151d",
+    surfaceRaised: "#1a1d27",
+    surfaceHover: "#1e2130",
+    border: "#222538",
+    borderLight: "#2c3048",
+    text: "#e4e5ea",
+    textSecondary: "#a0a4b8",
+    textMuted: "#6b7084",
+    textDim: "#464b5e",
+    accent: "#6c8cff",
+    accentDim: "rgba(108,140,255,0.10)",
+    accentMed: "rgba(108,140,255,0.20)",
+    green: "#4ade80",
+    greenDim: "rgba(74,222,128,0.10)",
+    amber: "#f59e0b",
+    amberDim: "rgba(245,158,11,0.10)",
+    purple: "#a78bfa",
+    purpleDim: "rgba(167,139,250,0.10)",
+    red: "#f87171",
+    redDim: "rgba(248,113,113,0.10)",
+    cyan: "#22d3ee",
+    cyanDim: "rgba(34,211,238,0.10)"
+  };
+  var globalStyles = `
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: ${c.bgDeep}; color: ${c.text}; }
+::selection { background: rgba(108, 140, 255, 0.3); }
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: ${c.border}; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: ${c.borderLight}; }
+textarea::placeholder, input::placeholder { color: ${c.textDim}; }
+span[title="Click to edit"]:hover { border-bottom-color: ${c.textMuted} !important; }
+div[style]:hover > button[aria-label="Remove paragraph"] { color: ${c.red}88 !important; }
+div[style]:hover > button[aria-label="Remove paragraph"]:hover { color: ${c.red} !important; }
+`;
+  var modalOverlay = {
+    position: "fixed",
+    inset: 0,
+    background: "rgba(0,0,0,0.7)",
+    backdropFilter: "blur(8px)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 200,
+    padding: 24
+  };
+  var modalInner = {
+    background: c.surfaceRaised,
+    border: `1px solid ${c.borderLight}`,
+    borderRadius: 16,
+    padding: 28,
+    width: "100%",
+    maxWidth: 520,
+    maxHeight: "90vh",
+    overflow: "auto"
+  };
+  var modalTitle = { fontFamily: font.serif, fontSize: 22, fontWeight: 700, letterSpacing: "-0.02em", color: c.text };
+  var closeBtn = { background: "none", border: "none", color: c.textMuted, fontSize: 18, cursor: "pointer", padding: "4px 8px" };
+  var fieldLabel = { display: "block", fontSize: 12, fontWeight: 600, color: c.textMuted, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8, marginTop: 16 };
+  var secondaryBtn = { padding: "10px 14px", borderRadius: 8, border: `1px solid ${c.border}`, background: c.bg, color: c.text, fontSize: 13, fontWeight: 600, fontFamily: font.sans, cursor: "pointer" };
+  var secondaryBtnActive = { ...secondaryBtn, border: `1px solid ${c.accent}`, background: c.accentDim, color: c.accent };
+  var dangerBtn = { padding: "10px 14px", borderRadius: 8, border: "none", background: "#b14c46", color: "#fff", fontSize: 13, fontWeight: 600, fontFamily: font.sans, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 };
+  var voiceChipBase = { padding: "6px 12px", borderRadius: 6, border: `1px solid ${c.border}`, background: c.bg, color: c.textMuted, fontSize: 12, fontFamily: font.sans, cursor: "pointer" };
+  var voiceChipActive = { ...voiceChipBase, background: c.accentDim, borderColor: c.accent, color: c.accent };
+  function timeAgo(dateStr) {
+    if (!dateStr) return "";
+    const d = new Date(dateStr);
+    const hours = Math.floor((Date.now() - d.getTime()) / 36e5);
+    if (hours < 1) return "just now";
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    if (days === 1) return "yesterday";
+    if (days < 30) return `${days}d ago`;
+    return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  }
+  function withinRange(dateStr, range) {
+    if (range === "all") return true;
+    if (!dateStr) return false;
+    const days = (Date.now() - new Date(dateStr).getTime()) / 864e5;
+    if (range === "7d") return days <= 7;
+    if (range === "30d") return days <= 30;
+    return true;
+  }
+  function buildTagIndex(articles) {
+    const index = {};
+    articles.forEach((a) => {
+      (a.tags || []).forEach((t) => {
+        if (!index[t]) index[t] = { tag: t, count: 0, isProject: t.startsWith("project:") };
+        index[t].count++;
+      });
+    });
+    return Object.values(index).sort((a, b) => {
+      if (a.isProject !== b.isProject) return a.isProject ? -1 : 1;
+      return b.count - a.count;
+    });
+  }
+  function findSimilar(doc, allDocs) {
+    const docTags = doc.tags || [];
+    if (docTags.length === 0) return [];
+    return allDocs.filter((d) => d.id !== doc.id).map((d) => {
+      const tags = d.tags || [];
+      const tagOverlap = tags.filter((t) => docTags.includes(t)).length;
+      const projectMatch = tags.some((t) => t.startsWith("project:") && docTags.includes(t)) ? 0.15 : 0;
+      const score = Math.min(0.99, tagOverlap * 0.18 + projectMatch);
+      return { ...d, score };
+    }).filter((d) => d.score > 0.1).sort((a, b) => b.score - a.score).slice(0, 8);
+  }
+  function statusColor(status) {
+    if (status === "done" || status === "added") return c.green;
+    if (status === "queued" || status === "synthesizing") return c.amber;
+    if (status === "failed") return c.red;
+    return c.textDim;
+  }
+  function statusLabel(status) {
+    const map = { done: "done", added: "saved", queued: "queued", synthesizing: "processing", failed: "failed" };
+    return map[status] || status || "unknown";
+  }
+  function statusBg(status) {
+    if (status === "done" || status === "added") return c.greenDim;
+    if (status === "queued" || status === "synthesizing") return c.amberDim;
+    if (status === "failed") return c.redDim;
+    return c.bg;
+  }
   function PlayIcon({ size = 18 }) {
     return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("svg", { width: size, height: size, viewBox: "0 0 24 24", fill: "currentColor", children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("path", { d: "M8 5v14l11-7z" }) });
   }
@@ -24579,49 +24705,142 @@
       /* @__PURE__ */ (0, import_jsx_runtime.jsx)("path", { d: "M10 11v6M14 11v6" })
     ] });
   }
-  function WaveformIcon() {
-    return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("svg", { width: "16", height: "16", viewBox: "0 0 24 24", fill: "currentColor", opacity: "0.5", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("rect", { x: "2", y: "8", width: "3", height: "8", rx: "1" }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("rect", { x: "7", y: "4", width: "3", height: "16", rx: "1" }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("rect", { x: "12", y: "6", width: "3", height: "12", rx: "1" }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("rect", { x: "17", y: "9", width: "3", height: "6", rx: "1" })
+  function SpinnerIcon() {
+    return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { width: 14, height: 14, border: "2px solid rgba(255,255,255,0.2)", borderTop: `2px solid ${c.text}`, borderRadius: "50%", animation: "spin 0.8s linear infinite" } });
+  }
+  function ExtensionIcon({ size = 16 }) {
+    return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("svg", { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("path", { d: "M10.5 3.5a2.5 2.5 0 015 0V5h-5zM3.5 13.5a2.5 2.5 0 010-5H5v5z" }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("rect", { x: "5", y: "5", width: "14", height: "14", rx: "2" })
     ] });
   }
-  function SpinnerIcon() {
-    return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+  function DownloadIcon({ size = 16 }) {
+    return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("svg", { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2.2", strokeLinecap: "round", strokeLinejoin: "round", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("path", { d: "M12 3v13M5 12l7 7 7-7" }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("path", { d: "M5 20h14" })
+    ] });
+  }
+  function FilterChip({ tag, onRemove }) {
+    const isProject = tag.startsWith("project:");
+    const display = isProject ? tag.replace("project:", "") : tag;
+    const chipColor = isProject ? c.purple : c.accent;
+    return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: { display: "inline-flex", alignItems: "center", gap: 4, padding: "3px 5px 3px 9px", borderRadius: 6, background: isProject ? c.purpleDim : c.accentDim, color: chipColor, border: `1px solid ${chipColor}33`, fontSize: 11, fontWeight: 500 }, children: [
+      isProject && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 9, opacity: 0.6 }, children: "\u2B21" }),
+      display,
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+        "span",
+        {
+          onClick: (e) => {
+            e.stopPropagation();
+            onRemove();
+          },
+          style: { width: 16, height: 16, borderRadius: 4, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: 10, color: chipColor },
+          onMouseEnter: (e) => e.target.style.background = `${chipColor}22`,
+          onMouseLeave: (e) => e.target.style.background = "transparent",
+          children: "\xD7"
+        }
+      )
+    ] });
+  }
+  function StatusDot({ status }) {
+    return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { width: 6, height: 6, borderRadius: "50%", background: statusColor(status), display: "inline-block", flexShrink: 0 } });
+  }
+  function StatusBadge({ status }) {
+    const col = statusColor(status);
+    return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 10, fontWeight: 500, padding: "2px 7px", borderRadius: 4, color: col, background: statusBg(status), border: `1px solid ${col}22` }, children: statusLabel(status) });
+  }
+  function ScoreBadge({ score }) {
+    if (score === null || score === void 0) return null;
+    const pct = Math.round(score * 100);
+    const color = pct > 60 ? c.green : pct > 30 ? c.amber : c.textDim;
+    return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: { fontSize: 10, fontFamily: font.mono, fontWeight: 600, color, padding: "2px 6px", borderRadius: 4, background: `${color}15`, border: `1px solid ${color}22`, minWidth: 36, textAlign: "center", display: "inline-block" }, children: [
+      ".",
+      String(pct).padStart(2, "0")
+    ] });
+  }
+  function TagDropdown({ allTags, activeFilters, onAdd, onClose }) {
+    const [query, setQuery] = (0, import_react.useState)("");
+    const ref = (0, import_react.useRef)(null);
+    (0, import_react.useEffect)(() => {
+      ref.current?.focus();
+    }, []);
+    const available = allTags.filter(
+      (t) => !activeFilters.includes(t.tag) && (query === "" || t.tag.toLowerCase().includes(query.toLowerCase()))
+    );
+    const projectTags = available.filter((t) => t.isProject);
+    const topicTags = available.filter((t) => !t.isProject);
+    return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { position: "absolute", top: "100%", left: 0, width: 240, background: c.surfaceRaised, border: `1px solid ${c.borderLight}`, borderRadius: 10, marginTop: 4, zIndex: 50, boxShadow: "0 12px 40px rgba(0,0,0,0.5)", maxHeight: 300, overflow: "hidden", display: "flex", flexDirection: "column" }, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { padding: "8px 10px", borderBottom: `1px solid ${c.border}` }, children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+        "input",
+        {
+          ref,
+          type: "text",
+          value: query,
+          onChange: (e) => setQuery(e.target.value),
+          onKeyDown: (e) => {
+            if (e.key === "Escape") onClose();
+            if (e.key === "Enter" && available.length > 0) {
+              onAdd(available[0].tag);
+              setQuery("");
+            }
+          },
+          placeholder: "Search tags...",
+          style: { width: "100%", padding: "6px 8px", borderRadius: 6, border: `1px solid ${c.border}`, background: c.bg, color: c.text, fontSize: 12, fontFamily: font.sans, outline: "none", boxSizing: "border-box" }
+        }
+      ) }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { overflow: "auto", flex: 1 }, children: [
+        projectTags.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { padding: "8px 12px 4px", fontSize: 9, fontWeight: 700, color: c.textDim, textTransform: "uppercase", letterSpacing: "0.08em" }, children: "Projects" }),
+          projectTags.map((t) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TagItem, { tag: t, onAdd }, t.tag))
+        ] }),
+        topicTags.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { padding: "8px 12px 4px", fontSize: 9, fontWeight: 700, color: c.textDim, textTransform: "uppercase", letterSpacing: "0.08em" }, children: "Topics" }),
+          topicTags.map((t) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TagItem, { tag: t, onAdd }, t.tag))
+        ] }),
+        available.length === 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { padding: 16, fontSize: 12, color: c.textDim, textAlign: "center" }, children: query ? "No matches" : "All tags active" })
+      ] })
+    ] });
+  }
+  function TagItem({ tag, onAdd }) {
+    const [h, setH] = (0, import_react.useState)(false);
+    const display = tag.isProject ? tag.tag.replace("project:", "") : tag.tag;
+    return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
       "div",
       {
-        style: {
-          width: 14,
-          height: 14,
-          border: "2px solid rgba(255,255,255,0.2)",
-          borderTop: "2px solid #fff",
-          borderRadius: "50%",
-          animation: "spin 0.8s linear infinite"
-        }
+        onClick: () => onAdd(tag.tag),
+        onMouseEnter: () => setH(true),
+        onMouseLeave: () => setH(false),
+        style: { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 12px", cursor: "pointer", background: h ? c.surfaceHover : "transparent", transition: "background 0.08s" },
+        children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 6 }, children: [
+            tag.isProject && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 10, color: c.purple, opacity: 0.5 }, children: "\u2B21" }),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 12, color: h ? c.text : c.textSecondary }, children: display })
+          ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 10, color: c.textDim, padding: "1px 6px", borderRadius: 3, background: c.bg }, children: tag.count })
+        ]
       }
     );
   }
   function DeleteConfirmPanel({ count, deleting, onConfirm, onClose }) {
-    return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.addPanel, children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.confirmPanelInner, children: [
+    return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: modalOverlay, children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { ...modalInner, maxWidth: 460 }, children: [
       /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("h2", { style: styles.addTitle, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("h2", { style: modalTitle, children: [
           "Delete ",
           count,
           " ",
           count === 1 ? "article" : "articles",
           "?"
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: onClose, style: styles.closeBtn, children: "\u2715" })
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: onClose, style: closeBtn, children: "\u2715" })
       ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", { style: styles.confirmBody, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", { style: { color: c.textMuted, fontSize: 14, lineHeight: 1.6 }, children: [
         "This deletes the full record and any generated audio for the selected ",
         count === 1 ? "article" : "articles",
         ". This cannot be undone."
       ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.confirmActions, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: onClose, style: styles.secondaryBtn, disabled: deleting, children: "Cancel" }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: onConfirm, style: { ...styles.dangerBtn, opacity: deleting ? 0.6 : 1 }, disabled: deleting, children: deleting ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SpinnerIcon, {}) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 22 }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: onClose, style: secondaryBtn, disabled: deleting, children: "Cancel" }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: onConfirm, style: { ...dangerBtn, opacity: deleting ? 0.6 : 1 }, disabled: deleting, children: deleting ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SpinnerIcon, {}) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
           /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TrashIcon, { size: 15 }),
           /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "Delete" })
         ] }) })
@@ -24644,18 +24863,6 @@
     if (ua.includes("Chrome/")) return "chrome";
     return "chrome";
   }
-  function ExtensionIcon({ size = 16 }) {
-    return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("svg", { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("path", { d: "M10.5 3.5a2.5 2.5 0 015 0V5h-5zM3.5 13.5a2.5 2.5 0 010-5H5v5z" }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("rect", { x: "5", y: "5", width: "14", height: "14", rx: "2" })
-    ] });
-  }
-  function DownloadIcon({ size = 16 }) {
-    return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("svg", { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2.2", strokeLinecap: "round", strokeLinejoin: "round", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("path", { d: "M12 3v13M5 12l7 7 7-7" }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("path", { d: "M5 20h14" })
-    ] });
-  }
   function ExtensionPanel({ onClose }) {
     const [browser, setBrowser] = (0, import_react.useState)(detectBrowser);
     const info = BROWSERS[browser] || BROWSERS.chrome;
@@ -24666,26 +24873,18 @@
       window.addEventListener("keydown", onKey);
       return () => window.removeEventListener("keydown", onKey);
     }, [onClose]);
-    return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.addPanel, role: "presentation", children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.extensionPanelInner, role: "dialog", "aria-modal": "true", children: [
+    return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: modalOverlay, role: "presentation", children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: modalInner, role: "dialog", "aria-modal": "true", children: [
       /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", { style: styles.addTitle, children: "Browser Extension" }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: onClose, style: styles.closeBtn, "aria-label": "Close", children: "\u2715" })
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", { style: modalTitle, children: "Browser Extension" }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: onClose, style: closeBtn, "aria-label": "Close", children: "\u2715" })
       ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.extensionBrowserRow, children: Object.entries(BROWSERS).map(([key, b]) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-        "button",
-        {
-          onClick: () => setBrowser(key),
-          style: browser === key ? styles.voiceChipActive : styles.voiceChip,
-          children: b.name
-        },
-        key
-      )) }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.extensionStep, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.extensionStepNumber, children: "1" }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.extensionStepBody, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.extensionStepTitle, children: "Download the extension" }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.extensionStepDetail, children: [
-            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("a", { href: "/api/extension.zip", download: true, style: styles.extensionDownloadBtn, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 22 }, children: Object.entries(BROWSERS).map(([key, b]) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: () => setBrowser(key), style: browser === key ? voiceChipActive : voiceChipBase, children: b.name }, key)) }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", gap: 14, marginBottom: 20 }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { width: 28, height: 28, borderRadius: "50%", background: c.accentDim, color: c.accent, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, flexShrink: 0 }, children: "1" }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { flex: 1 }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 14, fontWeight: 600, marginBottom: 6, color: c.text }, children: "Download the extension" }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { fontSize: 13, color: c.textMuted, lineHeight: 1.5 }, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("a", { href: "/api/extension.zip", download: true, style: { display: "inline-flex", alignItems: "center", gap: 8, padding: "8px 16px", borderRadius: 8, border: "none", background: c.accent, color: c.bgDeep, fontSize: 13, fontWeight: 600, fontFamily: font.sans, cursor: "pointer", textDecoration: "none" }, children: [
               /* @__PURE__ */ (0, import_jsx_runtime.jsx)(DownloadIcon, { size: 15 }),
               /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "Download Extension" })
             ] }),
@@ -24693,30 +24892,28 @@
           ] })
         ] })
       ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.extensionStep, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.extensionStepNumber, children: "2" }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.extensionStepBody, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.extensionStepTitle, children: "Open your extensions page" }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.extensionStepDetail, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", gap: 14, marginBottom: 20 }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { width: 28, height: 28, borderRadius: "50%", background: c.accentDim, color: c.accent, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, flexShrink: 0 }, children: "2" }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { flex: 1 }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 14, fontWeight: 600, marginBottom: 6, color: c.text }, children: "Open your extensions page" }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { fontSize: 13, color: c.textMuted, lineHeight: 1.5 }, children: [
             "Copy and paste this into your address bar:",
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { marginTop: 6 }, children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("code", { style: styles.extensionCode, children: info.url }) }),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { marginTop: 6 }, children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("code", { style: { display: "inline-block", padding: "3px 8px", borderRadius: 4, background: c.bg, fontFamily: font.mono, fontSize: 13, color: c.accent, letterSpacing: "0.02em", userSelect: "all" }, children: info.url }) }),
             /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { marginTop: 6, fontSize: 12, opacity: 0.6 }, children: "Browsers block direct links to this page for security." })
           ] })
         ] })
       ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.extensionStep, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.extensionStepNumber, children: "3" }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.extensionStepBody, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.extensionStepTitle, children: "Load the extension" }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.extensionStepDetail, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", gap: 14, marginBottom: 20 }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { width: 28, height: 28, borderRadius: "50%", background: c.accentDim, color: c.accent, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, flexShrink: 0 }, children: "3" }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { flex: 1 }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 14, fontWeight: 600, marginBottom: 6, color: c.text }, children: "Load the extension" }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { fontSize: 13, color: c.textMuted, lineHeight: 1.5 }, children: [
             "Enable ",
             /* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", { children: "Developer mode" }),
-            " (top-right toggle), click",
-            " ",
+            " (top-right toggle), click ",
             /* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", { children: "Load unpacked" }),
-            ", and select the extracted",
-            " ",
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("code", { style: styles.extensionCode, children: "readcast-extension" }),
+            ", and select the extracted ",
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("code", { style: { display: "inline-block", padding: "3px 8px", borderRadius: 4, background: c.bg, fontFamily: font.mono, fontSize: 13, color: c.accent }, children: "readcast-extension" }),
             " folder."
           ] })
         ] })
@@ -24774,84 +24971,67 @@
         handleSubmit();
       }
     };
-    return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.addPanel, role: "presentation", children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.addPanelInner, role: "dialog", "aria-modal": "true", "aria-labelledby": "add-article-title", children: [
+    return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: modalOverlay, role: "presentation", children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: modalInner, role: "dialog", "aria-modal": "true", "aria-labelledby": "add-article-title", children: [
       /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", { id: "add-article-title", style: styles.addTitle, children: "New Article" }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: onClose, style: styles.closeBtn, "aria-label": "Close add article dialog", children: "\u2715" })
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", { id: "add-article-title", style: modalTitle, children: "New Article" }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: onClose, style: closeBtn, "aria-label": "Close", children: "\u2715" })
       ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("label", { style: styles.fieldLabel, children: "URL or text" }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("label", { style: fieldLabel, children: "URL or text" }),
       /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
         "textarea",
         {
           ref: inputRef,
           value: inputValue,
-          onChange: (event) => {
-            setInputValue(event.target.value);
+          onChange: (e) => {
+            setInputValue(e.target.value);
             setPreview(null);
           },
           onKeyDown: handleKeyDown,
           placeholder: "https://example.com/article or paste plain text...",
           rows: 5,
-          style: styles.urlInput,
+          style: { width: "100%", padding: "12px 14px", borderRadius: 8, border: `1px solid ${c.border}`, background: c.bg, color: c.text, fontSize: 14, fontFamily: font.sans, resize: "vertical", outline: "none", lineHeight: 1.5 },
           "aria-label": "Article URL or pasted text"
         }
       ),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("label", { style: styles.fieldLabel, children: "Default voice" }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.defaultVoiceRow, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("label", { style: fieldLabel, children: "Default voice" }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: 14, padding: "12px 14px", borderRadius: 10, border: `1px solid ${c.border}`, background: c.surface }, children: [
         /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.defaultVoiceName, children: voiceLabel(defaultVoice || "af_sky") }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.defaultVoiceHelp, children: "New articles use this automatically." })
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontFamily: font.serif, fontSize: 16, fontWeight: 600, color: c.text }, children: voiceLabel(defaultVoice || "af_sky") }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { marginTop: 4, fontSize: 12, color: c.textMuted }, children: "New articles use this automatically." })
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-          "button",
-          {
-            onClick: () => setShowVoicePicker((current) => !current),
-            style: showVoicePicker ? styles.secondaryBtnActive : styles.secondaryBtn,
-            disabled: savingDefault,
-            "aria-label": "Change default voice",
-            children: showVoicePicker ? "Hide voices" : "Change default"
-          }
-        )
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: () => setShowVoicePicker((v) => !v), style: showVoicePicker ? secondaryBtnActive : secondaryBtn, disabled: savingDefault, children: showVoicePicker ? "Hide voices" : "Change default" })
       ] }),
-      showVoicePicker ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.voiceGrid, children: voices.map((voiceOption) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+      showVoicePicker && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { display: "flex", flexWrap: "wrap", gap: 6, marginTop: 10 }, children: voices.map((v) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
         "button",
         {
-          onClick: () => handleDefaultVoiceChange(voiceOption.name),
-          style: {
-            ...styles.voiceChip,
-            ...defaultVoice === voiceOption.name ? styles.voiceChipActive : {},
-            opacity: savingDefault ? 0.6 : 1
-          },
+          onClick: () => handleDefaultVoiceChange(v.name),
+          style: { ...voiceChipBase, ...defaultVoice === v.name ? { background: c.accentDim, borderColor: c.accent, color: c.accent } : {}, opacity: savingDefault ? 0.6 : 1 },
           disabled: savingDefault,
-          "aria-label": `Set default voice to ${voiceLabel(voiceOption.name)}`,
-          children: voiceLabel(voiceOption.name)
+          children: voiceLabel(v.name)
         },
-        voiceOption.name
-      )) }) : null,
-      preview ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.previewCard, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.previewMetaRow, children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.previewTitle, children: preview.article.title }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.previewMeta, children: [
-            preview.source,
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: styles.metaDot, children: "\xB7" }),
-            preview.article.estimated_read_min,
-            "m read",
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: styles.metaDot, children: "\xB7" }),
-            preview.article.word_count,
-            " words"
-          ] })
-        ] }) }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.previewBody, children: preview.chunks.slice(0, 5).map((chunk) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { style: styles.previewParagraph, children: chunk.text }, `${chunk.idx}-${chunk.chunk_type}`)) })
-      ] }) : null,
-      error ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.errorText, children: error }) : null,
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.submitActions, children: [
+        v.name
+      )) }),
+      preview && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { marginTop: 18, padding: "14px 16px", borderRadius: 12, border: `1px solid ${c.border}`, background: c.surface }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontFamily: font.serif, fontSize: 18, fontWeight: 700, lineHeight: 1.3, color: c.text }, children: preview.article.title }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { marginTop: 6, fontSize: 12, color: c.textMuted, display: "flex", flexWrap: "wrap", alignItems: "center" }, children: [
+          preview.source,
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { margin: "0 6px", opacity: 0.4 }, children: "\xB7" }),
+          preview.article.estimated_read_min,
+          "m read",
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { margin: "0 6px", opacity: 0.4 }, children: "\xB7" }),
+          preview.article.word_count,
+          " words"
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { marginTop: 14, display: "flex", flexDirection: "column", gap: 10 }, children: preview.chunks.slice(0, 5).map((chunk) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { style: { fontSize: 13, color: c.textSecondary, lineHeight: 1.55 }, children: chunk.text }, `${chunk.idx}-${chunk.chunk_type}`)) })
+      ] }),
+      error && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { marginTop: 14, color: c.red, fontSize: 13, lineHeight: 1.45 }, children: error }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", gap: 10, marginTop: 24 }, children: [
         /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
           "button",
           {
             onClick: handlePreview,
             disabled: !inputValue.trim() || previewing,
-            style: { ...styles.secondaryBtn, opacity: !inputValue.trim() || previewing ? 0.5 : 1 },
-            "aria-label": "Preview extracted article text",
+            style: { ...secondaryBtn, opacity: !inputValue.trim() || previewing ? 0.5 : 1 },
             children: previewing ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SpinnerIcon, {}) : preview ? "Refresh Preview" : "Preview"
           }
         ),
@@ -24860,15 +25040,14 @@
           {
             onClick: handleSubmit,
             disabled: !inputValue.trim() || submitting,
-            style: { ...styles.submitBtnCompact, opacity: !inputValue.trim() || submitting ? 0.5 : 1 },
-            "aria-label": "Add article and start processing",
+            style: { flex: 1, padding: "12px 0", borderRadius: 8, border: "none", background: c.accent, color: c.bgDeep, fontSize: 14, fontWeight: 600, fontFamily: font.sans, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: !inputValue.trim() || submitting ? 0.5 : 1 },
             children: submitting ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SpinnerIcon, {}) : "Add & Process"
           }
         )
       ] })
     ] }) });
   }
-  function EditableField({ value, placeholder, onSave, style, inputStyle }) {
+  function EditableField({ value, placeholder, onSave, style: wrapStyle, inputStyle }) {
     const [editing, setEditing] = (0, import_react.useState)(false);
     const [draft, setDraft] = (0, import_react.useState)(value || "");
     const inputRef = (0, import_react.useRef)(null);
@@ -24881,9 +25060,7 @@
     const save = () => {
       setEditing(false);
       const trimmed = draft.trim();
-      if (trimmed !== (value || "").trim()) {
-        onSave(trimmed);
-      }
+      if (trimmed !== (value || "").trim()) onSave(trimmed);
     };
     if (editing) {
       return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
@@ -24900,22 +25077,14 @@
               setEditing(false);
             }
           },
-          style: { ...styles.editableInput, ...inputStyle },
+          style: { background: c.surface, border: `1px solid ${c.accent}`, borderRadius: 4, padding: "2px 6px", color: c.text, fontSize: "inherit", fontFamily: "inherit", fontWeight: "inherit", outline: "none", ...inputStyle },
           placeholder
         }
       );
     }
-    return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-      "span",
-      {
-        onClick: () => setEditing(true),
-        style: { ...styles.editableText, ...style, cursor: "pointer" },
-        title: "Click to edit",
-        children: value || /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { opacity: 0.3 }, children: placeholder })
-      }
-    );
+    return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { onClick: () => setEditing(true), style: { borderBottom: "1px dashed transparent", transition: "border-color 0.15s", cursor: "pointer", ...wrapStyle }, title: "Click to edit", children: value || /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { opacity: 0.3 }, children: placeholder }) });
   }
-  function ArticleDetail({ article, voices, onReprocess, onClose, onRefresh }) {
+  function ReadingPane({ article, articles, voices, onReprocess, onRefresh, onAddFilter, onFindSimilar, onPlay, onSelectDoc, activeId, isPlaying }) {
     const [fullText, setFullText] = (0, import_react.useState)(null);
     const [loading, setLoading] = (0, import_react.useState)(true);
     const [reprocessVoice, setReprocessVoice] = (0, import_react.useState)(article.voice || "");
@@ -24933,6 +25102,7 @@
       setRemovedIndices(/* @__PURE__ */ new Set());
       setTextModified(false);
       setMessage("");
+      setReprocessVoice(article.voice || "");
       apiGet(`/api/articles/${article.id}/text`).then((data) => setFullText(data.text || "")).catch(() => setFullText("(Could not load text)")).finally(() => setLoading(false));
       apiGet(`/api/articles/${article.id}/entities`).then((data) => setEntities(data.entities || [])).catch(() => setEntities([]));
     }, [article.id]);
@@ -24980,190 +25150,253 @@
         setReprocessing(false);
       }
     };
-    const canRenarrate = reprocessVoice !== article.voice || textModified;
-    return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.detailPanel, onClick: (e) => e.stopPropagation(), children: [
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.detailHeader, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { flex: 1, minWidth: 0 }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-            EditableField,
-            {
-              value: article.title,
-              placeholder: "Title",
-              onSave: (v) => handleMetaSave("title", v),
-              style: styles.detailTitle,
-              inputStyle: { ...styles.detailTitle, width: "100%" }
-            }
-          ),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.detailMeta, children: [
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-              EditableField,
-              {
-                value: article.author,
-                placeholder: "Author",
-                onSave: (v) => handleMetaSave("author", v)
-              }
-            ),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: styles.metaDot, children: "\xB7" }),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-              EditableField,
-              {
-                value: article.publication,
-                placeholder: "Publication",
-                onSave: (v) => handleMetaSave("publication", v)
-              }
-            ),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: styles.metaDot, children: "\xB7" }),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-              EditableField,
-              {
-                value: article.published_date,
-                placeholder: "Date",
-                onSave: (v) => handleMetaSave("published_date", v)
-              }
-            ),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: styles.metaDot, children: "\xB7" }),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { children: [
-              liveWordCount,
-              " words"
-            ] })
-          ] }),
-          article.source_url ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("a", { href: article.source_url, target: "_blank", rel: "noopener noreferrer", style: styles.detailLink, children: article.source_url }) : null
+    const isProcessingStatus = article.status === "queued" || article.status === "synthesizing";
+    const isFailed = article.status === "failed";
+    const hasAudio = !isProcessingStatus && !isFailed && article.audio_url;
+    const canRenarrate = !isProcessingStatus && (!article.audio_url || reprocessVoice !== article.voice || textModified);
+    const articleTags = article.tags || [];
+    const wordCount = removedIndices.size > 0 ? liveWordCount : article.word_count || liveWordCount;
+    return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { padding: "28px 32px", maxWidth: 680 }, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8, marginBottom: 12, flexWrap: "wrap" }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(StatusBadge, { status: article.status }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 11, color: c.textDim }, children: article.type || "article" }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { color: c.textDim }, children: "\xB7" }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 11, color: c.textDim }, children: timeAgo(article.ingested_at) }),
+        article.listened_at && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { color: c.textDim }, children: "\xB7" }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 10, fontWeight: 600, color: c.green, background: c.greenDim, padding: "2px 7px", borderRadius: 4, textTransform: "uppercase", letterSpacing: "0.03em" }, children: "Listened" })
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: onClose, style: styles.closeBtn, "aria-label": "Close detail view", children: "\u2715" })
+        article.score != null && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { color: c.textDim }, children: "\xB7" }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ScoreBadge, { score: article.score })
+        ] })
       ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.detailVoiceRow, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: styles.detailVoiceLabel, children: "Voice:" }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-          "select",
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("h1", { style: { fontSize: 22, fontWeight: 700, fontFamily: font.serif, color: c.text, lineHeight: 1.35, margin: "0 0 12px" }, children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(EditableField, { value: article.title, placeholder: "Title", onSave: (v) => handleMetaSave("title", v), style: { fontSize: 22, fontWeight: 700, fontFamily: font.serif }, inputStyle: { fontSize: 22, fontWeight: 700, fontFamily: font.serif, width: "100%" } }) }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: c.textMuted, marginBottom: 4, flexWrap: "wrap" }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: sourceLabel(article) }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { color: c.textDim }, children: "\xB7" }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontFamily: font.mono, fontSize: 11, color: c.textDim }, children: (article.id || "").slice(0, 8) }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { color: c.textDim }, children: "\xB7" }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { children: [
+          (wordCount || 0).toLocaleString(),
+          " words"
+        ] })
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: c.textMuted, marginBottom: 12, flexWrap: "wrap" }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(EditableField, { value: article.author, placeholder: "Author", onSave: (v) => handleMetaSave("author", v) }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { color: c.textDim }, children: "\xB7" }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(EditableField, { value: article.publication, placeholder: "Publication", onSave: (v) => handleMetaSave("publication", v) }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { color: c.textDim }, children: "\xB7" }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(EditableField, { value: article.published_date, placeholder: "Date", onSave: (v) => handleMetaSave("published_date", v) })
+      ] }),
+      article.source_url && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("a", { href: article.source_url, target: "_blank", rel: "noopener noreferrer", style: { display: "block", fontSize: 12, color: c.accent, marginBottom: 16, textDecoration: "none", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, children: article.source_url }),
+      articleTags.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { display: "flex", gap: 5, flexWrap: "wrap", marginBottom: 20, paddingBottom: 20, borderBottom: `1px solid ${c.border}` }, children: articleTags.map((t) => {
+        const isP = t.startsWith("project:");
+        const display = isP ? t.replace("project:", "") : t;
+        return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+          "span",
           {
-            value: reprocessVoice,
-            onChange: (e) => setReprocessVoice(e.target.value),
-            style: styles.detailVoiceSelect,
-            children: voices.map((v) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", { value: v.name, children: voiceLabel(v.name) }, v.name))
-          }
-        ),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-          "button",
-          {
-            onClick: handleReprocess,
-            disabled: reprocessing || !canRenarrate,
+            onClick: () => onAddFilter(t),
             style: {
-              ...styles.detailReprocessBtn,
-              opacity: reprocessing || !canRenarrate ? 0.5 : 1
+              fontSize: 11,
+              padding: "4px 10px",
+              borderRadius: 6,
+              background: isP ? c.purpleDim : c.accentDim,
+              color: isP ? c.purple : c.accent,
+              border: `1px solid ${(isP ? c.purple : c.accent) + "33"}`,
+              cursor: "pointer",
+              fontWeight: isP ? 600 : 400,
+              transition: "all 0.1s"
             },
-            children: reprocessing ? "Reprocessing..." : "Renarrate"
-          }
-        )
-      ] }),
-      entities.length > 0 ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.entitySection, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.entitySectionTitle, children: "Entities" }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.entityList, children: entities.map((e) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: styles.entityTag, title: e.entity_type, children: [
+            onMouseEnter: (e) => e.target.style.background = isP ? c.purple + "22" : c.accentMed,
+            onMouseLeave: (e) => e.target.style.background = isP ? c.purpleDim : c.accentDim,
+            children: [
+              isP ? "\u2B21 " : "#",
+              display
+            ]
+          },
+          t
+        );
+      }) }),
+      entities.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { marginBottom: 16, paddingBottom: 16, borderBottom: `1px solid ${c.border}` }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 11, color: c.textMuted, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 6 }, children: "Entities" }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { display: "flex", flexWrap: "wrap", gap: 6 }, children: entities.map((e) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: { display: "inline-flex", alignItems: "center", gap: 4, fontSize: 12, color: c.textSecondary, background: c.surface, padding: "3px 8px", borderRadius: 4 }, title: e.entity_type, children: [
           e.name,
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: styles.entityType, children: e.entity_type })
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 10, color: c.textDim, fontStyle: "italic" }, children: e.entity_type })
         ] }, e.id)) })
-      ] }) : null,
-      message ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.detailMessage, children: message }) : null,
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.detailTextWrap, children: loading ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.detailLoading, children: "Loading text..." }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.detailText, children: paragraphs.map((para, i) => {
+      ] }),
+      isFailed && article.error_message && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 12, color: c.red, padding: "8px 12px", background: c.redDim, borderRadius: 8, marginBottom: 12 }, children: article.error_message }),
+      message && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 12, color: c.accent, padding: "8px 12px", background: c.accentDim, borderRadius: 8, marginBottom: 12 }, children: message }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { borderRadius: 8, background: c.bg, padding: "16px 20px", marginBottom: 12 }, children: loading ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { color: c.textMuted, fontSize: 13, textAlign: "center", padding: 20 }, children: "Loading text..." }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontFamily: font.serif, fontSize: 15, lineHeight: 1.7, color: c.text }, children: paragraphs.map((para, i) => {
         const removed = removedIndices.has(i);
         if (removed) {
-          return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.removedParagraph, children: [
-            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: styles.removedText, children: [
+          return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8, padding: "4px 0", marginBottom: 8 }, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: { flex: 1, fontSize: 13, color: c.textMuted, textDecoration: "line-through", opacity: 0.5 }, children: [
               para.slice(0, 80),
               "..."
             ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: () => handleUndoRemove(i), style: styles.undoBtn, children: "Undo" })
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: () => handleUndoRemove(i), style: { background: "none", border: `1px solid ${c.border}`, borderRadius: 4, color: c.accent, fontSize: 11, fontWeight: 600, fontFamily: font.sans, padding: "2px 8px", cursor: "pointer", whiteSpace: "nowrap" }, children: "Undo" })
           ] }, i);
         }
-        return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.paragraphRow, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-            "button",
-            {
-              onClick: () => handleRemoveParagraph(i),
-              style: styles.removeParagraphBtn,
-              title: "Remove this paragraph from narration",
-              "aria-label": "Remove paragraph",
-              children: "\xD7"
-            }
-          ),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { style: styles.detailParagraph, children: para })
+        return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "flex-start", gap: 8, position: "relative" }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: () => handleRemoveParagraph(i), style: { background: "none", border: "none", color: "rgba(248,113,113,0)", fontSize: 18, fontWeight: 700, cursor: "pointer", padding: "0 4px", lineHeight: "1.7", flexShrink: 0, transition: "color 0.15s" }, title: "Remove this paragraph from narration", "aria-label": "Remove paragraph", children: "\xD7" }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { style: { marginBottom: 14, flex: 1 }, children: para })
         ] }, i);
       }) }) }),
-      removedIndices.size > 0 ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.detailSaveBar, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: styles.detailSaveInfo, children: [
+      removedIndices.size > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", marginBottom: 12, background: c.surface, borderRadius: 8 }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: { fontSize: 12, color: c.textMuted }, children: [
           removedIndices.size,
           " paragraph",
           removedIndices.size > 1 ? "s" : "",
           " removed"
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: handleSaveText, disabled: saving, style: { ...styles.detailReprocessBtn, opacity: saving ? 0.5 : 1 }, children: saving ? "Saving..." : "Save changes" })
-      ] }) : null
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: handleSaveText, disabled: saving, style: { padding: "5px 14px", borderRadius: 6, border: "none", background: c.accent, color: c.bgDeep, fontSize: 12, fontWeight: 600, fontFamily: font.sans, cursor: "pointer", opacity: saving ? 0.5 : 1 }, children: saving ? "Saving..." : "Save changes" })
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+          "button",
+          {
+            onClick: () => onFindSimilar(article),
+            style: {
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "8px 14px",
+              borderRadius: 8,
+              border: `1px solid ${c.cyan}33`,
+              background: c.cyanDim,
+              color: c.cyan,
+              fontSize: 12,
+              fontWeight: 500,
+              fontFamily: font.sans,
+              cursor: "pointer",
+              transition: "all 0.12s"
+            },
+            onMouseEnter: (e) => e.currentTarget.style.background = c.cyan + "22",
+            onMouseLeave: (e) => e.currentTarget.style.background = c.cyanDim,
+            children: "\u25CE Find Similar"
+          }
+        ),
+        hasAudio && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: () => onPlay(article), style: {
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+          padding: "8px 14px",
+          borderRadius: 8,
+          border: `1px solid ${c.border}`,
+          background: "transparent",
+          color: c.textSecondary,
+          fontSize: 12,
+          fontWeight: 500,
+          fontFamily: font.sans,
+          cursor: "pointer"
+        }, children: activeId === article.id && isPlaying ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PauseIcon, { size: 14 }),
+          " Pause"
+        ] }) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PlayIcon, { size: 14 }),
+          " Listen"
+        ] }) })
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: c.bg, borderRadius: 8, marginBottom: 24 }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 12, color: c.textMuted, fontWeight: 500 }, children: "Voice:" }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("select", { value: reprocessVoice, onChange: (e) => setReprocessVoice(e.target.value), style: { flex: 1, background: c.surface, border: `1px solid ${c.border}`, borderRadius: 6, padding: "5px 8px", color: c.text, fontSize: 12, fontFamily: font.sans, outline: "none" }, children: voices.map((v) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", { value: v.name, children: voiceLabel(v.name) }, v.name)) }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: handleReprocess, disabled: reprocessing || !canRenarrate || isProcessingStatus, style: { padding: "5px 14px", borderRadius: 6, border: "none", background: c.accent, color: c.bgDeep, fontSize: 12, fontWeight: 600, fontFamily: font.sans, cursor: "pointer", whiteSpace: "nowrap", opacity: reprocessing || !canRenarrate || isProcessingStatus ? 0.5 : 1 }, children: reprocessing || isProcessingStatus ? "Processing..." : !article.audio_url ? "Generate Audio" : "Renarrate" })
+      ] }),
+      (() => {
+        if (articleTags.length === 0) return null;
+        const related = articles.filter((d) => d.id !== article.id && (d.tags || []).some((t) => articleTags.includes(t))).slice(0, 3);
+        if (related.length === 0) return null;
+        return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 10, fontWeight: 600, color: c.textMuted, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }, children: "Related by Tags" }),
+          related.map((d) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+            "div",
+            {
+              onClick: () => onSelectDoc(d.id),
+              style: { padding: "9px 12px", borderRadius: 8, border: `1px solid ${c.border}`, marginBottom: 5, display: "flex", alignItems: "center", gap: 8, cursor: "pointer", transition: "background 0.1s" },
+              onMouseEnter: (e) => e.currentTarget.style.background = c.surfaceHover,
+              onMouseLeave: (e) => e.currentTarget.style.background = "transparent",
+              children: [
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)(StatusDot, { status: d.status }),
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { flex: 1, fontSize: 12, color: c.text, fontWeight: 500 }, children: d.title }),
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 10, color: c.textDim, fontFamily: font.mono }, children: (d.id || "").slice(0, 8) })
+              ]
+            },
+            d.id
+          ))
+        ] });
+      })()
     ] });
   }
-  function ArticleCard({ article, isActive, isExpanded, selectionMode, selected, onPlay, onToggleSelect, onDetailToggle }) {
-    const isProcessing = article.status === "queued" || article.status === "synthesizing";
-    const isFailed = article.status === "failed";
-    const canPlay = !isProcessing && !isFailed && article.audio_url;
-    const statusText = isProcessing ? article.status === "queued" ? "Queued..." : "Processing..." : isFailed ? "Failed" : formatDuration(article.audio_duration_sec);
+  function DocumentListItem({ article, isSelected, selectionMode, isChecked, activeFilters, onSelect, onToggleCheck, onAddFilter }) {
+    const tags = article.tags || [];
+    const visibleTags = tags.filter((t) => !activeFilters.includes(t));
+    const hasScore = article.score != null;
     return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
       "div",
       {
+        id: `doc-${article.id}`,
+        onClick: () => selectionMode ? onToggleCheck(article.id) : onSelect(article.id),
         style: {
-          ...styles.card,
-          ...isActive ? styles.cardActive : {},
-          ...isFailed ? styles.cardFailed : {},
-          ...selected ? styles.cardSelected : {},
-          ...isExpanded ? styles.cardExpanded : {}
+          padding: "12px 14px",
+          borderBottom: `1px solid ${c.border}`,
+          borderLeft: `2px solid ${isSelected ? c.accent : "transparent"}`,
+          background: isSelected ? c.surfaceRaised : "transparent",
+          cursor: "pointer",
+          transition: "all 0.08s"
         },
-        role: "button",
-        tabIndex: 0,
-        "aria-label": `${article.title}, ${statusText}`,
-        onKeyDown: (event) => {
-          if (event.key === "Enter" || event.key === " ") {
-            event.preventDefault();
-            if (selectionMode) {
-              onToggleSelect(article.id);
-            } else {
-              onDetailToggle(article.id);
-            }
-          }
+        onMouseEnter: (e) => {
+          if (!isSelected) e.currentTarget.style.background = `${c.surface}88`;
         },
-        onClick: () => {
-          if (selectionMode) {
-            onToggleSelect(article.id);
-            return;
-          }
-          onDetailToggle(article.id);
+        onMouseLeave: (e) => {
+          if (!isSelected) e.currentTarget.style.background = "transparent";
         },
         children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.cardLeft, children: [
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-              "div",
-              {
-                style: styles.cardPlayArea,
-                onClick: (e) => {
-                  if (!selectionMode && canPlay) {
-                    e.stopPropagation();
-                    onPlay(article);
-                  }
-                },
-                children: selectionMode ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { ...styles.selectDot, ...selected ? styles.selectDotActive : {} }, children: selected ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CheckIcon, { size: 12 }) : null }) : isProcessing ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.processingDot }) : isFailed ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.failedGlyph, children: "!" }) : isActive ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(WaveformIcon, {}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PlayIcon, { size: 14 })
-              }
-            ),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.cardInfo, children: [
-              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.cardTitle, children: article.title }),
-              /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.cardMeta, children: [
-                sourceLabel(article),
-                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: styles.metaDot, children: "\xB7" }),
-                formatDate(article.ingested_at),
-                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: styles.metaDot, children: "\xB7" }),
-                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { color: isFailed ? "#f0b8b6" : isProcessing ? "#d4956a" : void 0 }, children: statusText })
-              ] }),
-              isFailed && article.error_message ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.cardError, children: article.error_message }) : null
-            ] })
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "start", gap: 8, marginBottom: 5 }, children: [
+            selectionMode && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { width: 18, height: 18, borderRadius: "50%", border: `1px solid ${isChecked ? c.accent : c.textMuted}`, display: "flex", alignItems: "center", justifyContent: "center", background: isChecked ? c.accent : "transparent", color: c.bgDeep, flexShrink: 0, marginTop: 2 }, children: isChecked && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CheckIcon, { size: 12 }) }),
+            hasScore && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ScoreBadge, { score: article.score }),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { flex: 1, fontSize: 13, fontWeight: isSelected ? 600 : 500, color: c.text, lineHeight: 1.4 }, children: article.title }),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)(StatusDot, { status: article.status })
           ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.cardRight, children: [
-            article.listened_at ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: styles.listenedBadge, children: "Listened" }) : null,
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: styles.voiceTag, children: article.voice || "default" })
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 6, marginBottom: visibleTags.length > 0 ? 6 : 0, paddingLeft: selectionMode ? 26 : hasScore ? 44 : 0 }, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 10, color: c.textDim }, children: article.type || "article" }),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 10, color: c.textDim }, children: "\xB7" }),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 10, color: c.textDim }, children: sourceLabel(article) }),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 10, color: c.textDim }, children: "\xB7" }),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 10, color: c.textDim }, children: timeAgo(article.ingested_at) })
+          ] }),
+          visibleTags.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", gap: 3, flexWrap: "wrap", paddingLeft: selectionMode ? 26 : hasScore ? 44 : 0 }, children: [
+            visibleTags.slice(0, 4).map((t) => {
+              const isP = t.startsWith("project:");
+              const display = isP ? t.replace("project:", "") : t;
+              return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+                "span",
+                {
+                  onClick: (e) => {
+                    e.stopPropagation();
+                    onAddFilter(t);
+                  },
+                  style: { fontSize: 9, padding: "1px 6px", borderRadius: 3, background: isP ? c.purpleDim : c.bg, color: isP ? c.purple : c.textMuted, border: `1px solid ${isP ? c.purple + "22" : c.border}`, cursor: "pointer", fontWeight: isP ? 600 : 400, transition: "all 0.1s" },
+                  onMouseEnter: (e) => {
+                    e.target.style.color = isP ? c.purple : c.accent;
+                    e.target.style.borderColor = (isP ? c.purple : c.accent) + "44";
+                  },
+                  onMouseLeave: (e) => {
+                    e.target.style.color = isP ? c.purple : c.textMuted;
+                    e.target.style.borderColor = isP ? c.purple + "22" : c.border;
+                  },
+                  children: [
+                    isP ? "\u2B21 " : "",
+                    display
+                  ]
+                },
+                t
+              );
+            }),
+            visibleTags.length > 4 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: { fontSize: 9, color: c.textDim }, children: [
+              "+",
+              visibleTags.length - 4
+            ] })
           ] })
         ]
       }
@@ -25172,31 +25405,22 @@
   function PlayerBar({ article, isPlaying, currentTime, duration, playbackRate, playbackRates, onToggle, onSeek, onPlaybackRateChange }) {
     if (!article) return null;
     const percent = duration > 0 ? currentTime / duration * 100 : 0;
-    return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.playerBar, children: [
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.playerProgress, onClick: onSeek, children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { ...styles.playerProgressFill, width: `${percent}%` } }) }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.playerInner, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: onToggle, style: styles.playerPlayBtn, "aria-label": isPlaying ? "Pause audio" : "Play audio", children: isPlaying ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PauseIcon, { size: 20 }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PlayIcon, { size: 20 }) }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.playerInfo, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.playerTitle, children: article.title }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.playerSource, children: sourceLabel(article) })
+    return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { position: "fixed", bottom: 0, left: 0, right: 0, background: "rgba(19,21,29,0.95)", backdropFilter: "blur(20px)", borderTop: `1px solid ${c.border}`, zIndex: 100 }, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { height: 3, background: c.border, cursor: "pointer" }, onClick: onSeek, children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { height: "100%", background: c.accent, transition: "width 0.1s linear", width: `${percent}%` } }) }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 14, padding: "12px 24px 14px" }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: onToggle, style: { width: 40, height: 40, borderRadius: "50%", border: "none", background: c.accent, color: c.bgDeep, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }, "aria-label": isPlaying ? "Pause" : "Play", children: isPlaying ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PauseIcon, { size: 20 }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PlayIcon, { size: 20 }) }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { flex: 1, minWidth: 0 }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontFamily: font.serif, fontSize: 14, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", color: c.text }, children: article.title }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 12, color: c.textMuted, marginTop: 2 }, children: sourceLabel(article) })
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", { style: styles.speedControl, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: styles.speedLabel, children: "Speed" }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-            "select",
-            {
-              value: String(playbackRate),
-              onChange: (event) => onPlaybackRateChange(Number(event.target.value)),
-              style: styles.speedSelect,
-              "aria-label": "Playback speed",
-              children: (playbackRates.length ? playbackRates : PLAYBACK_RATES).map((rate) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("option", { value: String(rate), children: [
-                rate,
-                "x"
-              ] }, rate))
-            }
-          )
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", { style: { display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 12, color: c.textMuted }, children: "Speed" }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("select", { value: String(playbackRate), onChange: (e) => onPlaybackRateChange(Number(e.target.value)), style: { borderRadius: 8, border: `1px solid ${c.border}`, background: c.bg, color: c.text, fontSize: 12, padding: "6px 8px", fontFamily: font.sans }, "aria-label": "Playback speed", children: (playbackRates.length ? playbackRates : PLAYBACK_RATES).map((rate) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("option", { value: String(rate), children: [
+            rate,
+            "x"
+          ] }, rate)) })
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.playerTime, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { fontSize: 12, fontFamily: font.mono, color: c.textMuted, flexShrink: 0 }, children: [
           formatDuration(currentTime),
           " / ",
           formatDuration(duration || article.audio_duration_sec)
@@ -25218,6 +25442,8 @@
     const [duration, setDuration] = (0, import_react.useState)(0);
     const [daemonConnected, setDaemonConnected] = (0, import_react.useState)(false);
     const [daemonError, setDaemonError] = (0, import_react.useState)("");
+    const [daemonState, setDaemonState] = (0, import_react.useState)("offline");
+    const [daemonMessage, setDaemonMessage] = (0, import_react.useState)("");
     const [addError, setAddError] = (0, import_react.useState)("");
     const [selectionMode, setSelectionMode] = (0, import_react.useState)(false);
     const [selectedIds, setSelectedIds] = (0, import_react.useState)([]);
@@ -25226,17 +25452,51 @@
     const [deleting, setDeleting] = (0, import_react.useState)(false);
     const [feedCopied, setFeedCopied] = (0, import_react.useState)(false);
     const [showExtension, setShowExtension] = (0, import_react.useState)(false);
-    const [daemonMessage, setDaemonMessage] = (0, import_react.useState)("");
-    const [daemonState, setDaemonState] = (0, import_react.useState)("offline");
-    const [detailId, setDetailId] = (0, import_react.useState)(null);
     const [updateInfo, setUpdateInfo] = (0, import_react.useState)(null);
     const [updateDismissed, setUpdateDismissed] = (0, import_react.useState)(false);
+    const [selectedId, setSelectedId] = (0, import_react.useState)(null);
+    const [activeFilters, setActiveFilters] = (0, import_react.useState)([]);
+    const [tagDropdownOpen, setTagDropdownOpen] = (0, import_react.useState)(false);
+    const [sortMode, setSortMode] = (0, import_react.useState)("auto");
+    const [timeRange, setTimeRange] = (0, import_react.useState)("all");
+    const [similarMode, setSimilarMode] = (0, import_react.useState)(null);
     const audioRef = (0, import_react.useRef)(null);
     const searchRef = (0, import_react.useRef)(null);
     const listenedFiredRef = (0, import_react.useRef)(null);
-    const activeArticle = (0, import_react.useMemo)(() => articles.find((article) => article.id === activeId) || null, [articles, activeId]);
-    const hasActiveWork = articles.some((article) => article.status === "queued" || article.status === "synthesizing");
+    const dropdownRef = (0, import_react.useRef)(null);
+    const activeArticle = (0, import_react.useMemo)(() => articles.find((a) => a.id === activeId) || null, [articles, activeId]);
+    const hasActiveWork = articles.some((a) => a.status === "queued" || a.status === "synthesizing");
     const selectedCount = selectedIds.length;
+    const tagIndex = (0, import_react.useMemo)(() => buildTagIndex(articles), [articles]);
+    const isSearching = search.trim().length > 0;
+    const effectiveSort = sortMode === "auto" ? isSearching ? "relevance" : "date" : sortMode;
+    const indexedCount = articles.filter((a) => a.status === "done").length;
+    const filteredResults = (0, import_react.useMemo)(() => {
+      if (similarMode) {
+        const sourceDoc = articles.find((d) => d.id === similarMode);
+        if (sourceDoc) return findSimilar(sourceDoc, articles);
+        return [];
+      }
+      let pool = [...articles];
+      if (activeFilters.length > 0) {
+        pool = pool.filter((d) => activeFilters.every((f) => (d.tags || []).includes(f)));
+      }
+      pool = pool.filter((d) => withinRange(d.ingested_at, timeRange));
+      if (effectiveSort === "date") {
+        pool.sort((a, b) => new Date(b.ingested_at) - new Date(a.ingested_at));
+      }
+      return pool;
+    }, [articles, activeFilters, timeRange, effectiveSort, similarMode]);
+    const selectedDoc = (0, import_react.useMemo)(() => {
+      return filteredResults.find((d) => d.id === selectedId) || articles.find((d) => d.id === selectedId) || null;
+    }, [filteredResults, articles, selectedId]);
+    (0, import_react.useEffect)(() => {
+      if (filteredResults.length > 0 && (!selectedId || !filteredResults.find((d) => d.id === selectedId))) {
+        setSelectedId(filteredResults[0].id);
+      } else if (filteredResults.length === 0) {
+        setSelectedId(null);
+      }
+    }, [filteredResults]);
     async function refreshArticles(query = search) {
       const suffix = query.trim() ? `?q=${encodeURIComponent(query.trim())}` : "";
       const data = await apiGet(`/api/articles${suffix}`);
@@ -25291,7 +25551,7 @@
       return () => window.clearTimeout(timeout);
     }, [search]);
     (0, import_react.useEffect)(() => {
-      setSelectedIds((current) => current.filter((id) => articles.some((article) => article.id === id)));
+      setSelectedIds((current) => current.filter((id) => articles.some((a) => a.id === id)));
     }, [articles]);
     (0, import_react.useEffect)(() => {
       if (!hasActiveWork) return void 0;
@@ -25301,6 +25561,13 @@
       }, 1500);
       return () => window.clearInterval(interval);
     }, [hasActiveWork, search]);
+    (0, import_react.useEffect)(() => {
+      const handler = (e) => {
+        if (dropdownRef.current && !dropdownRef.current.contains(e.target)) setTagDropdownOpen(false);
+      };
+      document.addEventListener("mousedown", handler);
+      return () => document.removeEventListener("mousedown", handler);
+    }, []);
     (0, import_react.useEffect)(() => {
       const audio = audioRef.current;
       if (!audio) return void 0;
@@ -25333,8 +25600,7 @@
     }, []);
     (0, import_react.useEffect)(() => {
       const audio = audioRef.current;
-      if (!audio) return;
-      audio.playbackRate = playbackRate;
+      if (audio) audio.playbackRate = playbackRate;
     }, [playbackRate]);
     (0, import_react.useEffect)(() => {
       const onKeyDown = (event) => {
@@ -25347,9 +25613,16 @@
           setShowAdd(false);
           return;
         }
-        if (isTypingTarget(event.target)) {
+        if (tagDropdownOpen && event.key === "Escape") {
+          setTagDropdownOpen(false);
           return;
         }
+        if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+          event.preventDefault();
+          setShowAdd(true);
+          return;
+        }
+        if (isTypingTarget(event.target)) return;
         if (event.key === "/") {
           event.preventDefault();
           searchRef.current?.focus();
@@ -25360,14 +25633,43 @@
           setShowAdd(true);
           return;
         }
+        if (event.key === " ") {
+          event.preventDefault();
+          const audio = audioRef.current;
+          if (audio && activeArticle) {
+            audio.paused ? audio.play() : audio.pause();
+          }
+          return;
+        }
         if (event.key.toLowerCase() === "k") {
           event.preventDefault();
-          handleToggle();
+          const audio = audioRef.current;
+          if (audio && activeArticle) {
+            audio.paused ? audio.play() : audio.pause();
+          }
+          return;
+        }
+        if (event.key === "Escape") {
+          if (similarMode) {
+            setSimilarMode(null);
+            return;
+          }
+          return;
+        }
+        if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+          event.preventDefault();
+          if (filteredResults.length === 0) return;
+          const idx = filteredResults.findIndex((d) => d.id === selectedId);
+          const next = event.key === "ArrowDown" ? idx < filteredResults.length - 1 ? idx + 1 : 0 : idx > 0 ? idx - 1 : filteredResults.length - 1;
+          setSelectedId(filteredResults[next].id);
+          setTimeout(() => {
+            document.getElementById(`doc-${filteredResults[next].id}`)?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+          }, 0);
         }
       };
       window.addEventListener("keydown", onKeyDown);
       return () => window.removeEventListener("keydown", onKeyDown);
-    }, [showAdd, showExtension, activeArticle, playbackRate]);
+    }, [showAdd, showExtension, tagDropdownOpen, similarMode, activeArticle, filteredResults, selectedId]);
     async function handleAdd(payload) {
       setAddError("");
       try {
@@ -25383,8 +25685,7 @@
     async function handlePreview(payload) {
       setAddError("");
       try {
-        const data = await apiJson("/api/preview", "POST", payload);
-        return data.preview;
+        return (await apiJson("/api/preview", "POST", payload)).preview;
       } catch (error) {
         setAddError(error.message);
         throw error;
@@ -25404,24 +25705,18 @@
       setPlaybackRates(data.preferences?.available_playback_rates || PLAYBACK_RATES);
     }
     function handleToggleSelect(articleId) {
-      setSelectedIds(
-        (current) => current.includes(articleId) ? current.filter((id) => id !== articleId) : [...current, articleId]
-      );
+      setSelectedIds((current) => current.includes(articleId) ? current.filter((id) => id !== articleId) : [...current, articleId]);
     }
     function handleSelectionModeToggle() {
       setDeleteError("");
       setShowDeleteConfirm(false);
       setSelectionMode((current) => {
-        if (current) {
-          setSelectedIds([]);
-        }
+        if (current) setSelectedIds([]);
         return !current;
       });
     }
     async function handleDeleteSelected() {
-      if (!selectedIds.length) {
-        return;
-      }
+      if (!selectedIds.length) return;
       setDeleteError("");
       setDeleting(true);
       try {
@@ -25455,11 +25750,7 @@
       const audio = audioRef.current;
       if (!audio || !article.audio_url) return;
       if (activeId === article.id) {
-        if (audio.paused) {
-          await audio.play();
-        } else {
-          audio.pause();
-        }
+        audio.paused ? await audio.play() : audio.pause();
         return;
       }
       setActiveId(article.id);
@@ -25468,15 +25759,6 @@
       listenedFiredRef.current = null;
       audio.src = article.audio_url;
       await audio.play();
-    }
-    async function handleToggle() {
-      const audio = audioRef.current;
-      if (!audio || !activeArticle) return;
-      if (audio.paused) {
-        await audio.play();
-      } else {
-        audio.pause();
-      }
     }
     function handleSeek(event) {
       const audio = audioRef.current;
@@ -25491,9 +25773,6 @@
       refreshArticles(search);
       refreshStatus();
     }
-    function handleDetailToggle(articleId) {
-      setDetailId((current) => current === articleId ? null : articleId);
-    }
     async function handleCopyFeed() {
       const feedUrl = new URL("/feed.xml", window.location.href).toString();
       if (navigator.clipboard?.writeText) {
@@ -25504,36 +25783,57 @@
       setFeedCopied(true);
       window.setTimeout(() => setFeedCopied(false), 1500);
     }
-    return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.root, children: [
+    const addFilter = (tag) => {
+      if (similarMode) setSimilarMode(null);
+      if (!activeFilters.includes(tag)) setActiveFilters((prev) => [...prev, tag]);
+    };
+    const removeFilter = (tag) => setActiveFilters((prev) => prev.filter((f) => f !== tag));
+    const clearAll = () => {
+      setActiveFilters([]);
+      setSearch("");
+      setTimeRange("all");
+      setSimilarMode(null);
+      setSortMode("auto");
+    };
+    const handleFindSimilar = (doc) => {
+      setSimilarMode(doc.id);
+      setActiveFilters([]);
+      setSearch("");
+      setTimeRange("all");
+    };
+    const hasActiveScope = activeFilters.length > 0 || isSearching || timeRange !== "all" || similarMode;
+    return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { height: "100vh", background: c.bgDeep, fontFamily: font.sans, display: "flex", flexDirection: "column", color: c.text }, children: [
       /* @__PURE__ */ (0, import_jsx_runtime.jsx)("style", { children: globalStyles }),
       /* @__PURE__ */ (0, import_jsx_runtime.jsx)("audio", { ref: audioRef, preload: "metadata" }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("header", { style: styles.header, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.headerLeft, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("h1", { style: styles.logo, children: "readcast" }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.daemonBadge, "aria-label": `kokoro-edge status: ${daemonState}`, children: [
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { ...styles.statusDot, background: daemonState === "ready" ? "#5cb85c" : daemonConnected ? "#d4af37" : "#d9534f" } }),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: styles.daemonLabel, children: "kokoro-edge" })
-          ] })
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 12, padding: "10px 20px", borderBottom: `1px solid ${c.border}`, background: c.bg, flexShrink: 0 }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8 }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { width: 8, height: 8, borderRadius: "50%", background: daemonState === "ready" ? c.green : daemonConnected ? c.amber : c.red } }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 14, fontWeight: 700, color: c.text }, children: "Local Knowledge" })
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.headerActions, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: handleCopyFeed, style: styles.headerBtn, "aria-label": "Copy podcast feed URL", children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: feedCopied ? "Feed Copied" : "Copy Feed" }) }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", { onClick: () => setShowExtension(true), style: styles.headerBtn, "aria-label": "Browser extension setup", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ExtensionIcon, { size: 15 }),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "Extension" })
-          ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", { onClick: handleSelectionModeToggle, style: selectionMode ? styles.headerBtnActive : styles.headerBtn, children: [
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CheckIcon, { size: 15 }),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: selectionMode ? "Done" : "Select" })
-          ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", { onClick: () => setShowAdd(true), style: styles.addBtn, "aria-label": "Add article", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PlusIcon, { size: 16 }),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "Add Article" })
-          ] })
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: { fontSize: 11, color: c.textDim }, children: [
+          articles.length,
+          " docs \xB7 ",
+          indexedCount,
+          " indexed"
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { flex: 1 } }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: handleCopyFeed, style: { display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", borderRadius: 8, border: `1px solid ${c.border}`, background: "rgba(255,255,255,0.04)", color: c.textMuted, fontSize: 13, fontWeight: 600, fontFamily: font.sans, cursor: "pointer" }, children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: feedCopied ? "Feed Copied" : "Copy Feed" }) }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", { onClick: () => setShowExtension(true), style: { display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", borderRadius: 8, border: `1px solid ${c.border}`, background: "rgba(255,255,255,0.04)", color: c.textMuted, fontSize: 13, fontWeight: 600, fontFamily: font.sans, cursor: "pointer" }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ExtensionIcon, { size: 15 }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "Ext" })
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", { onClick: handleSelectionModeToggle, style: selectionMode ? { display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", borderRadius: 8, border: `1px solid ${c.accent}`, background: c.accentDim, color: c.accent, fontSize: 13, fontWeight: 600, fontFamily: font.sans, cursor: "pointer" } : { display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", borderRadius: 8, border: `1px solid ${c.border}`, background: "rgba(255,255,255,0.04)", color: c.textMuted, fontSize: 13, fontWeight: 600, fontFamily: font.sans, cursor: "pointer" }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CheckIcon, { size: 15 }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: selectionMode ? "Done" : "Select" })
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", { onClick: () => setShowAdd(true), style: { display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 8, border: "none", background: c.accent, color: c.bgDeep, fontSize: 13, fontWeight: 600, fontFamily: font.sans, cursor: "pointer" }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PlusIcon, { size: 16 }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "Add" })
         ] })
       ] }),
-      daemonError || daemonState !== "ready" ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { ...styles.banner, ...daemonError ? styles.bannerError : styles.bannerInfo }, children: daemonError || daemonMessage }) : null,
-      deleteError ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { ...styles.banner, ...styles.bannerError }, children: deleteError }) : null,
-      updateInfo && !updateDismissed ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { ...styles.banner, ...styles.bannerUpdate }, children: [
+      (daemonError || daemonState !== "ready") && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { padding: "10px 20px", fontSize: 13, background: daemonError ? c.redDim : c.greenDim, color: daemonError ? c.red : c.green, borderBottom: `1px solid ${(daemonError ? c.red : c.green) + "22"}`, flexShrink: 0 }, children: daemonError || daemonMessage }),
+      deleteError && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { padding: "10px 20px", fontSize: 13, background: c.redDim, color: c.red, borderBottom: `1px solid ${c.red}22`, flexShrink: 0 }, children: deleteError }),
+      updateInfo && !updateDismissed && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { padding: "10px 20px", fontSize: 13, background: c.amberDim, color: c.amber, borderBottom: `1px solid ${c.amber}22`, flexShrink: 0, display: "flex", justifyContent: "space-between", alignItems: "center" }, children: [
         /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { children: [
           "readcast ",
           updateInfo.latest,
@@ -25542,85 +25842,163 @@
           ").",
           " ",
           "Run ",
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("code", { style: styles.updateCode, children: "pixi global upgrade readcast" }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("code", { style: { padding: "2px 6px", borderRadius: 4, background: c.bg, fontFamily: font.mono, fontSize: 12 }, children: "pixi global upgrade readcast" }),
           " to update."
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: () => setUpdateDismissed(true), style: styles.updateDismiss, "aria-label": "Dismiss", children: "\u2715" })
-      ] }) : null,
-      selectionMode ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.bulkBar, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.bulkText, children: selectedCount ? `${selectedCount} selected` : "Select articles to delete" }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
-          "button",
-          {
-            onClick: () => setShowDeleteConfirm(true),
-            style: { ...styles.dangerBtn, opacity: selectedCount ? 1 : 0.45 },
-            disabled: !selectedCount,
-            children: [
-              /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TrashIcon, { size: 15 }),
-              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "Delete" })
-            ]
-          }
-        )
-      ] }) : null,
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: styles.searchWrap, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SearchIcon, {}),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-          "input",
-          {
-            ref: searchRef,
-            type: "text",
-            value: search,
-            onChange: (event) => setSearch(event.target.value),
-            placeholder: "Search articles...",
-            style: styles.searchInput,
-            "aria-label": "Search articles"
-          }
-        ),
-        search ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: () => setSearch(""), style: styles.searchClear, "aria-label": "Clear search", children: "\u2715" }) : null
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: () => setUpdateDismissed(true), style: { background: "none", border: "none", color: c.textMuted, cursor: "pointer", fontSize: 14, padding: "0 4px", fontFamily: "inherit", flexShrink: 0 }, "aria-label": "Dismiss", children: "\u2715" })
       ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.library, children: !articles.length ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.empty, children: search ? "No articles match your search." : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
-        "No articles yet. Add one with the",
-        " ",
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-          "span",
-          {
-            onClick: () => setShowExtension(true),
-            style: { color: c.accent, cursor: "pointer", textDecoration: "underline" },
-            role: "button",
-            tabIndex: 0,
-            onKeyDown: (e) => {
-              if (e.key === "Enter") setShowExtension(true);
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 6, padding: "8px 20px", borderBottom: `1px solid ${c.border}`, background: c.surface, flexShrink: 0, flexWrap: "wrap", minHeight: 44 }, children: [
+        similarMode && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 6, padding: "3px 5px 3px 10px", borderRadius: 6, background: c.cyanDim, border: `1px solid ${c.cyan}33`, fontSize: 11, color: c.cyan, fontWeight: 500 }, children: [
+          "\u25CE Similar to: ",
+          (articles.find((d) => d.id === similarMode)?.title || "").slice(0, 35),
+          "...",
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+            "span",
+            {
+              onClick: () => setSimilarMode(null),
+              style: { cursor: "pointer", padding: "0 4px", fontSize: 10 },
+              onMouseEnter: (e) => e.target.style.background = `${c.cyan}22`,
+              onMouseLeave: (e) => e.target.style.background = "transparent",
+              children: "\xD7"
+            }
+          )
+        ] }),
+        !similarMode && activeFilters.map((f) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(FilterChip, { tag: f, onRemove: () => removeFilter(f) }, f)),
+        !similarMode && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { ref: dropdownRef, style: { position: "relative" }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", { onClick: () => setTagDropdownOpen(!tagDropdownOpen), style: {
+            display: "flex",
+            alignItems: "center",
+            gap: 4,
+            padding: "3px 9px",
+            borderRadius: 6,
+            border: `1px dashed ${tagDropdownOpen ? c.accent + "66" : c.border}`,
+            background: tagDropdownOpen ? c.accentDim : "transparent",
+            color: tagDropdownOpen ? c.accent : c.textMuted,
+            fontSize: 11,
+            fontFamily: font.sans,
+            cursor: "pointer",
+            transition: "all 0.12s"
+          }, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 12, lineHeight: 1 }, children: "+" }),
+            activeFilters.length === 0 ? "Filter by tag" : "Add"
+          ] }),
+          tagDropdownOpen && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TagDropdown, { allTags: tagIndex, activeFilters, onAdd: addFilter, onClose: () => setTagDropdownOpen(false) })
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { flex: 1 } }),
+        !similarMode && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { display: "flex", gap: 1, borderRadius: 6, overflow: "hidden", border: `1px solid ${c.border}` }, children: [["7d", "7d"], ["30d", "30d"], ["all", "All"]].map(([val, label]) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: () => setTimeRange(val), style: {
+          padding: "3px 9px",
+          border: "none",
+          fontSize: 10,
+          fontFamily: font.sans,
+          background: timeRange === val ? c.accentDim : c.bg,
+          color: timeRange === val ? c.accent : c.textDim,
+          cursor: "pointer",
+          fontWeight: timeRange === val ? 600 : 400
+        }, children: label }, val)) }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { display: "flex", gap: 1, borderRadius: 6, overflow: "hidden", border: `1px solid ${c.border}` }, children: [["auto", "Auto"], ["date", "Date"], ["relevance", "Score"]].map(([val, label]) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", { onClick: () => setSortMode(val), style: {
+          padding: "3px 9px",
+          border: "none",
+          fontSize: 10,
+          fontFamily: font.sans,
+          background: sortMode === val ? c.accentDim : c.bg,
+          color: sortMode === val ? c.accent : c.textDim,
+          cursor: "pointer",
+          fontWeight: sortMode === val ? 600 : 400
+        }, children: [
+          label,
+          val === "auto" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: { fontSize: 8, opacity: 0.5, marginLeft: 2 }, children: [
+            "(",
+            isSearching ? "rel" : "date",
+            ")"
+          ] })
+        ] }, val)) }),
+        hasActiveScope && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: { fontSize: 10, color: c.textMuted }, children: [
+            filteredResults.length,
+            " result",
+            filteredResults.length !== 1 ? "s" : ""
+          ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: clearAll, style: { padding: "2px 8px", borderRadius: 4, border: `1px solid ${c.border}`, background: "transparent", color: c.textMuted, fontSize: 10, fontFamily: font.sans, cursor: "pointer" }, children: "Clear" })
+        ] })
+      ] }),
+      selectionMode && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "10px 20px", background: c.surface, borderBottom: `1px solid ${c.border}`, flexShrink: 0 }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 13, color: c.textMuted }, children: selectedCount ? `${selectedCount} selected` : "Select articles to delete" }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", { onClick: () => setShowDeleteConfirm(true), style: { ...dangerBtn, opacity: selectedCount ? 1 : 0.45 }, disabled: !selectedCount, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TrashIcon, { size: 15 }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "Delete" })
+        ] })
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", flex: 1, overflow: "hidden" }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { width: 400, flexShrink: 0, borderRight: `1px solid ${c.border}`, display: "flex", flexDirection: "column", background: c.bg }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { padding: "10px 14px", borderBottom: `1px solid ${c.border}` }, children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { position: "relative" }, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: c.textDim, pointerEvents: "none" }, children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SearchIcon, { size: 14 }) }),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+              "input",
+              {
+                ref: searchRef,
+                type: "text",
+                value: search,
+                onChange: (e) => {
+                  setSearch(e.target.value);
+                  if (similarMode) setSimilarMode(null);
+                },
+                placeholder: activeFilters.length > 0 ? `Search within ${filteredResults.length} docs...` : "Search all documents...",
+                style: { width: "100%", padding: "9px 12px 9px 32px", borderRadius: 8, border: `1px solid ${c.border}`, background: c.surface, color: c.text, fontSize: 13, fontFamily: font.sans, outline: "none" },
+                onFocus: (e) => e.target.style.borderColor = c.accent + "55",
+                onBlur: (e) => e.target.style.borderColor = c.border,
+                "aria-label": "Search articles"
+              }
+            ),
+            search && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: () => setSearch(""), style: { position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: c.textMuted, cursor: "pointer", fontSize: 13, padding: "2px 4px" }, "aria-label": "Clear search", children: "\u2715" })
+          ] }) }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { flex: 1, overflow: "auto" }, children: filteredResults.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { padding: 40, textAlign: "center" }, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 28, marginBottom: 8, opacity: 0.2 }, children: "\u2205" }),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 13, color: c.textMuted }, children: search ? "No documents match" : articles.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+              "No articles yet. Add one with the",
+              " ",
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { onClick: () => setShowExtension(true), style: { color: c.accent, cursor: "pointer", textDecoration: "underline" }, role: "button", tabIndex: 0, onKeyDown: (e) => {
+                if (e.key === "Enter") setShowExtension(true);
+              }, children: "browser extension" }),
+              " ",
+              "or the Add button above."
+            ] }) : "No documents match" }),
+            (search || activeFilters.length > 0) && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 11, color: c.textDim, marginTop: 4 }, children: "Try broader terms or remove a filter" })
+          ] }) : filteredResults.map((article) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+            DocumentListItem,
+            {
+              article,
+              isSelected: selectedId === article.id,
+              selectionMode,
+              isChecked: selectedIds.includes(article.id),
+              activeFilters,
+              onSelect: setSelectedId,
+              onToggleCheck: handleToggleSelect,
+              onAddFilter: addFilter
             },
-            children: "browser extension"
-          }
-        ),
-        " ",
-        "or the Add Article button above."
-      ] }) }) : articles.map((article) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_react.default.Fragment, { children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-          ArticleCard,
+            article.id
+          )) })
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { flex: 1, overflow: "auto", background: c.surface }, children: selectedDoc ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+          ReadingPane,
           {
-            article,
-            isActive: activeId === article.id,
-            isExpanded: detailId === article.id,
-            selectionMode,
-            selected: selectedIds.includes(article.id),
-            onPlay: handlePlay,
-            onToggleSelect: handleToggleSelect,
-            onDetailToggle: handleDetailToggle
-          }
-        ),
-        detailId === article.id ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-          ArticleDetail,
-          {
-            article,
+            article: selectedDoc,
+            articles,
             voices,
             onReprocess: handleReprocess,
-            onClose: () => setDetailId(null),
-            onRefresh: () => refreshArticles(search)
+            onRefresh: () => refreshArticles(search),
+            onAddFilter: addFilter,
+            onFindSimilar: handleFindSimilar,
+            onPlay: handlePlay,
+            onSelectDoc: setSelectedId,
+            activeId,
+            isPlaying
           }
-        ) : null
-      ] }, article.id)) }),
+        ) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", justifyContent: "center", height: "100%", flexDirection: "column", gap: 8 }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 32, opacity: 0.12 }, children: "\u{1F4C4}" }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 14, color: c.textDim }, children: "Select a document" })
+        ] }) })
+      ] }),
+      activeArticle && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { height: 72, flexShrink: 0 } }),
       /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
         PlayerBar,
         {
@@ -25630,960 +26008,27 @@
           duration,
           playbackRate,
           playbackRates,
-          onToggle: handleToggle,
+          onToggle: () => {
+            const audio = audioRef.current;
+            if (audio && activeArticle) {
+              audio.paused ? audio.play() : audio.pause();
+            }
+          },
           onSeek: handleSeek,
           onPlaybackRateChange: handleSavePlaybackRate
         }
       ),
-      showAdd ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-        AddPanel,
-        {
-          voices,
-          defaultVoice,
-          onAdd: handleAdd,
-          onPreview: handlePreview,
-          onSaveDefaultVoice: handleSaveDefaultVoice,
-          onClose: () => {
-            setAddError("");
-            setShowAdd(false);
-          },
-          error: addError
-        }
-      ) : null,
-      showDeleteConfirm ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-        DeleteConfirmPanel,
-        {
-          count: selectedCount,
-          deleting,
-          onConfirm: handleDeleteSelected,
-          onClose: () => {
-            setDeleteError("");
-            setShowDeleteConfirm(false);
-          }
-        }
-      ) : null,
-      showExtension ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ExtensionPanel, { onClose: () => setShowExtension(false) }) : null
+      showAdd && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(AddPanel, { voices, defaultVoice, onAdd: handleAdd, onPreview: handlePreview, onSaveDefaultVoice: handleSaveDefaultVoice, onClose: () => {
+        setAddError("");
+        setShowAdd(false);
+      }, error: addError }),
+      showDeleteConfirm && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(DeleteConfirmPanel, { count: selectedCount, deleting, onConfirm: handleDeleteSelected, onClose: () => {
+        setDeleteError("");
+        setShowDeleteConfirm(false);
+      } }),
+      showExtension && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ExtensionPanel, { onClose: () => setShowExtension(false) })
     ] });
   }
-  var globalStyles = `
-@import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=DM+Sans:wght@400;500;600&display=swap');
-@keyframes spin { to { transform: rotate(360deg); } }
-@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body { background: #141416; color: #e8e4df; }
-::selection { background: rgba(212, 149, 106, 0.3); }
-::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 3px; }
-textarea::placeholder, input::placeholder { color: rgba(255,255,255,0.25); }
-[style*="editableText"]:hover, span[title="Click to edit"]:hover { border-bottom-color: rgba(255,255,255,0.2) !important; }
-div[style]:hover > button[aria-label="Remove paragraph"] { color: rgba(217, 83, 79, 0.7) !important; }
-div[style]:hover > button[aria-label="Remove paragraph"]:hover { color: rgba(217, 83, 79, 1) !important; }
-`;
-  var c = {
-    bg: "#141416",
-    surface: "#1c1c20",
-    border: "rgba(255,255,255,0.06)",
-    text: "#e8e4df",
-    textMuted: "rgba(255,255,255,0.4)",
-    accent: "#d4956a",
-    accentDim: "rgba(212, 149, 106, 0.12)",
-    serif: "'Source Serif 4', Georgia, serif",
-    sans: "'DM Sans', -apple-system, sans-serif"
-  };
-  var styles = {
-    root: {
-      fontFamily: c.sans,
-      background: c.bg,
-      color: c.text,
-      minHeight: "100vh",
-      maxWidth: 720,
-      margin: "0 auto",
-      paddingBottom: 100,
-      position: "relative"
-    },
-    header: {
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "center",
-      padding: "28px 24px 12px"
-    },
-    headerLeft: { display: "flex", alignItems: "center", gap: 16 },
-    headerActions: { display: "flex", alignItems: "center", gap: 10 },
-    logo: {
-      fontFamily: c.serif,
-      fontSize: 26,
-      fontWeight: 700,
-      letterSpacing: "-0.02em",
-      color: c.text
-    },
-    daemonBadge: {
-      display: "flex",
-      alignItems: "center",
-      gap: 6,
-      padding: "4px 10px",
-      borderRadius: 20,
-      background: "rgba(255,255,255,0.04)",
-      border: `1px solid ${c.border}`,
-      fontSize: 11,
-      fontWeight: 500,
-      color: c.textMuted
-    },
-    statusDot: { width: 6, height: 6, borderRadius: "50%" },
-    daemonLabel: { fontFamily: "'DM Sans', monospace", letterSpacing: "0.02em" },
-    addBtn: {
-      display: "flex",
-      alignItems: "center",
-      gap: 6,
-      padding: "8px 16px",
-      borderRadius: 8,
-      border: "none",
-      background: c.accent,
-      color: "#141416",
-      fontSize: 13,
-      fontWeight: 600,
-      fontFamily: c.sans,
-      cursor: "pointer"
-    },
-    headerBtn: {
-      display: "flex",
-      alignItems: "center",
-      gap: 6,
-      padding: "8px 14px",
-      borderRadius: 8,
-      border: `1px solid ${c.border}`,
-      background: "rgba(255,255,255,0.04)",
-      color: c.textMuted,
-      fontSize: 13,
-      fontWeight: 600,
-      fontFamily: c.sans,
-      cursor: "pointer"
-    },
-    headerBtnActive: {
-      display: "flex",
-      alignItems: "center",
-      gap: 6,
-      padding: "8px 14px",
-      borderRadius: 8,
-      border: `1px solid ${c.accent}`,
-      background: c.accentDim,
-      color: c.accent,
-      fontSize: 13,
-      fontWeight: 600,
-      fontFamily: c.sans,
-      cursor: "pointer"
-    },
-    banner: {
-      margin: "0 24px 12px",
-      padding: "10px 14px",
-      borderRadius: 10,
-      border: `1px solid rgba(217, 83, 79, 0.4)`,
-      background: "rgba(217, 83, 79, 0.12)",
-      color: "#f0b8b6",
-      fontSize: 13
-    },
-    bannerError: {
-      border: `1px solid rgba(217, 83, 79, 0.4)`,
-      background: "rgba(217, 83, 79, 0.12)",
-      color: "#f0b8b6"
-    },
-    bannerInfo: {
-      border: `1px solid rgba(92, 184, 92, 0.25)`,
-      background: "rgba(92, 184, 92, 0.08)",
-      color: "#cfe8cf"
-    },
-    bannerUpdate: {
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "center",
-      border: `1px solid rgba(212, 149, 106, 0.3)`,
-      background: "rgba(212, 149, 106, 0.08)",
-      color: "#e8cdb8"
-    },
-    updateCode: {
-      padding: "2px 6px",
-      borderRadius: 4,
-      background: "rgba(0,0,0,0.3)",
-      fontFamily: "'DM Sans', monospace",
-      fontSize: 12
-    },
-    updateDismiss: {
-      background: "none",
-      border: "none",
-      color: "rgba(255,255,255,0.4)",
-      cursor: "pointer",
-      fontSize: 14,
-      padding: "0 4px",
-      fontFamily: "inherit",
-      flexShrink: 0
-    },
-    bulkBar: {
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "space-between",
-      gap: 12,
-      margin: "0 24px 10px",
-      padding: "10px 14px",
-      borderRadius: 10,
-      background: "rgba(255,255,255,0.04)",
-      border: `1px solid ${c.border}`
-    },
-    bulkText: {
-      fontSize: 13,
-      color: c.textMuted
-    },
-    searchWrap: {
-      display: "flex",
-      alignItems: "center",
-      gap: 10,
-      margin: "16px 24px 8px",
-      padding: "10px 14px",
-      borderRadius: 10,
-      background: c.surface,
-      border: `1px solid ${c.border}`,
-      color: c.textMuted
-    },
-    searchInput: {
-      flex: 1,
-      border: "none",
-      outline: "none",
-      background: "transparent",
-      color: c.text,
-      fontSize: 14,
-      fontFamily: c.sans
-    },
-    searchClear: {
-      background: "none",
-      border: "none",
-      color: c.textMuted,
-      cursor: "pointer",
-      fontSize: 13,
-      padding: "2px 4px"
-    },
-    library: {
-      padding: "8px 24px",
-      display: "flex",
-      flexDirection: "column",
-      gap: 2
-    },
-    empty: {
-      textAlign: "center",
-      color: c.textMuted,
-      fontSize: 14,
-      padding: "48px 0"
-    },
-    card: {
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "center",
-      padding: "14px 16px",
-      borderRadius: 10,
-      cursor: "pointer",
-      background: "transparent",
-      borderBottom: `1px solid ${c.border}`
-    },
-    cardActive: {
-      background: c.accentDim,
-      borderBottom: "1px solid transparent"
-    },
-    cardSelected: {
-      background: "rgba(255,255,255,0.04)",
-      borderBottom: "1px solid transparent"
-    },
-    cardLeft: {
-      display: "flex",
-      alignItems: "center",
-      gap: 14,
-      flex: 1,
-      minWidth: 0
-    },
-    cardPlayArea: {
-      width: 32,
-      height: 32,
-      borderRadius: 8,
-      background: "rgba(255,255,255,0.05)",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      flexShrink: 0,
-      color: c.textMuted
-    },
-    selectDot: {
-      width: 18,
-      height: 18,
-      borderRadius: "50%",
-      border: `1px solid ${c.textMuted}`,
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      color: "#141416"
-    },
-    selectDotActive: {
-      background: c.accent,
-      border: `1px solid ${c.accent}`
-    },
-    cardInfo: { minWidth: 0 },
-    cardTitle: {
-      fontFamily: c.serif,
-      fontSize: 15,
-      fontWeight: 600,
-      lineHeight: 1.35,
-      whiteSpace: "nowrap",
-      overflow: "hidden",
-      textOverflow: "ellipsis"
-    },
-    cardMeta: {
-      fontSize: 12,
-      color: c.textMuted,
-      marginTop: 3,
-      display: "flex",
-      alignItems: "center",
-      flexWrap: "wrap"
-    },
-    metaDot: { margin: "0 6px", opacity: 0.4 },
-    cardRight: { flexShrink: 0, marginLeft: 12 },
-    voiceTag: {
-      fontSize: 11,
-      fontFamily: "'DM Sans', monospace",
-      color: c.textMuted,
-      background: "rgba(255,255,255,0.04)",
-      padding: "3px 8px",
-      borderRadius: 4,
-      letterSpacing: "0.02em"
-    },
-    listenedBadge: {
-      fontSize: 10,
-      fontFamily: "'DM Sans', sans-serif",
-      color: "#7ec88b",
-      background: "rgba(126,200,139,0.12)",
-      padding: "2px 7px",
-      borderRadius: 4,
-      letterSpacing: "0.03em",
-      marginRight: 6,
-      fontWeight: 600,
-      textTransform: "uppercase"
-    },
-    entitySection: {
-      padding: "8px 16px",
-      borderBottom: `1px solid ${c.border}`
-    },
-    entitySectionTitle: {
-      fontSize: 11,
-      color: c.textMuted,
-      fontWeight: 600,
-      textTransform: "uppercase",
-      letterSpacing: "0.05em",
-      marginBottom: 6
-    },
-    entityList: {
-      display: "flex",
-      flexWrap: "wrap",
-      gap: 6
-    },
-    entityTag: {
-      display: "inline-flex",
-      alignItems: "center",
-      gap: 4,
-      fontSize: 12,
-      color: c.textSecondary,
-      background: "rgba(255,255,255,0.06)",
-      padding: "3px 8px",
-      borderRadius: 4
-    },
-    entityType: {
-      fontSize: 10,
-      color: c.textMuted,
-      fontStyle: "italic"
-    },
-    processingDot: {
-      width: 8,
-      height: 8,
-      borderRadius: "50%",
-      background: c.accent,
-      animation: "pulse 1.5s ease-in-out infinite"
-    },
-    cardFailed: {
-      border: "1px solid rgba(217, 83, 79, 0.18)"
-    },
-    cardExpanded: {
-      background: "rgba(255,255,255,0.03)",
-      borderBottom: "none",
-      borderRadius: "10px 10px 0 0"
-    },
-    detailPanel: {
-      padding: "0 16px 16px",
-      background: "rgba(255,255,255,0.03)",
-      borderRadius: "0 0 10px 10px",
-      borderBottom: `1px solid ${c.border}`,
-      marginBottom: 2
-    },
-    detailHeader: {
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "flex-start",
-      marginBottom: 12
-    },
-    detailTitle: {
-      fontFamily: c.serif,
-      fontSize: 18,
-      fontWeight: 600,
-      lineHeight: 1.3,
-      marginBottom: 6
-    },
-    detailMeta: {
-      fontSize: 12,
-      color: c.textMuted,
-      display: "flex",
-      flexWrap: "wrap",
-      gap: 4,
-      alignItems: "center"
-    },
-    detailLink: {
-      display: "block",
-      fontSize: 12,
-      color: c.accent,
-      marginTop: 6,
-      textDecoration: "none",
-      overflow: "hidden",
-      textOverflow: "ellipsis",
-      whiteSpace: "nowrap"
-    },
-    detailDescription: {
-      fontSize: 13,
-      color: c.textMuted,
-      marginTop: 8,
-      lineHeight: 1.5,
-      fontStyle: "italic"
-    },
-    detailVoiceRow: {
-      display: "flex",
-      alignItems: "center",
-      gap: 10,
-      padding: "10px 12px",
-      background: c.surface,
-      borderRadius: 8,
-      marginBottom: 12
-    },
-    detailVoiceLabel: {
-      fontSize: 12,
-      color: c.textMuted,
-      fontWeight: 500
-    },
-    detailVoiceSelect: {
-      flex: 1,
-      background: "rgba(255,255,255,0.06)",
-      border: `1px solid ${c.border}`,
-      borderRadius: 6,
-      padding: "5px 8px",
-      color: c.text,
-      fontSize: 12,
-      fontFamily: c.sans,
-      outline: "none"
-    },
-    detailReprocessBtn: {
-      padding: "5px 14px",
-      borderRadius: 6,
-      border: "none",
-      background: c.accent,
-      color: "#141416",
-      fontSize: 12,
-      fontWeight: 600,
-      fontFamily: c.sans,
-      cursor: "pointer",
-      whiteSpace: "nowrap"
-    },
-    detailTextWrap: {
-      maxHeight: 400,
-      overflowY: "auto",
-      borderRadius: 8,
-      background: c.surface,
-      padding: "16px 20px"
-    },
-    detailLoading: {
-      color: c.textMuted,
-      fontSize: 13,
-      textAlign: "center",
-      padding: 20
-    },
-    detailText: {
-      fontFamily: c.serif,
-      fontSize: 15,
-      lineHeight: 1.7,
-      color: c.text
-    },
-    detailParagraph: {
-      marginBottom: 14,
-      flex: 1
-    },
-    editableText: {
-      borderBottom: "1px dashed transparent",
-      transition: "border-color 0.15s"
-    },
-    editableInput: {
-      background: "rgba(255,255,255,0.06)",
-      border: `1px solid ${c.accent}`,
-      borderRadius: 4,
-      padding: "2px 6px",
-      color: c.text,
-      fontSize: "inherit",
-      fontFamily: "inherit",
-      fontWeight: "inherit",
-      outline: "none"
-    },
-    paragraphRow: {
-      display: "flex",
-      alignItems: "flex-start",
-      gap: 8,
-      position: "relative"
-    },
-    removeParagraphBtn: {
-      background: "none",
-      border: "none",
-      color: "rgba(217, 83, 79, 0)",
-      fontSize: 18,
-      fontWeight: 700,
-      cursor: "pointer",
-      padding: "0 4px",
-      lineHeight: "1.7",
-      flexShrink: 0,
-      transition: "color 0.15s"
-    },
-    removedParagraph: {
-      display: "flex",
-      alignItems: "center",
-      gap: 8,
-      padding: "4px 0",
-      marginBottom: 8
-    },
-    removedText: {
-      flex: 1,
-      fontSize: 13,
-      color: c.textMuted,
-      textDecoration: "line-through",
-      opacity: 0.5
-    },
-    undoBtn: {
-      background: "none",
-      border: `1px solid ${c.border}`,
-      borderRadius: 4,
-      color: c.accent,
-      fontSize: 11,
-      fontWeight: 600,
-      fontFamily: c.sans,
-      padding: "2px 8px",
-      cursor: "pointer",
-      whiteSpace: "nowrap"
-    },
-    detailSaveBar: {
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "space-between",
-      padding: "10px 12px",
-      marginTop: 10,
-      background: c.surface,
-      borderRadius: 8
-    },
-    detailSaveInfo: {
-      fontSize: 12,
-      color: c.textMuted
-    },
-    detailMessage: {
-      fontSize: 12,
-      color: c.accent,
-      padding: "8px 12px",
-      background: c.accentDim,
-      borderRadius: 8,
-      marginBottom: 10
-    },
-    failedGlyph: {
-      color: "#f0b8b6",
-      fontSize: 15,
-      fontWeight: 700,
-      lineHeight: 1
-    },
-    cardError: {
-      marginTop: 6,
-      color: "#f0b8b6",
-      fontSize: 12,
-      lineHeight: 1.4,
-      maxWidth: "70ch"
-    },
-    playerBar: {
-      position: "fixed",
-      bottom: 0,
-      left: 0,
-      right: 0,
-      background: "rgba(28, 28, 32, 0.95)",
-      backdropFilter: "blur(20px)",
-      borderTop: `1px solid ${c.border}`,
-      zIndex: 100
-    },
-    playerProgress: { height: 3, background: "rgba(255,255,255,0.06)", cursor: "pointer" },
-    playerProgressFill: { height: "100%", background: c.accent, transition: "width 0.1s linear" },
-    playerInner: {
-      maxWidth: 720,
-      margin: "0 auto",
-      display: "flex",
-      alignItems: "center",
-      gap: 14,
-      padding: "12px 24px 14px"
-    },
-    playerPlayBtn: {
-      width: 40,
-      height: 40,
-      borderRadius: "50%",
-      border: "none",
-      background: c.accent,
-      color: "#141416",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      cursor: "pointer",
-      flexShrink: 0
-    },
-    playerInfo: { flex: 1, minWidth: 0 },
-    playerTitle: {
-      fontFamily: c.serif,
-      fontSize: 14,
-      fontWeight: 600,
-      whiteSpace: "nowrap",
-      overflow: "hidden",
-      textOverflow: "ellipsis"
-    },
-    playerSource: { fontSize: 12, color: c.textMuted, marginTop: 2 },
-    playerTime: {
-      fontSize: 12,
-      fontFamily: "'DM Sans', monospace",
-      color: c.textMuted,
-      flexShrink: 0,
-      letterSpacing: "0.02em"
-    },
-    speedControl: {
-      display: "flex",
-      alignItems: "center",
-      gap: 8,
-      flexShrink: 0
-    },
-    speedLabel: {
-      fontSize: 12,
-      color: c.textMuted
-    },
-    speedSelect: {
-      borderRadius: 8,
-      border: `1px solid ${c.border}`,
-      background: "rgba(255,255,255,0.04)",
-      color: c.text,
-      fontSize: 12,
-      padding: "6px 8px",
-      fontFamily: c.sans
-    },
-    addPanel: {
-      position: "fixed",
-      inset: 0,
-      background: "rgba(0,0,0,0.7)",
-      backdropFilter: "blur(8px)",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      zIndex: 200,
-      padding: 24
-    },
-    addPanelInner: {
-      background: c.surface,
-      border: `1px solid ${c.border}`,
-      borderRadius: 16,
-      padding: 28,
-      width: "100%",
-      maxWidth: 520,
-      maxHeight: "90vh",
-      overflow: "auto"
-    },
-    confirmPanelInner: {
-      background: c.surface,
-      border: `1px solid ${c.border}`,
-      borderRadius: 16,
-      padding: 28,
-      width: "100%",
-      maxWidth: 460
-    },
-    addTitle: {
-      fontFamily: c.serif,
-      fontSize: 22,
-      fontWeight: 700,
-      letterSpacing: "-0.02em"
-    },
-    closeBtn: {
-      background: "none",
-      border: "none",
-      color: c.textMuted,
-      fontSize: 18,
-      cursor: "pointer",
-      padding: "4px 8px"
-    },
-    fieldLabel: {
-      display: "block",
-      fontSize: 12,
-      fontWeight: 600,
-      color: c.textMuted,
-      textTransform: "uppercase",
-      letterSpacing: "0.06em",
-      marginBottom: 8,
-      marginTop: 16
-    },
-    urlInput: {
-      width: "100%",
-      padding: "12px 14px",
-      borderRadius: 8,
-      border: `1px solid ${c.border}`,
-      background: "rgba(0,0,0,0.3)",
-      color: c.text,
-      fontSize: 14,
-      fontFamily: c.sans,
-      resize: "vertical",
-      outline: "none",
-      lineHeight: 1.5
-    },
-    voiceGrid: { display: "flex", flexWrap: "wrap", gap: 6 },
-    defaultVoiceRow: {
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "center",
-      gap: 14,
-      padding: "12px 14px",
-      borderRadius: 10,
-      border: `1px solid ${c.border}`,
-      background: "rgba(255,255,255,0.03)"
-    },
-    defaultVoiceName: {
-      fontFamily: c.serif,
-      fontSize: 16,
-      fontWeight: 600,
-      letterSpacing: "-0.01em"
-    },
-    defaultVoiceHelp: {
-      marginTop: 4,
-      fontSize: 12,
-      color: c.textMuted
-    },
-    voiceChip: {
-      padding: "6px 12px",
-      borderRadius: 6,
-      border: `1px solid ${c.border}`,
-      background: "rgba(0,0,0,0.2)",
-      color: c.textMuted,
-      fontSize: 12,
-      fontFamily: c.sans,
-      cursor: "pointer"
-    },
-    voiceChipActive: {
-      background: c.accentDim,
-      borderColor: c.accent,
-      color: c.accent
-    },
-    previewCard: {
-      marginTop: 18,
-      padding: "14px 16px",
-      borderRadius: 12,
-      border: `1px solid ${c.border}`,
-      background: "rgba(255,255,255,0.03)"
-    },
-    previewMetaRow: {
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "flex-start",
-      gap: 12
-    },
-    previewTitle: {
-      fontFamily: c.serif,
-      fontSize: 18,
-      fontWeight: 700,
-      lineHeight: 1.3
-    },
-    previewMeta: {
-      marginTop: 6,
-      fontSize: 12,
-      color: c.textMuted,
-      display: "flex",
-      flexWrap: "wrap",
-      alignItems: "center"
-    },
-    previewBody: {
-      marginTop: 14,
-      display: "flex",
-      flexDirection: "column",
-      gap: 10
-    },
-    previewParagraph: {
-      fontSize: 13,
-      color: "rgba(255,255,255,0.82)",
-      lineHeight: 1.55
-    },
-    errorText: {
-      marginTop: 14,
-      color: "#f0b8b6",
-      fontSize: 13,
-      lineHeight: 1.45
-    },
-    confirmBody: {
-      color: c.textMuted,
-      fontSize: 14,
-      lineHeight: 1.6
-    },
-    confirmActions: {
-      display: "flex",
-      justifyContent: "flex-end",
-      gap: 10,
-      marginTop: 22
-    },
-    secondaryBtn: {
-      padding: "10px 14px",
-      borderRadius: 8,
-      border: `1px solid ${c.border}`,
-      background: "rgba(255,255,255,0.04)",
-      color: c.text,
-      fontSize: 13,
-      fontWeight: 600,
-      fontFamily: c.sans,
-      cursor: "pointer"
-    },
-    secondaryBtnActive: {
-      padding: "10px 14px",
-      borderRadius: 8,
-      border: `1px solid ${c.accent}`,
-      background: c.accentDim,
-      color: c.accent,
-      fontSize: 13,
-      fontWeight: 600,
-      fontFamily: c.sans,
-      cursor: "pointer"
-    },
-    dangerBtn: {
-      padding: "10px 14px",
-      borderRadius: 8,
-      border: "none",
-      background: "#b14c46",
-      color: "#fff",
-      fontSize: 13,
-      fontWeight: 600,
-      fontFamily: c.sans,
-      cursor: "pointer",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: 8
-    },
-    submitBtn: {
-      width: "100%",
-      padding: "12px 0",
-      borderRadius: 8,
-      border: "none",
-      background: c.accent,
-      color: "#141416",
-      fontSize: 14,
-      fontWeight: 600,
-      fontFamily: c.sans,
-      cursor: "pointer",
-      marginTop: 24,
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: 8
-    },
-    submitActions: {
-      display: "flex",
-      gap: 10,
-      marginTop: 24
-    },
-    submitBtnCompact: {
-      flex: 1,
-      padding: "12px 0",
-      borderRadius: 8,
-      border: "none",
-      background: c.accent,
-      color: "#141416",
-      fontSize: 14,
-      fontWeight: 600,
-      fontFamily: c.sans,
-      cursor: "pointer",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: 8
-    },
-    extensionPanelInner: {
-      background: c.surface,
-      border: `1px solid ${c.border}`,
-      borderRadius: 16,
-      padding: 28,
-      width: "100%",
-      maxWidth: 520,
-      maxHeight: "90vh",
-      overflow: "auto"
-    },
-    extensionBrowserRow: {
-      display: "flex",
-      flexWrap: "wrap",
-      gap: 6,
-      marginBottom: 22
-    },
-    extensionStep: {
-      display: "flex",
-      gap: 14,
-      marginBottom: 20
-    },
-    extensionStepNumber: {
-      width: 28,
-      height: 28,
-      borderRadius: "50%",
-      background: c.accentDim,
-      color: c.accent,
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      fontSize: 13,
-      fontWeight: 700,
-      flexShrink: 0
-    },
-    extensionStepBody: {
-      flex: 1
-    },
-    extensionStepTitle: {
-      fontSize: 14,
-      fontWeight: 600,
-      marginBottom: 6
-    },
-    extensionStepDetail: {
-      fontSize: 13,
-      color: c.textMuted,
-      lineHeight: 1.5
-    },
-    extensionCode: {
-      display: "inline-block",
-      padding: "3px 8px",
-      borderRadius: 4,
-      background: "rgba(0,0,0,0.3)",
-      fontFamily: "'DM Sans', monospace",
-      fontSize: 13,
-      color: c.accent,
-      letterSpacing: "0.02em",
-      userSelect: "all"
-    },
-    extensionDownloadBtn: {
-      display: "inline-flex",
-      alignItems: "center",
-      gap: 8,
-      padding: "8px 16px",
-      borderRadius: 8,
-      border: "none",
-      background: c.accent,
-      color: "#141416",
-      fontSize: 13,
-      fontWeight: 600,
-      fontFamily: c.sans,
-      cursor: "pointer",
-      textDecoration: "none"
-    }
-  };
   (0, import_client.createRoot)(document.getElementById("root")).render(/* @__PURE__ */ (0, import_jsx_runtime.jsx)(ReadcastApp, {}));
 })();
 /*! Bundled license information:
