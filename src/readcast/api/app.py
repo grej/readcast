@@ -216,6 +216,30 @@ def create_app(base_dir: Optional[Path] = None) -> FastAPI:
             raise HTTPException(status_code=404, detail="Article not found")
         return Response(status_code=204)
 
+    @app.post("/api/articles/{article_id}/cancel")
+    async def cancel_article(request: Request, article_id: str) -> dict[str, object]:
+        service = _service(request)
+        worker = _worker(request)
+        try:
+            article = service.cancel_article(article_id)
+            worker.cancel(article_id)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="Article not found") from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return {"article": _serialize_article(service, article)}
+
+    @app.delete("/api/articles/{article_id}/audio")
+    async def remove_article_audio(request: Request, article_id: str) -> dict[str, object]:
+        service = _service(request)
+        worker = _worker(request)
+        try:
+            worker.cancel(article_id)
+            article = service.remove_audio(article_id)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="Article not found") from exc
+        return {"article": _serialize_article(service, article)}
+
     @app.post("/api/articles/{article_id}/reprocess")
     async def reprocess_article(
         request: Request,

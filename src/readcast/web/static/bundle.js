@@ -25150,6 +25150,22 @@ div[style]:hover > button[aria-label="Remove paragraph"]:hover { color: ${c.red}
         setReprocessing(false);
       }
     };
+    const handleCancel = async () => {
+      try {
+        await apiJson(`/api/articles/${article.id}/cancel`, "POST", {});
+        if (onRefresh) onRefresh();
+      } catch (err) {
+        setMessage("Cancel failed: " + err.message);
+      }
+    };
+    const handleRemoveAudio = async () => {
+      try {
+        await fetch(`/api/articles/${article.id}/audio`, { method: "DELETE" });
+        if (onRefresh) onRefresh();
+      } catch (err) {
+        setMessage("Remove audio failed: " + err.message);
+      }
+    };
     const isProcessingStatus = article.status === "queued" || article.status === "synthesizing";
     const isFailed = article.status === "failed";
     const hasAudio = !isProcessingStatus && !isFailed && article.audio_url;
@@ -25298,11 +25314,16 @@ div[style]:hover > button[aria-label="Remove paragraph"]:hover { color: ${c.red}
           " Listen"
         ] }) })
       ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: c.bg, borderRadius: 8, marginBottom: 24 }, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: c.bg, borderRadius: 8, marginBottom: 8 }, children: [
         /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 12, color: c.textMuted, fontWeight: 500 }, children: "Voice:" }),
         /* @__PURE__ */ (0, import_jsx_runtime.jsx)("select", { value: reprocessVoice, onChange: (e) => setReprocessVoice(e.target.value), style: { flex: 1, background: c.surface, border: `1px solid ${c.border}`, borderRadius: 6, padding: "5px 8px", color: c.text, fontSize: 12, fontFamily: font.sans, outline: "none" }, children: voices.map((v) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", { value: v.name, children: voiceLabel(v.name) }, v.name)) }),
         /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: handleReprocess, disabled: reprocessing || !canRenarrate || isProcessingStatus, style: { padding: "5px 14px", borderRadius: 6, border: "none", background: c.accent, color: c.bgDeep, fontSize: 12, fontWeight: 600, fontFamily: font.sans, cursor: "pointer", whiteSpace: "nowrap", opacity: reprocessing || !canRenarrate || isProcessingStatus ? 0.5 : 1 }, children: reprocessing || isProcessingStatus ? "Processing..." : !article.audio_url ? "Generate Audio" : "Renarrate" })
       ] }),
+      (isProcessingStatus || hasAudio) && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8, marginBottom: 24, paddingLeft: 12 }, children: [
+        isProcessingStatus && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: handleCancel, style: { padding: "4px 12px", borderRadius: 6, border: `1px solid ${c.amber}`, background: c.amberDim, color: c.amber, fontSize: 11, fontWeight: 600, fontFamily: font.sans, cursor: "pointer" }, children: "Cancel Processing" }),
+        hasAudio && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: handleRemoveAudio, style: { padding: "4px 12px", borderRadius: 6, border: `1px solid ${c.red}`, background: c.redDim, color: c.red, fontSize: 11, fontWeight: 600, fontFamily: font.sans, cursor: "pointer" }, children: "Remove Audio" })
+      ] }),
+      !isProcessingStatus && !hasAudio && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { marginBottom: 24 } }),
       (() => {
         if (articleTags.length === 0) return null;
         const related = articles.filter((d) => d.id !== article.id && (d.tags || []).some((t) => articleTags.includes(t))).slice(0, 3);

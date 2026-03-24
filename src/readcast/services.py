@@ -167,6 +167,46 @@ class ReadcastService:
         self.store.update_article(article)
         return article
 
+    def cancel_article(self, article_id: str) -> Article:
+        """Cancel a queued or in-progress synthesis. Sets status to 'added' so worker skips it."""
+        article = self._require_article(article_id)
+        if article.status not in ("queued", "synthesizing"):
+            raise ValueError(f"Cannot cancel article with status '{article.status}'")
+        article.status = "added"
+        article.error_message = None
+        self.store.update_article(article)
+        return article
+
+    def remove_audio(self, article_id: str) -> Article:
+        """Remove audio files for an article without deleting the article itself."""
+        article = self._require_article(article_id)
+        article_dir = self.store.get_article_dir(article_id)
+
+        # Remove audio files
+        for ext in ("mp3", "m4a", "wav"):
+            audio_file = article_dir / f"audio.{ext}"
+            if audio_file.exists():
+                audio_file.unlink()
+
+        # Remove segments dir if it exists
+        self._cleanup_segments(article_dir)
+
+        # Remove output symlinks pointing to this article
+        for path in self.store.output_dir.iterdir():
+            if path.is_symlink():
+                try:
+                    if path.resolve().parent == article_dir:
+                        path.unlink()
+                except OSError:
+                    pass
+
+        # Reset audio metadata
+        article.audio_duration_sec = None
+        article.status = "added"
+        article.error_message = None
+        self.store.update_article(article)
+        return article
+
     def reprocess_article(self, article_id: str, voice: Optional[str] = None, speed: Optional[float] = None) -> Article:
         article = self._require_article(article_id)
         if voice is not None:
@@ -403,6 +443,7 @@ class ProcessingWorker:
         self.service = service
         self._wake = threading.Event()
         self._stop = threading.Event()
+        self._cancelled: set[str] = set()
         self._thread: Optional[threading.Thread] = None
 
     def start(self) -> None:
@@ -420,6 +461,9 @@ class ProcessingWorker:
         if self._thread:
             self._thread.join(timeout=timeout)
 
+    def cancel(self, article_id: str) -> None:
+        self._cancelled.add(article_id)
+
     def kick(self) -> None:
         self._wake.set()
 
@@ -434,8 +478,12 @@ class ProcessingWorker:
                 queued = self.service.store.get_queued()
                 if not queued:
                     break
+                article = queued[0]
+                if article.id in self._cancelled:
+                    self._cancelled.discard(article.id)
+                    continue
                 try:
-                    self.service.process_articles(queued[:1])
+                    self.service.process_articles([article])
                 except ServerError:
                     break
 

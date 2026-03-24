@@ -409,6 +409,24 @@ def embeddings_backfill(ctx: click.Context) -> None:
             console.print(f"  [red]failed[/red] {article.id}: {exc}")
 
 
+@cli.command(name="migrate-v1")
+@click.pass_context
+def migrate_v1(ctx: click.Context) -> None:
+    """Migrate articles from old ~/.readcast/index.db to shared knowledge base."""
+    from readcast.cli.migrate import migrate
+
+    old_base = Path("~/.readcast").expanduser()
+    new_base = Path("~/.localknowledge").expanduser()
+
+    if not (old_base / "index.db").exists():
+        console.print("[yellow]No v1 database found at ~/.readcast/index.db[/yellow]")
+        return
+
+    console.print(f"Migrating from {old_base / 'index.db'} to {new_base / 'store.db'}...")
+    stats = migrate(old_base, new_base)
+    console.print(f"[green]Migration complete:[/green] {stats['articles']} articles, {stats['artifacts']} artifacts, {stats['skipped']} skipped")
+
+
 @cli.command()
 @click.pass_context
 def backfill(ctx: click.Context) -> None:

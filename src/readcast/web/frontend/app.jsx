@@ -643,6 +643,16 @@ function ReadingPane({ article, articles, voices, onReprocess, onRefresh, onAddF
     finally { setReprocessing(false); }
   };
 
+  const handleCancel = async () => {
+    try { await apiJson(`/api/articles/${article.id}/cancel`, "POST", {}); if (onRefresh) onRefresh(); }
+    catch (err) { setMessage("Cancel failed: " + err.message); }
+  };
+
+  const handleRemoveAudio = async () => {
+    try { await fetch(`/api/articles/${article.id}/audio`, { method: "DELETE" }); if (onRefresh) onRefresh(); }
+    catch (err) { setMessage("Remove audio failed: " + err.message); }
+  };
+
   const isProcessingStatus = article.status === "queued" || article.status === "synthesizing";
   const isFailed = article.status === "failed";
   const hasAudio = !isProcessingStatus && !isFailed && article.audio_url;
@@ -800,7 +810,7 @@ function ReadingPane({ article, articles, voices, onReprocess, onRefresh, onAddF
       </div>
 
       {/* 10. Voice + Renarrate */}
-      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: c.bg, borderRadius: 8, marginBottom: 24 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: c.bg, borderRadius: 8, marginBottom: 8 }}>
         <span style={{ fontSize: 12, color: c.textMuted, fontWeight: 500 }}>Voice:</span>
         <select value={reprocessVoice} onChange={(e) => setReprocessVoice(e.target.value)} style={{ flex: 1, background: c.surface, border: `1px solid ${c.border}`, borderRadius: 6, padding: "5px 8px", color: c.text, fontSize: 12, fontFamily: font.sans, outline: "none" }}>
           {voices.map((v) => <option key={v.name} value={v.name}>{voiceLabel(v.name)}</option>)}
@@ -809,6 +819,22 @@ function ReadingPane({ article, articles, voices, onReprocess, onRefresh, onAddF
           {reprocessing || isProcessingStatus ? "Processing..." : !article.audio_url ? "Generate Audio" : "Renarrate"}
         </button>
       </div>
+      {/* 10b. Cancel / Remove Audio */}
+      {(isProcessingStatus || hasAudio) && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 24, paddingLeft: 12 }}>
+          {isProcessingStatus && (
+            <button onClick={handleCancel} style={{ padding: "4px 12px", borderRadius: 6, border: `1px solid ${c.amber}`, background: c.amberDim, color: c.amber, fontSize: 11, fontWeight: 600, fontFamily: font.sans, cursor: "pointer" }}>
+              Cancel Processing
+            </button>
+          )}
+          {hasAudio && (
+            <button onClick={handleRemoveAudio} style={{ padding: "4px 12px", borderRadius: 6, border: `1px solid ${c.red}`, background: c.redDim, color: c.red, fontSize: 11, fontWeight: 600, fontFamily: font.sans, cursor: "pointer" }}>
+              Remove Audio
+            </button>
+          )}
+        </div>
+      )}
+      {!isProcessingStatus && !hasAudio && <div style={{ marginBottom: 24 }} />}
 
       {/* 11. Related by Tags */}
       {(() => {
