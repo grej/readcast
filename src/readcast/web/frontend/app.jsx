@@ -75,7 +75,7 @@ const c = {
   text: "#e4e5ea",
   textSecondary: "#a0a4b8",
   textMuted: "#6b7084",
-  textDim: "#464b5e",
+  textDim: "#6b7084",
   accent: "#6c8cff",
   accentDim: "rgba(108,140,255,0.10)",
   accentMed: "rgba(108,140,255,0.20)",
@@ -875,7 +875,7 @@ function DocumentListItem({ article, isSelected, selectionMode, isChecked, activ
       id={`doc-${article.id}`}
       onClick={() => selectionMode ? onToggleCheck(article.id) : onSelect(article.id)}
       style={{
-        padding: "12px 14px", borderBottom: `1px solid ${c.border}`,
+        padding: "12px 18px 12px 20px", borderBottom: `1px solid ${c.border}`,
         borderLeft: `2px solid ${isSelected ? c.accent : "transparent"}`,
         background: isSelected ? c.surfaceRaised : "transparent",
         cursor: "pointer", transition: "all 0.08s",
@@ -1395,7 +1395,7 @@ function ReadcastApp() {
         {/* Left pane */}
         <div style={{ width: 400, flexShrink: 0, borderRight: `1px solid ${c.border}`, display: "flex", flexDirection: "column", background: c.bg }}>
           {/* Search */}
-          <div style={{ padding: "10px 14px", borderBottom: `1px solid ${c.border}` }}>
+          <div style={{ padding: "10px 18px 10px 20px", borderBottom: `1px solid ${c.border}` }}>
             <div style={{ position: "relative" }}>
               <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: c.textDim, pointerEvents: "none" }}>
                 <SearchIcon size={14} />

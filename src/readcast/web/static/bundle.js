@@ -24560,7 +24560,7 @@
     text: "#e4e5ea",
     textSecondary: "#a0a4b8",
     textMuted: "#6b7084",
-    textDim: "#464b5e",
+    textDim: "#6b7084",
     accent: "#6c8cff",
     accentDim: "rgba(108,140,255,0.10)",
     accentMed: "rgba(108,140,255,0.20)",
@@ -25359,7 +25359,7 @@ div[style]:hover > button[aria-label="Remove paragraph"]:hover { color: ${c.red}
         id: `doc-${article.id}`,
         onClick: () => selectionMode ? onToggleCheck(article.id) : onSelect(article.id),
         style: {
-          padding: "12px 14px",
+          padding: "12px 18px 12px 20px",
           borderBottom: `1px solid ${c.border}`,
           borderLeft: `2px solid ${isSelected ? c.accent : "transparent"}`,
           background: isSelected ? c.surfaceRaised : "transparent",
@@ -25951,7 +25951,7 @@ div[style]:hover > button[aria-label="Remove paragraph"]:hover { color: ${c.red}
       ] }),
       /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", flex: 1, overflow: "hidden" }, children: [
         /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { width: 400, flexShrink: 0, borderRight: `1px solid ${c.border}`, display: "flex", flexDirection: "column", background: c.bg }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { padding: "10px 14px", borderBottom: `1px solid ${c.border}` }, children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { position: "relative" }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { padding: "10px 18px 10px 20px", borderBottom: `1px solid ${c.border}` }, children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { position: "relative" }, children: [
             /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: c.textDim, pointerEvents: "none" }, children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SearchIcon, { size: 14 }) }),
             /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
               "input",
