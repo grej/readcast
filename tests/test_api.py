@@ -294,6 +294,95 @@ def test_api_update_text_and_get_text(base_dir) -> None:
         assert "Updated" in text_resp.json()["text"]
 
 
+def test_api_lists_crud(base_dir) -> None:
+    app = create_app(base_dir)
+    with TestClient(app) as client:
+        # Create
+        resp = client.post("/api/lists", json={"name": "Study", "type": "collection", "icon": "🧠"})
+        assert resp.status_code == 201
+        lst = resp.json()["list"]
+        assert lst["name"] == "Study"
+        assert lst["type"] == "collection"
+        assert lst["color"] == "#a855f7"  # auto-assigned for collection
+
+        # List
+        resp = client.get("/api/lists")
+        assert resp.status_code == 200
+        assert len(resp.json()["lists"]) == 1
+
+        # Update
+        resp = client.put(f"/api/lists/{lst['id']}", json={"name": "Study Physics"})
+        assert resp.status_code == 200
+        assert resp.json()["list"]["name"] == "Study Physics"
+
+        # Delete
+        resp = client.delete(f"/api/lists/{lst['id']}")
+        assert resp.status_code == 204
+        assert len(client.get("/api/lists").json()["lists"]) == 0
+
+
+def test_api_list_items_crud(base_dir) -> None:
+    app = create_app(base_dir)
+    with TestClient(app) as client:
+        # Create list + article
+        lst = client.post("/api/lists", json={"name": "Reading", "type": "collection"}).json()["list"]
+        article = client.post("/api/articles", json={"input": "List item\n\nBody text.", "process": False}).json()["article"]
+
+        # Add item
+        resp = client.post(f"/api/lists/{lst['id']}/items", json={"doc_id": article["id"]})
+        assert resp.status_code == 201
+        assert resp.json()["item"]["doc_id"] == article["id"]
+
+        # List items
+        resp = client.get(f"/api/lists/{lst['id']}/items")
+        assert resp.status_code == 200
+        assert len(resp.json()["items"]) == 1
+        assert "article" in resp.json()["items"][0]
+
+        # Update item (mark done)
+        resp = client.put(f"/api/lists/{lst['id']}/items/{article['id']}", json={"done": True})
+        assert resp.status_code == 200
+        assert resp.json()["item"]["done"] == 1
+
+        # Remove item
+        resp = client.delete(f"/api/lists/{lst['id']}/items/{article['id']}")
+        assert resp.status_code == 204
+
+
+def test_api_list_item_duplicate_rejected(base_dir) -> None:
+    app = create_app(base_dir)
+    with TestClient(app) as client:
+        lst = client.post("/api/lists", json={"name": "Uniq", "type": "collection"}).json()["list"]
+        article = client.post("/api/articles", json={"input": "Dup test\n\nBody.", "process": False}).json()["article"]
+        client.post(f"/api/lists/{lst['id']}/items", json={"doc_id": article["id"]})
+
+        resp = client.post(f"/api/lists/{lst['id']}/items", json={"doc_id": article["id"]})
+        assert resp.status_code == 409
+
+
+def test_api_article_includes_renditions_and_memberships(base_dir) -> None:
+    app = create_app(base_dir)
+    with TestClient(app) as client:
+        article = client.post("/api/articles", json={"input": "Rend test\n\nBody.", "process": False}).json()["article"]
+
+        assert "renditions" in article
+        assert "list_memberships" in article
+        assert article["renditions"]["audio"] is None
+        assert article["list_memberships"] == []
+
+
+def test_api_renditions_endpoint(base_dir) -> None:
+    app = create_app(base_dir)
+    with TestClient(app) as client:
+        article = client.post("/api/articles", json={"input": "Rend doc\n\nBody.", "process": False}).json()["article"]
+
+        resp = client.get(f"/api/docs/{article['id']}/renditions")
+        assert resp.status_code == 200
+        rend = resp.json()["renditions"]
+        assert rend["audio"] is None
+        assert rend["summary"] is None
+
+
 def test_api_search_returns_matching_articles(base_dir) -> None:
     app = create_app(base_dir)
     with TestClient(app) as client:

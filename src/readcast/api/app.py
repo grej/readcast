@@ -85,6 +85,44 @@ class PluginRunRequest(BaseModel):
     process: bool = True
 
 
+class CreateListRequest(BaseModel):
+    name: str = Field(min_length=1)
+    type: str = Field(pattern="^(collection|todo|playlist)$")
+    icon: str = "📋"
+    color: Optional[str] = None
+    bg: Optional[str] = None
+
+
+class UpdateListRequest(BaseModel):
+    name: Optional[str] = None
+    icon: Optional[str] = None
+    color: Optional[str] = None
+    bg: Optional[str] = None
+
+
+class ReorderRequest(BaseModel):
+    ids: list[str] = Field(min_length=1)
+
+
+class AddListItemRequest(BaseModel):
+    doc_id: str = Field(min_length=1)
+    due: Optional[str] = None
+    use_summary: bool = False
+    ai_suggested_due: bool = False
+
+
+class UpdateListItemRequest(BaseModel):
+    done: Optional[bool] = None
+    due: Optional[str] = None
+    position: Optional[int] = None
+    use_summary: Optional[bool] = None
+    ai_suggested_due: Optional[bool] = None
+
+
+class GenerateAudioRequest(BaseModel):
+    voice: Optional[str] = None
+
+
 def create_app(base_dir: Optional[Path] = None) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -466,6 +504,197 @@ def create_app(base_dir: Optional[Path] = None) -> FastAPI:
         xml = _build_feed_xml(request, service)
         return Response(content=xml, media_type="application/rss+xml")
 
+    # -- Lists CRUD ------------------------------------------------------------
+
+    @app.get("/api/lists")
+    async def list_lists(request: Request) -> dict[str, object]:
+        service = _service(request)
+        return {"lists": service.store.list_lists()}
+
+    @app.post("/api/lists", status_code=201)
+    async def create_list(request: Request, payload: CreateListRequest) -> dict[str, object]:
+        service = _service(request)
+        _DEFAULT_COLORS = {
+            "collection": ("#a855f7", "rgba(168,85,247,0.12)"),
+            "todo": ("#ef9f27", "rgba(239,159,39,0.12)"),
+            "playlist": ("#6c8cff", "rgba(108,140,255,0.12)"),
+        }
+        color = payload.color or _DEFAULT_COLORS.get(payload.type, ("#6b7084",))[0]
+        bg = payload.bg or _DEFAULT_COLORS.get(payload.type, (None, "rgba(107,112,132,0.12)"))[1]
+        lst = service.store.create_list(payload.name, payload.type, icon=payload.icon, color=color, bg=bg)
+        return {"list": lst}
+
+    @app.put("/api/lists/{list_id}")
+    async def update_list(request: Request, list_id: str, payload: UpdateListRequest) -> dict[str, object]:
+        service = _service(request)
+        lst = service.store.update_list(list_id, **payload.model_dump(exclude_none=True))
+        if lst is None:
+            raise HTTPException(status_code=404, detail="List not found")
+        return {"list": lst}
+
+    @app.delete("/api/lists/{list_id}", status_code=204)
+    async def delete_list(request: Request, list_id: str) -> Response:
+        service = _service(request)
+        if not service.store.delete_list(list_id):
+            raise HTTPException(status_code=404, detail="List not found")
+        return Response(status_code=204)
+
+    @app.put("/api/lists/reorder", status_code=204)
+    async def reorder_lists(request: Request, payload: ReorderRequest) -> Response:
+        service = _service(request)
+        service.store.reorder_lists(payload.ids)
+        return Response(status_code=204)
+
+    # -- List items ------------------------------------------------------------
+
+    @app.get("/api/lists/{list_id}/items")
+    async def list_items(request: Request, list_id: str) -> dict[str, object]:
+        service = _service(request)
+        if service.store.get_list(list_id) is None:
+            raise HTTPException(status_code=404, detail="List not found")
+        return {"items": service.store.get_list_items(list_id)}
+
+    @app.post("/api/lists/{list_id}/items", status_code=201)
+    async def add_list_item(request: Request, list_id: str, payload: AddListItemRequest) -> dict[str, object]:
+        service = _service(request)
+        if service.store.get_list(list_id) is None:
+            raise HTTPException(status_code=404, detail="List not found")
+        if service.get_article(payload.doc_id) is None:
+            raise HTTPException(status_code=404, detail="Document not found")
+        try:
+            item = service.store.add_list_item(
+                list_id, payload.doc_id,
+                due=payload.due, use_summary=payload.use_summary,
+                ai_suggested_due=payload.ai_suggested_due,
+            )
+        except Exception as exc:
+            raise HTTPException(status_code=409, detail="Document already in list") from exc
+        return {"item": item}
+
+    @app.delete("/api/lists/{list_id}/items/{doc_id}", status_code=204)
+    async def remove_list_item(request: Request, list_id: str, doc_id: str) -> Response:
+        service = _service(request)
+        if not service.store.remove_list_item(list_id, doc_id):
+            raise HTTPException(status_code=404, detail="Item not found")
+        return Response(status_code=204)
+
+    @app.put("/api/lists/{list_id}/items/{doc_id}")
+    async def update_list_item(request: Request, list_id: str, doc_id: str, payload: UpdateListItemRequest) -> dict[str, object]:
+        service = _service(request)
+        item = service.store.update_list_item(list_id, doc_id, **payload.model_dump(exclude_none=True))
+        if item is None:
+            raise HTTPException(status_code=404, detail="Item not found")
+        return {"item": item}
+
+    @app.put("/api/lists/{list_id}/items/reorder", status_code=204)
+    async def reorder_list_items(request: Request, list_id: str, payload: ReorderRequest) -> Response:
+        service = _service(request)
+        service.store.reorder_list_items(list_id, payload.ids)
+        return Response(status_code=204)
+
+    # -- Renditions ------------------------------------------------------------
+
+    @app.get("/api/docs/{doc_id}/renditions")
+    async def get_renditions(request: Request, doc_id: str) -> dict[str, object]:
+        service = _service(request)
+        return {"renditions": service.store.get_renditions(doc_id)}
+
+    @app.post("/api/docs/{doc_id}/renditions/audio")
+    async def generate_audio(request: Request, doc_id: str, payload: GenerateAudioRequest) -> dict[str, object]:
+        service = _service(request)
+        worker = _worker(request)
+        voice = payload.voice or service.default_voice()
+        try:
+            article = service.reprocess_article(doc_id, voice=voice)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="Document not found") from exc
+        service.store.set_rendition(doc_id, "audio", {"state": "queued", "voice": voice, "duration": None, "generated_at": None})
+        worker.kick()
+        return {"rendition": {"state": "queued", "voice": voice}}
+
+    @app.delete("/api/docs/{doc_id}/renditions/audio", status_code=204)
+    async def remove_audio_rendition(request: Request, doc_id: str) -> Response:
+        service = _service(request)
+        try:
+            service.remove_audio(doc_id)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="Document not found") from exc
+        service.store.clear_rendition(doc_id, "audio")
+        return Response(status_code=204)
+
+    @app.post("/api/docs/{doc_id}/renditions/summary")
+    async def generate_summary(request: Request, doc_id: str) -> dict[str, object]:
+        service = _service(request)
+        config: Config = request.app.state.config
+        article = service.get_article(doc_id)
+        if article is None:
+            raise HTTPException(status_code=404, detail="Document not found")
+        text = service.store.get_full_text(doc_id) or ""
+        if not text.strip():
+            raise HTTPException(status_code=400, detail="Document has no text content")
+        try:
+            ensure_llm_running(config)
+            summary_text = llm_complete(
+                [{"role": "user", "content": f"Summarize the following article in 2-3 sentences:\n\n{text[:4000]}"}],
+                config, max_tokens=256, temperature=0.3,
+            )
+        except RuntimeError as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
+        now = datetime.now(UTC).isoformat()
+        service.store.set_rendition(doc_id, "summary", {"text": summary_text, "generated_at": now})
+        return {"rendition": {"text": summary_text, "generated_at": now}}
+
+    @app.delete("/api/docs/{doc_id}/renditions/summary", status_code=204)
+    async def remove_summary(request: Request, doc_id: str) -> Response:
+        service = _service(request)
+        service.store.clear_rendition(doc_id, "summary")
+        return Response(status_code=204)
+
+    @app.post("/api/docs/{doc_id}/renditions/audio_summary")
+    async def generate_audio_summary(request: Request, doc_id: str, payload: GenerateAudioRequest) -> dict[str, object]:
+        service = _service(request)
+        worker = _worker(request)
+        renditions = service.store.get_renditions(doc_id)
+        if not renditions.get("summary"):
+            raise HTTPException(status_code=400, detail="Generate a text summary first")
+        voice = payload.voice or service.default_voice()
+        service.store.set_rendition(doc_id, "audio_summary", {"state": "queued", "voice": voice, "duration": None, "generated_at": None})
+        # TODO: wire to ProcessingWorker for audio_summary jobs
+        worker.kick()
+        return {"rendition": {"state": "queued", "voice": voice}}
+
+    @app.delete("/api/docs/{doc_id}/renditions/audio_summary", status_code=204)
+    async def remove_audio_summary(request: Request, doc_id: str) -> Response:
+        service = _service(request)
+        service.store.clear_rendition(doc_id, "audio_summary")
+        return Response(status_code=204)
+
+    # -- Batch narration -------------------------------------------------------
+
+    @app.post("/api/lists/{list_id}/batch-narrate")
+    async def batch_narrate(request: Request, list_id: str) -> dict[str, object]:
+        service = _service(request)
+        worker = _worker(request)
+        lst = service.store.get_list(list_id)
+        if lst is None:
+            raise HTTPException(status_code=404, detail="List not found")
+        items = service.store.get_list_items(list_id)
+        queued = 0
+        for item in items:
+            renditions = service.store.get_renditions(item["doc_id"])
+            needs_audio = renditions.get("audio") is None or renditions["audio"].get("state") != "ready"
+            if needs_audio:
+                try:
+                    voice = service.default_voice()
+                    service.reprocess_article(item["doc_id"], voice=voice)
+                    service.store.set_rendition(item["doc_id"], "audio", {"state": "queued", "voice": voice, "duration": None, "generated_at": None})
+                    queued += 1
+                except (KeyError, ValueError):
+                    pass
+        if queued:
+            worker.kick()
+        return {"queued": queued}
+
     return app
 
 
@@ -483,6 +712,8 @@ def _serialize_article(service: ReadcastService, article: Article) -> dict[str, 
     path = service.audio_path_for_article(article.id)
     payload["audio_url"] = f"/api/articles/{article.id}/audio" if path else None
     payload["has_audio"] = path is not None
+    payload["renditions"] = service.store.get_renditions(article.id)
+    payload["list_memberships"] = service.store.get_doc_list_memberships(article.id)
     return payload
 
 
