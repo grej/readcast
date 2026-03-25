@@ -69,6 +69,34 @@ CREATE TABLE IF NOT EXISTS agent_log (
     created_at TEXT NOT NULL,
     reviewed_by_user INTEGER DEFAULT 0
 );
+
+CREATE TABLE IF NOT EXISTS lists (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    icon TEXT NOT NULL DEFAULT '📋',
+    color TEXT NOT NULL DEFAULT '#6b7084',
+    bg TEXT NOT NULL DEFAULT 'rgba(107,112,132,0.12)',
+    type TEXT NOT NULL CHECK(type IN ('collection','todo','playlist')),
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS list_items (
+    id TEXT PRIMARY KEY,
+    list_id TEXT NOT NULL REFERENCES lists(id) ON DELETE CASCADE,
+    doc_id TEXT NOT NULL,
+    position INTEGER NOT NULL DEFAULT 0,
+    due DATE,
+    done BOOLEAN NOT NULL DEFAULT 0,
+    ai_suggested_due BOOLEAN NOT NULL DEFAULT 0,
+    done_at TIMESTAMP,
+    use_summary BOOLEAN NOT NULL DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(list_id, doc_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_list_items_list ON list_items(list_id, position);
+CREATE INDEX IF NOT EXISTS idx_list_items_doc ON list_items(doc_id);
 """
 
 _STATUS_TO_INGEST = {
@@ -443,6 +471,207 @@ class Store:
                 (agent_name, action, target_id, payload, datetime.now(UTC).isoformat()),
             )
             conn.commit()
+
+    # -- Lists -----------------------------------------------------------------
+
+    def create_list(self, name: str, list_type: str, icon: str = "📋",
+                    color: str = "#6b7084", bg: str = "rgba(107,112,132,0.12)") -> dict:
+        import uuid
+        list_id = str(uuid.uuid4())[:8]
+        now = datetime.now(UTC).isoformat()
+        with closing(self._connect()) as conn:
+            max_order = conn.execute("SELECT COALESCE(MAX(sort_order), -1) FROM lists").fetchone()[0]
+            conn.execute(
+                "INSERT INTO lists (id, name, icon, color, bg, type, sort_order, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (list_id, name, icon, color, bg, list_type, max_order + 1, now),
+            )
+            conn.commit()
+        return self.get_list(list_id)
+
+    def get_list(self, list_id: str) -> Optional[dict]:
+        with closing(self._connect()) as conn:
+            row = conn.execute("SELECT * FROM lists WHERE id = ?", (list_id,)).fetchone()
+        if row is None:
+            return None
+        result = dict(row)
+        result["item_count"] = self._list_item_count(list_id)
+        return result
+
+    def list_lists(self) -> list[dict]:
+        with closing(self._connect()) as conn:
+            rows = conn.execute("SELECT * FROM lists ORDER BY sort_order").fetchall()
+        result = []
+        for row in rows:
+            d = dict(row)
+            d["item_count"] = self._list_item_count(d["id"])
+            result.append(d)
+        return result
+
+    def update_list(self, list_id: str, **fields) -> Optional[dict]:
+        allowed = {"name", "icon", "color", "bg", "type", "sort_order"}
+        updates = {k: v for k, v in fields.items() if k in allowed and v is not None}
+        if not updates:
+            return self.get_list(list_id)
+        set_clause = ", ".join(f"{k} = ?" for k in updates)
+        values = list(updates.values()) + [list_id]
+        with closing(self._connect()) as conn:
+            conn.execute(f"UPDATE lists SET {set_clause} WHERE id = ?", values)
+            conn.commit()
+        return self.get_list(list_id)
+
+    def delete_list(self, list_id: str) -> bool:
+        with closing(self._connect()) as conn:
+            cursor = conn.execute("DELETE FROM lists WHERE id = ?", (list_id,))
+            conn.commit()
+        return cursor.rowcount > 0
+
+    def reorder_lists(self, ids: list[str]) -> None:
+        with closing(self._connect()) as conn:
+            for i, list_id in enumerate(ids):
+                conn.execute("UPDATE lists SET sort_order = ? WHERE id = ?", (i, list_id))
+            conn.commit()
+
+    def _list_item_count(self, list_id: str) -> int:
+        with closing(self._connect()) as conn:
+            row = conn.execute("SELECT COUNT(*) FROM list_items WHERE list_id = ?", (list_id,)).fetchone()
+        return row[0] if row else 0
+
+    # -- List items ------------------------------------------------------------
+
+    def add_list_item(self, list_id: str, doc_id: str,
+                      due: Optional[str] = None, use_summary: bool = False,
+                      ai_suggested_due: bool = False) -> dict:
+        import uuid
+        item_id = str(uuid.uuid4())[:8]
+        now = datetime.now(UTC).isoformat()
+        with closing(self._connect()) as conn:
+            max_pos = conn.execute(
+                "SELECT COALESCE(MAX(position), -1) FROM list_items WHERE list_id = ?", (list_id,)
+            ).fetchone()[0]
+            conn.execute(
+                """INSERT INTO list_items (id, list_id, doc_id, position, due, ai_suggested_due, use_summary, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                (item_id, list_id, doc_id, max_pos + 1, due, int(ai_suggested_due), int(use_summary), now),
+            )
+            conn.commit()
+        return self.get_list_item(list_id, doc_id)
+
+    def remove_list_item(self, list_id: str, doc_id: str) -> bool:
+        with closing(self._connect()) as conn:
+            cursor = conn.execute(
+                "DELETE FROM list_items WHERE list_id = ? AND doc_id = ?", (list_id, doc_id)
+            )
+            conn.commit()
+        return cursor.rowcount > 0
+
+    def update_list_item(self, list_id: str, doc_id: str, **fields) -> Optional[dict]:
+        allowed = {"position", "due", "done", "ai_suggested_due", "done_at", "use_summary"}
+        updates = {k: v for k, v in fields.items() if k in allowed}
+        if not updates:
+            return self.get_list_item(list_id, doc_id)
+        # Auto-set done_at when marking done
+        if updates.get("done") and "done_at" not in updates:
+            updates["done_at"] = datetime.now(UTC).isoformat()
+        elif updates.get("done") == 0 or updates.get("done") is False:
+            updates["done_at"] = None
+        set_clause = ", ".join(f"{k} = ?" for k in updates)
+        values = list(updates.values()) + [list_id, doc_id]
+        with closing(self._connect()) as conn:
+            conn.execute(f"UPDATE list_items SET {set_clause} WHERE list_id = ? AND doc_id = ?", values)
+            conn.commit()
+        return self.get_list_item(list_id, doc_id)
+
+    def get_list_item(self, list_id: str, doc_id: str) -> Optional[dict]:
+        with closing(self._connect()) as conn:
+            row = conn.execute(
+                "SELECT * FROM list_items WHERE list_id = ? AND doc_id = ?", (list_id, doc_id)
+            ).fetchone()
+        return dict(row) if row else None
+
+    def get_list_items(self, list_id: str) -> list[dict]:
+        with closing(self._connect()) as conn:
+            rows = conn.execute(
+                """SELECT li.*, d.title, d.source_uri, d.created_at as doc_created_at
+                   FROM list_items li
+                   JOIN documents d ON d.id = li.doc_id
+                   WHERE li.list_id = ? AND d.deleted_at IS NULL
+                   ORDER BY li.position""",
+                (list_id,),
+            ).fetchall()
+        items = []
+        for row in rows:
+            item = dict(row)
+            doc = self._svc.docs.get(item["doc_id"])
+            if doc:
+                item["article"] = self._doc_to_article(doc).to_dict()
+            items.append(item)
+        return items
+
+    def reorder_list_items(self, list_id: str, doc_ids: list[str]) -> None:
+        with closing(self._connect()) as conn:
+            for i, doc_id in enumerate(doc_ids):
+                conn.execute(
+                    "UPDATE list_items SET position = ? WHERE list_id = ? AND doc_id = ?",
+                    (i, list_id, doc_id),
+                )
+            conn.commit()
+
+    def get_doc_list_memberships(self, doc_id: str) -> list[dict]:
+        with closing(self._connect()) as conn:
+            rows = conn.execute(
+                """SELECT l.id, l.name, l.icon, l.color, l.bg, l.type, li.done, li.due
+                   FROM list_items li JOIN lists l ON l.id = li.list_id
+                   WHERE li.doc_id = ?
+                   ORDER BY l.sort_order""",
+                (doc_id,),
+            ).fetchall()
+        return [dict(row) for row in rows]
+
+    # -- Renditions ------------------------------------------------------------
+
+    def get_renditions(self, doc_id: str) -> dict:
+        doc = self._svc.docs.get(doc_id)
+        if not doc:
+            return {"audio": None, "summary": None, "audio_summary": None}
+        meta = doc.metadata or {}
+        renditions = meta.get("renditions")
+        if renditions:
+            return renditions
+        # Backwards compat: build renditions from old flat fields
+        audio = None
+        status = meta.get("status", "queued")
+        if status == "done" and meta.get("audio_duration_sec"):
+            audio = {
+                "state": "ready",
+                "duration": meta.get("audio_duration_sec"),
+                "voice": meta.get("voice"),
+                "generated_at": meta.get("listened_at"),  # best approximation
+            }
+        elif status in ("queued", "synthesizing"):
+            audio = {
+                "state": "queued" if status == "queued" else "generating",
+                "voice": meta.get("voice"),
+                "duration": None,
+                "generated_at": None,
+            }
+        summary = None
+        if meta.get("description"):
+            summary = {"text": meta["description"], "generated_at": None}
+        return {"audio": audio, "summary": summary, "audio_summary": None}
+
+    def set_rendition(self, doc_id: str, rendition_type: str, data: Optional[dict]) -> None:
+        doc = self._svc.docs.get(doc_id, include_deleted=True)
+        if not doc:
+            return
+        meta = doc.metadata or {}
+        renditions = meta.get("renditions", {"audio": None, "summary": None, "audio_summary": None})
+        renditions[rendition_type] = data
+        meta["renditions"] = renditions
+        doc.metadata = meta
+        self._svc.docs.update(doc)
+
+    def clear_rendition(self, doc_id: str, rendition_type: str) -> None:
+        self.set_rendition(doc_id, rendition_type, None)
 
     # -- Helpers ---------------------------------------------------------------
 
