@@ -1108,7 +1108,7 @@
             var dispatcher = resolveDispatcher();
             return dispatcher.useLayoutEffect(create, deps);
           }
-          function useCallback(callback, deps) {
+          function useCallback2(callback, deps) {
             var dispatcher = resolveDispatcher();
             return dispatcher.useCallback(callback, deps);
           }
@@ -1875,7 +1875,7 @@
           exports.memo = memo;
           exports.startTransition = startTransition;
           exports.unstable_act = act;
-          exports.useCallback = useCallback;
+          exports.useCallback = useCallback2;
           exports.useContext = useContext;
           exports.useDebugValue = useDebugValue;
           exports.useDeferredValue = useDeferredValue;
@@ -24490,8 +24490,23 @@
   var import_react = __toESM(require_react(), 1);
   var import_client = __toESM(require_client(), 1);
   var import_jsx_runtime = __toESM(require_jsx_runtime(), 1);
-  var PLAYBACK_RATES = [1, 1.25, 1.5, 1.75, 2];
-  function formatDuration(seconds) {
+  var TYPE_BADGE = { collection: "\u25CE", todo: "\u2610", playlist: "\u266B" };
+  var DEFAULT_COLORS = {
+    collection: ["#a855f7", "rgba(168,85,247,0.12)"],
+    todo: ["#ef9f27", "rgba(239,159,39,0.12)"],
+    playlist: ["#6c8cff", "rgba(108,140,255,0.12)"]
+  };
+  var EMOJIS = ["\u{1F4DA}", "\u{1F9E0}", "\u2709", "\u{1F30D}", "\u26A1", "\u{1F3A7}", "\u{1F4DD}", "\u{1F52C}", "\u{1F4BC}", "\u{1F3AF}", "\u{1F3D7}", "\u{1F393}", "\u2694", "\u{1F6E1}", "\u{1F4CA}", "\u{1F9EA}"];
+  var TAG_CLS = {
+    "ai-tools": ["#6c8cff", "rgba(108,140,255,0.1)"],
+    "ai-research": ["#2dd4bf", "rgba(45,212,191,0.12)"],
+    "email": ["#4ade80", "rgba(74,222,128,0.12)"],
+    "geopolitics": ["#f87171", "rgba(248,113,113,0.12)"],
+    "mil-tech": ["#ef9f27", "rgba(239,159,39,0.12)"],
+    "reading": ["#a855f7", "rgba(168,85,247,0.12)"],
+    "defense": ["#f87171", "rgba(248,113,113,0.12)"]
+  };
+  function fmtDur(seconds) {
     if (!seconds && seconds !== 0) return "--:--";
     const whole = Math.max(0, Math.floor(seconds));
     const m = Math.floor(whole / 60);
@@ -24508,10 +24523,31 @@
   function sourceLabel(article) {
     return article.source || article.publication || article.source_url || article.source_file || "Pasted Text";
   }
+  function timeAgo(iso) {
+    if (!iso) return "";
+    try {
+      const d = new Date(iso);
+      const now = /* @__PURE__ */ new Date();
+      const diffMs = now - d;
+      const diffMin = Math.floor(diffMs / 6e4);
+      if (diffMin < 60) return `${diffMin}m`;
+      const diffH = Math.floor(diffMin / 60);
+      if (diffH < 24) return `${diffH}h`;
+      const diffD = Math.floor(diffH / 24);
+      return `${diffD}d`;
+    } catch {
+      return "";
+    }
+  }
   function isTypingTarget(target) {
     if (!(target instanceof HTMLElement)) return false;
     const tag = target.tagName;
     return target.isContentEditable || tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
+  }
+  function tagColor(tag) {
+    const entry = TAG_CLS[tag];
+    if (entry) return entry;
+    return ["#6c8cff", "rgba(108,140,255,0.1)"];
   }
   async function apiGet(path) {
     const response = await fetch(path);
@@ -24544,1510 +24580,876 @@
     if (response.status === 204) return null;
     return response.json();
   }
-  var font = {
-    sans: "'DM Sans', 'Avenir Next', system-ui, sans-serif",
-    mono: "'JetBrains Mono', 'SF Mono', monospace",
-    serif: "'Source Serif 4', Georgia, serif"
-  };
+  async function apiDelete(path) {
+    const response = await fetch(path, { method: "DELETE" });
+    if (!response.ok && response.status !== 204) {
+      let detail = `Request failed (${response.status})`;
+      try {
+        const data = await response.json();
+        detail = data.detail || detail;
+      } catch {
+      }
+      throw new Error(detail);
+    }
+    return null;
+  }
   var c = {
-    bg: "#0c0d12",
-    bgDeep: "#08090d",
-    surface: "#13151d",
-    surfaceRaised: "#1a1d27",
-    surfaceHover: "#1e2130",
+    bgRoot: "#08090d",
+    bgPanel: "#0c0d12",
+    bgSurface: "#13151d",
+    bgHover: "#181b26",
+    bgSelected: "#1a1d27",
     border: "#222538",
-    borderLight: "#2c3048",
+    borderLight: "#181a28",
     text: "#e4e5ea",
     textSecondary: "#a0a4b8",
     textMuted: "#6b7084",
-    textDim: "#6b7084",
+    textDim: "#4a4d60",
     accent: "#6c8cff",
-    accentDim: "rgba(108,140,255,0.10)",
-    accentMed: "rgba(108,140,255,0.20)",
+    accentBg: "rgba(108,140,255,0.1)",
     green: "#4ade80",
-    greenDim: "rgba(74,222,128,0.10)",
-    amber: "#f59e0b",
-    amberDim: "rgba(245,158,11,0.10)",
-    purple: "#a78bfa",
-    purpleDim: "rgba(167,139,250,0.10)",
+    greenBg: "rgba(74,222,128,0.12)",
     red: "#f87171",
-    redDim: "rgba(248,113,113,0.10)",
-    cyan: "#22d3ee",
-    cyanDim: "rgba(34,211,238,0.10)"
+    redBg: "rgba(248,113,113,0.12)",
+    amber: "#ef9f27",
+    amberBg: "rgba(239,159,39,0.12)",
+    purple: "#a855f7",
+    purpleBg: "rgba(168,85,247,0.12)",
+    teal: "#2dd4bf",
+    tealBg: "rgba(45,212,191,0.12)"
+  };
+  var font = {
+    sans: "'DM Sans', 'Avenir Next', system-ui, sans-serif",
+    serif: "'Source Serif 4', Georgia, serif",
+    mono: "'JetBrains Mono', 'SF Mono', monospace"
   };
   var globalStyles = `
-@keyframes spin { to { transform: rotate(360deg); } }
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
-@keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes flashAccent { 0% { background: rgba(108,140,255,0.18); } 100% { background: transparent; } }
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { background: ${c.bgDeep}; color: ${c.text}; }
+body { background: ${c.bgRoot}; color: ${c.text}; font-family: ${font.sans}; height: 100vh; display: flex; overflow: hidden; }
 ::selection { background: rgba(108, 140, 255, 0.3); }
 ::-webkit-scrollbar { width: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: ${c.border}; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: ${c.borderLight}; }
-textarea::placeholder, input::placeholder { color: ${c.textDim}; }
-span[title="Click to edit"]:hover { border-bottom-color: ${c.textMuted} !important; }
-div[style]:hover > button[aria-label="Remove paragraph"] { color: ${c.red}88 !important; }
-div[style]:hover > button[aria-label="Remove paragraph"]:hover { color: ${c.red} !important; }
+input::placeholder { color: ${c.textMuted}; }
+button { font-family: inherit; }
 `;
-  var modalOverlay = {
-    position: "fixed",
-    inset: 0,
-    background: "rgba(0,0,0,0.7)",
-    backdropFilter: "blur(8px)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    zIndex: 200,
-    padding: 24
-  };
-  var modalInner = {
-    background: c.surfaceRaised,
-    border: `1px solid ${c.borderLight}`,
-    borderRadius: 16,
-    padding: 28,
-    width: "100%",
-    maxWidth: 520,
-    maxHeight: "90vh",
-    overflow: "auto"
-  };
-  var modalTitle = { fontFamily: font.serif, fontSize: 22, fontWeight: 700, letterSpacing: "-0.02em", color: c.text };
-  var closeBtn = { background: "none", border: "none", color: c.textMuted, fontSize: 18, cursor: "pointer", padding: "4px 8px" };
-  var fieldLabel = { display: "block", fontSize: 12, fontWeight: 600, color: c.textMuted, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8, marginTop: 16 };
-  var secondaryBtn = { padding: "10px 14px", borderRadius: 8, border: `1px solid ${c.border}`, background: c.bg, color: c.text, fontSize: 13, fontWeight: 600, fontFamily: font.sans, cursor: "pointer" };
-  var secondaryBtnActive = { ...secondaryBtn, border: `1px solid ${c.accent}`, background: c.accentDim, color: c.accent };
-  var dangerBtn = { padding: "10px 14px", borderRadius: 8, border: "none", background: "#b14c46", color: "#fff", fontSize: 13, fontWeight: 600, fontFamily: font.sans, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 };
-  var voiceChipBase = { padding: "6px 12px", borderRadius: 6, border: `1px solid ${c.border}`, background: c.bg, color: c.textMuted, fontSize: 12, fontFamily: font.sans, cursor: "pointer" };
-  var voiceChipActive = { ...voiceChipBase, background: c.accentDim, borderColor: c.accent, color: c.accent };
-  function timeAgo(dateStr) {
-    if (!dateStr) return "";
-    const d = new Date(dateStr);
-    const hours = Math.floor((Date.now() - d.getTime()) / 36e5);
-    if (hours < 1) return "just now";
-    if (hours < 24) return `${hours}h ago`;
-    const days = Math.floor(hours / 24);
-    if (days === 1) return "yesterday";
-    if (days < 30) return `${days}d ago`;
-    return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-  }
-  function withinRange(dateStr, range) {
-    if (range === "all") return true;
-    if (!dateStr) return false;
-    const days = (Date.now() - new Date(dateStr).getTime()) / 864e5;
-    if (range === "7d") return days <= 7;
-    if (range === "30d") return days <= 30;
-    return true;
-  }
-  function buildTagIndex(articles) {
-    const index = {};
-    articles.forEach((a) => {
-      (a.tags || []).forEach((t) => {
-        if (!index[t]) index[t] = { tag: t, count: 0, isProject: t.startsWith("project:") };
-        index[t].count++;
-      });
-    });
-    return Object.values(index).sort((a, b) => {
-      if (a.isProject !== b.isProject) return a.isProject ? -1 : 1;
-      return b.count - a.count;
-    });
-  }
-  function findSimilar(doc, allDocs) {
-    const docTags = doc.tags || [];
-    if (docTags.length === 0) return [];
-    return allDocs.filter((d) => d.id !== doc.id).map((d) => {
-      const tags = d.tags || [];
-      const tagOverlap = tags.filter((t) => docTags.includes(t)).length;
-      const projectMatch = tags.some((t) => t.startsWith("project:") && docTags.includes(t)) ? 0.15 : 0;
-      const score = Math.min(0.99, tagOverlap * 0.18 + projectMatch);
-      return { ...d, score };
-    }).filter((d) => d.score > 0.1).sort((a, b) => b.score - a.score).slice(0, 8);
-  }
-  function statusColor(status) {
-    if (status === "done" || status === "added") return c.green;
-    if (status === "queued" || status === "synthesizing") return c.amber;
-    if (status === "failed") return c.red;
-    return c.textDim;
-  }
-  function statusLabel(status) {
-    const map = { done: "done", added: "saved", queued: "queued", synthesizing: "processing", failed: "failed" };
-    return map[status] || status || "unknown";
-  }
-  function statusBg(status) {
-    if (status === "done" || status === "added") return c.greenDim;
-    if (status === "queued" || status === "synthesizing") return c.amberDim;
-    if (status === "failed") return c.redDim;
-    return c.bg;
-  }
-  function PlayIcon({ size = 18 }) {
-    return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("svg", { width: size, height: size, viewBox: "0 0 24 24", fill: "currentColor", children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("path", { d: "M8 5v14l11-7z" }) });
-  }
-  function PauseIcon({ size = 18 }) {
-    return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("svg", { width: size, height: size, viewBox: "0 0 24 24", fill: "currentColor", children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("path", { d: "M6 4h4v16H6zM14 4h4v16h-4z" }) });
-  }
-  function SearchIcon({ size = 16 }) {
-    return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("svg", { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2.5", strokeLinecap: "round", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("circle", { cx: "11", cy: "11", r: "7" }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("path", { d: "M21 21l-4.35-4.35" })
-    ] });
-  }
-  function PlusIcon({ size = 18 }) {
-    return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("svg", { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2.5", strokeLinecap: "round", children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("path", { d: "M12 5v14M5 12h14" }) });
-  }
-  function CheckIcon({ size = 16 }) {
-    return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("svg", { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2.5", strokeLinecap: "round", strokeLinejoin: "round", children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("path", { d: "M20 6 9 17l-5-5" }) });
-  }
-  function TrashIcon({ size = 16 }) {
-    return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("svg", { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2.2", strokeLinecap: "round", strokeLinejoin: "round", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("path", { d: "M3 6h18" }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("path", { d: "M8 6V4h8v2" }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("path", { d: "M19 6l-1 14H6L5 6" }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("path", { d: "M10 11v6M14 11v6" })
-    ] });
-  }
-  function SpinnerIcon() {
-    return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { width: 14, height: 14, border: "2px solid rgba(255,255,255,0.2)", borderTop: `2px solid ${c.text}`, borderRadius: "50%", animation: "spin 0.8s linear infinite" } });
-  }
-  function ExtensionIcon({ size = 16 }) {
-    return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("svg", { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("path", { d: "M10.5 3.5a2.5 2.5 0 015 0V5h-5zM3.5 13.5a2.5 2.5 0 010-5H5v5z" }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("rect", { x: "5", y: "5", width: "14", height: "14", rx: "2" })
-    ] });
-  }
-  function DownloadIcon({ size = 16 }) {
-    return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("svg", { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2.2", strokeLinecap: "round", strokeLinejoin: "round", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("path", { d: "M12 3v13M5 12l7 7 7-7" }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("path", { d: "M5 20h14" })
-    ] });
-  }
-  function FilterChip({ tag, onRemove }) {
-    const isProject = tag.startsWith("project:");
-    const display = isProject ? tag.replace("project:", "") : tag;
-    const chipColor = isProject ? c.purple : c.accent;
-    return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: { display: "inline-flex", alignItems: "center", gap: 4, padding: "3px 5px 3px 9px", borderRadius: 6, background: isProject ? c.purpleDim : c.accentDim, color: chipColor, border: `1px solid ${chipColor}33`, fontSize: 11, fontWeight: 500 }, children: [
-      isProject && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 9, opacity: 0.6 }, children: "\u2B21" }),
-      display,
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-        "span",
+  function NavSidebar({ lists, activeListId, onSelectList, totalCount, onCreateList }) {
+    const todoLists = lists.filter((l) => l.type === "todo");
+    const otherLists = lists.filter((l) => l.type !== "todo");
+    const navItem = (id, icon, label, typeBadge, count, listColor, listBg, isActive) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+      "div",
+      {
+        onClick: () => onSelectList(id),
+        style: {
+          padding: "7px 16px",
+          display: "flex",
+          alignItems: "center",
+          gap: 9,
+          cursor: "pointer",
+          fontSize: 12,
+          color: isActive ? listColor || c.text : c.textSecondary,
+          transition: "background 0.06s",
+          borderLeft: `2px solid ${isActive ? c.accent : "transparent"}`,
+          background: isActive ? c.bgSelected : "transparent",
+          fontWeight: isActive ? 600 : 400
+        },
+        onMouseEnter: (e) => {
+          if (!isActive) e.currentTarget.style.background = c.bgSurface;
+        },
+        onMouseLeave: (e) => {
+          if (!isActive) e.currentTarget.style.background = "transparent";
+        },
+        children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 14, width: 20, textAlign: "center", flexShrink: 0 }, children: icon }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, children: label }),
+          typeBadge && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 8, padding: "1px 4px", borderRadius: 3, background: listBg, color: listColor }, children: typeBadge }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 10, color: c.textDim, fontFamily: font.mono }, children: count })
+        ]
+      },
+      id
+    );
+    return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { width: 210, flexShrink: 0, borderRight: `1px solid ${c.border}`, display: "flex", flexDirection: "column", background: c.bgRoot, userSelect: "none" }, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { padding: "14px 16px 10px", display: "flex", alignItems: "center", gap: 8 }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { width: 8, height: 8, borderRadius: "50%", background: c.green } }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 14, fontWeight: 700 }, children: "Local Knowledge" }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 10, color: c.textMuted, marginLeft: "auto" }, children: totalCount })
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { padding: "6px 0" }, children: navItem(null, "\u2299", "All items", null, totalCount, null, null, activeListId === null) }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { height: 1, background: c.borderLight, margin: "2px 12px" } }),
+      todoLists.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { padding: "6px 0" }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { padding: "4px 16px", fontSize: 9, fontWeight: 600, color: c.textDim, textTransform: "uppercase", letterSpacing: 0.8 }, children: "Action items" }),
+          todoLists.map((l) => navItem(l.id, l.icon, l.name, TYPE_BADGE[l.type], l.item_count, l.color, l.bg, activeListId === l.id))
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { height: 1, background: c.borderLight, margin: "2px 12px" } })
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { padding: "6px 0", flex: 1, overflow: "auto" }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { padding: "4px 16px", fontSize: 9, fontWeight: 600, color: c.textDim, textTransform: "uppercase", letterSpacing: 0.8 }, children: "Lists" }),
+        otherLists.map((l) => navItem(l.id, l.icon, l.name, TYPE_BADGE[l.type], l.item_count, l.color, l.bg, activeListId === l.id))
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+        "div",
         {
-          onClick: (e) => {
-            e.stopPropagation();
-            onRemove();
-          },
-          style: { width: 16, height: 16, borderRadius: 4, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: 10, color: chipColor },
-          onMouseEnter: (e) => e.target.style.background = `${chipColor}22`,
-          onMouseLeave: (e) => e.target.style.background = "transparent",
-          children: "\xD7"
+          onClick: onCreateList,
+          style: { padding: "7px 16px", display: "flex", alignItems: "center", gap: 9, cursor: "pointer", fontSize: 11, color: c.textDim, transition: "0.1s" },
+          onMouseEnter: (e) => e.currentTarget.style.color = c.accent,
+          onMouseLeave: (e) => e.currentTarget.style.color = c.textDim,
+          children: [
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 14, width: 20, textAlign: "center" }, children: "+" }),
+            "New list"
+          ]
+        }
+      ),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { marginTop: "auto", padding: "10px 16px", borderTop: `1px solid ${c.borderLight}`, fontSize: 10, color: c.textDim, lineHeight: 1.8 }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("kbd", { style: kbdStyle, children: "\u2191\u2193" }),
+        " navigate ",
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("kbd", { style: kbdStyle, children: "\u23CE" }),
+        " open",
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("br", {}),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("kbd", { style: kbdStyle, children: "n" }),
+        " narrate ",
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("kbd", { style: kbdStyle, children: "s" }),
+        " summary ",
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("kbd", { style: kbdStyle, children: "e" }),
+        " done"
+      ] })
+    ] });
+  }
+  var kbdStyle = { fontFamily: font.mono, fontSize: 9, padding: "1px 4px", borderRadius: 3, background: c.bgSurface, border: `1px solid ${c.border}`, color: c.textMuted };
+  function CreateListModal({ onClose, onCreate }) {
+    const [name, setName] = (0, import_react.useState)("");
+    const [type, setType] = (0, import_react.useState)("collection");
+    const [icon, setIcon] = (0, import_react.useState)("\u{1F4DA}");
+    const nameRef = (0, import_react.useRef)(null);
+    (0, import_react.useEffect)(() => {
+      nameRef.current?.focus();
+    }, []);
+    const handleCreate = () => {
+      if (!name.trim()) return;
+      const [color, bg] = DEFAULT_COLORS[type] || DEFAULT_COLORS.collection;
+      onCreate({ name: name.trim(), type, icon, color, bg });
+      onClose();
+    };
+    const inputStyle = { width: "100%", padding: "8px 10px", borderRadius: 6, border: `1px solid ${c.border}`, background: c.bgPanel, color: c.text, fontSize: 13, fontFamily: "inherit", outline: "none", marginBottom: 8 };
+    const selectStyle = { ...inputStyle, fontSize: 12, padding: "7px 10px" };
+    return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 500, display: "flex", alignItems: "flex-start", justifyContent: "center", paddingTop: 100 }, onClick: onClose, children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { onClick: (e) => e.stopPropagation(), style: { background: c.bgSurface, border: `1px solid ${c.border}`, borderRadius: 12, width: 360, overflow: "hidden", animation: "fadeIn 0.15s ease" }, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { padding: "14px 18px", borderBottom: `1px solid ${c.border}`, fontSize: 14, fontWeight: 600, display: "flex", alignItems: "center", gap: 8 }, children: "Create new list" }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { padding: "14px 18px" }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("label", { style: { fontSize: 12, color: c.textSecondary, display: "block", marginBottom: 4 }, children: "Name" }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", { ref: nameRef, type: "text", value: name, onChange: (e) => setName(e.target.value), placeholder: "e.g. Study Psychology", style: inputStyle, onFocus: (e) => e.target.style.borderColor = c.accent, onBlur: (e) => e.target.style.borderColor = c.border, onKeyDown: (e) => {
+          if (e.key === "Enter") handleCreate();
+        } }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("label", { style: { fontSize: 12, color: c.textSecondary, display: "block", marginBottom: 4 }, children: "Type" }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("select", { value: type, onChange: (e) => setType(e.target.value), style: selectStyle, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", { value: "collection", children: "Collection \u2014 curated topic group" }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", { value: "todo", children: "Todo \u2014 action items with due dates" }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", { value: "playlist", children: "Playlist \u2014 audio narration queue" })
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("label", { style: { fontSize: 12, color: c.textSecondary, display: "block", marginBottom: 4 }, children: "Icon" }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 8 }, children: EMOJIS.map((e) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: () => setIcon(e), style: { width: 30, height: 30, borderRadius: 6, border: `1px solid ${icon === e ? c.accent : c.border}`, background: icon === e ? c.accentBg : c.bgPanel, fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "0.1s", fontFamily: "inherit" }, children: e }, e)) })
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { padding: "10px 18px", borderTop: `1px solid ${c.border}`, display: "flex", justifyContent: "flex-end", gap: 6 }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: onClose, style: btnStyle, children: "Cancel" }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: handleCreate, style: { ...btnStyle, background: c.accent, color: c.bgRoot, borderColor: c.accent }, children: "Create" })
+      ] })
+    ] }) });
+  }
+  var btnStyle = { padding: "5px 12px", borderRadius: 6, border: `1px solid ${c.border}`, background: "rgba(255,255,255,0.03)", color: c.textMuted, fontSize: 11, fontWeight: 600, fontFamily: "inherit", cursor: "pointer", display: "flex", alignItems: "center", gap: 5, transition: "0.1s", whiteSpace: "nowrap" };
+  function DocRow({ article, isFocused, showListBadges, onSelect }) {
+    const rend = article.renditions || {};
+    const audio = rend.audio;
+    const memberships = article.list_memberships || [];
+    const tags = article.tags || [];
+    return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+      "div",
+      {
+        onClick: () => onSelect(article.id),
+        style: {
+          padding: isFocused ? "9px 12px 9px 10px" : "9px 12px",
+          borderBottom: `1px solid ${c.borderLight}`,
+          cursor: "pointer",
+          display: "flex",
+          gap: 8,
+          alignItems: "flex-start",
+          transition: "background 0.06s",
+          background: isFocused ? c.bgSelected : "transparent",
+          borderLeft: isFocused ? `2px solid ${c.accent}` : "2px solid transparent"
+        },
+        onMouseEnter: (e) => {
+          if (!isFocused) e.currentTarget.style.background = c.bgHover;
+        },
+        onMouseLeave: (e) => {
+          if (!isFocused) e.currentTarget.style.background = isFocused ? c.bgSelected : "transparent";
+        },
+        children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { flexShrink: 0, marginTop: 4, display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }, children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(AudioIndicator, { audio }) }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { flex: 1, minWidth: 0 }, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 12, fontWeight: 500, lineHeight: 1.4, marginBottom: 2 }, children: article.title }),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { fontSize: 10, color: c.textMuted, display: "flex", gap: 4, alignItems: "center", flexWrap: "wrap" }, children: [
+              tags.slice(0, 3).map((t) => {
+                const [tc, tbg] = tagColor(t);
+                return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 8, padding: "1px 5px", borderRadius: 6, background: tbg, color: tc }, children: t }, t);
+              }),
+              /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { children: [
+                sourceLabel(article),
+                " \xB7 ",
+                timeAgo(article.ingested_at)
+              ] })
+            ] }),
+            showListBadges && memberships.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { display: "flex", gap: 3, flexWrap: "wrap", marginTop: 3 }, children: memberships.map((m) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: { fontSize: 7, padding: "1px 5px", borderRadius: 4, fontWeight: 600, letterSpacing: 0.3, textTransform: "uppercase", background: m.bg, color: m.color }, children: [
+              m.icon,
+              " ",
+              m.name
+            ] }, m.id)) })
+          ] })
+        ]
+      }
+    );
+  }
+  function AudioIndicator({ audio }) {
+    if (!audio) return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { width: 14, height: 14, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, color: c.textDim, borderRadius: 3 }, children: "\u266A" });
+    if (audio.state === "generating" || audio.state === "queued") return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { width: 14, height: 14, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, color: c.amber, borderRadius: 3, animation: "pulse 1.2s infinite" }, children: "\u25CC" });
+    return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { width: 14, height: 14, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, color: c.accent, background: c.accentBg, borderRadius: 3 }, children: "\u266B" });
+  }
+  function TodoRow({ item, article, isFocused, onSelect, onToggleDone }) {
+    if (!article) return null;
+    const rend = article.renditions || {};
+    const audioReady = rend.audio && rend.audio.state === "ready";
+    const today = /* @__PURE__ */ new Date();
+    today.setHours(0, 0, 0, 0);
+    let dueClass = "none", dueText = "no date";
+    if (item.due) {
+      const dd = new Date(item.due);
+      const diff = Math.ceil((dd - today) / (1e3 * 60 * 60 * 24));
+      if (item.done) {
+        dueClass = "ok";
+        dueText = item.due.slice(5);
+      } else if (diff < 0) {
+        dueClass = "overdue";
+        dueText = `overdue ${Math.abs(diff)}d`;
+      } else if (diff <= 3) {
+        dueClass = "soon";
+        dueText = `due in ${diff}d`;
+      } else {
+        dueClass = "ok";
+        dueText = item.due.slice(5);
+      }
+    }
+    if (item.ai_suggested_due && !item.done && item.due) {
+      dueClass = "ai";
+      dueText += " \u2728";
+    }
+    const dueColors = {
+      overdue: { background: c.redBg, color: c.red },
+      soon: { background: c.amberBg, color: c.amber },
+      ok: { background: c.greenBg, color: c.green },
+      ai: { border: `1px dashed ${c.amber}`, background: "transparent", color: c.amber, fontSize: 9 },
+      none: { color: c.textDim, fontStyle: "italic", fontFamily: "inherit", fontSize: 10 }
+    };
+    return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+      "div",
+      {
+        onClick: () => onSelect(article.id),
+        style: {
+          padding: isFocused ? "8px 12px 8px 10px" : "8px 12px",
+          borderBottom: `1px solid ${c.borderLight}`,
+          cursor: "pointer",
+          display: "flex",
+          gap: 9,
+          alignItems: "center",
+          transition: "background 0.06s",
+          background: isFocused ? c.bgSelected : "transparent",
+          borderLeft: isFocused ? `2px solid ${c.accent}` : "2px solid transparent"
+        },
+        onMouseEnter: (e) => {
+          if (!isFocused) e.currentTarget.style.background = c.bgHover;
+        },
+        onMouseLeave: (e) => {
+          if (!isFocused) e.currentTarget.style.background = isFocused ? c.bgSelected : "transparent";
+        },
+        children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+            "button",
+            {
+              onClick: (e) => {
+                e.stopPropagation();
+                onToggleDone(item);
+              },
+              style: {
+                width: 18,
+                height: 18,
+                borderRadius: "50%",
+                border: `1.5px solid ${item.done ? c.green : "#444"}`,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 10,
+                cursor: "pointer",
+                transition: "0.12s",
+                flexShrink: 0,
+                background: item.done ? c.greenBg : "none",
+                color: item.done ? c.green : "transparent",
+                fontFamily: "inherit"
+              },
+              children: item.done ? "\u2713" : ""
+            }
+          ),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 12, flex: 1, lineHeight: 1.3, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textDecoration: item.done ? "line-through" : "none", opacity: item.done ? 0.35 : 1 }, children: article.title }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 10, color: audioReady ? c.accent : c.textDim, flexShrink: 0 }, children: "\u266B" }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 10, padding: "2px 7px", borderRadius: 5, fontFamily: font.mono, flexShrink: 0, fontWeight: 500, ...dueColors[dueClass] }, children: dueText })
+        ]
+      }
+    );
+  }
+  function PlaylistRow({ item, article, position, isPlaying, isFocused, onSelect }) {
+    if (!article) return null;
+    const rend = article.renditions || {};
+    const rendition = item.use_summary ? rend.audio_summary : rend.audio;
+    const aState = rendition ? rendition.state === "ready" ? "ready" : "queued" : "missing";
+    const dur = rendition && rendition.duration ? fmtDur(rendition.duration) : "--:--";
+    const stateStyles = {
+      ready: { background: c.accentBg, color: c.accent },
+      missing: { background: c.redBg, color: c.red, fontSize: 9 },
+      queued: { background: c.amberBg, color: c.amber }
+    };
+    return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+      "div",
+      {
+        onClick: () => onSelect(article.id),
+        style: {
+          padding: isFocused ? "8px 12px 8px 10px" : "8px 12px",
+          borderBottom: `1px solid ${c.borderLight}`,
+          cursor: "pointer",
+          display: "flex",
+          gap: 8,
+          alignItems: "center",
+          transition: "background 0.06s",
+          background: isPlaying ? "rgba(108,140,255,0.06)" : isFocused ? c.bgSelected : "transparent",
+          borderLeft: isFocused ? `2px solid ${c.accent}` : "2px solid transparent"
+        },
+        onMouseEnter: (e) => {
+          if (!isFocused && !isPlaying) e.currentTarget.style.background = c.bgHover;
+        },
+        onMouseLeave: (e) => {
+          if (!isFocused && !isPlaying) e.currentTarget.style.background = isPlaying ? "rgba(108,140,255,0.06)" : "transparent";
+        },
+        children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { width: 20, fontSize: 11, color: isPlaying ? c.accent : c.textDim, textAlign: "center", fontFamily: font.mono, flexShrink: 0 }, children: isPlaying ? "\u25B6" : position + 1 }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { cursor: "grab", color: c.textDim, fontSize: 14, flexShrink: 0, padding: "0 2px" }, children: "\u283F" }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { width: 22, height: 22, borderRadius: 5, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, flexShrink: 0, ...stateStyles[aState] }, children: aState === "ready" ? "\u266B" : aState === "missing" ? "\u2715" : "\u25CC" }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 12, fontWeight: isPlaying ? 600 : 400 }, children: article.title }),
+          item.use_summary && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 8, padding: "1px 5px", borderRadius: 3, background: c.purpleBg, color: c.purple, flexShrink: 0, cursor: "pointer" }, children: "summary" }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 10, color: c.textDim, fontFamily: font.mono, flexShrink: 0 }, children: dur })
+        ]
+      }
+    );
+  }
+  function PlaylistPlayerBar({ article, isPlaying, currentTime, duration, onToggle, onSeek, onPrev, onNext, useSummary }) {
+    if (!article) return null;
+    return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", background: c.bgPanel, borderTop: `1px solid ${c.border}`, flexShrink: 0 }, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: onPrev, style: pbSkipStyle, children: "\u23EE" }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: onToggle, style: { width: 28, height: 28, borderRadius: "50%", border: "none", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, cursor: "pointer", transition: "0.1s", background: c.accent, color: c.bgRoot, fontFamily: "inherit" }, children: isPlaying ? "\u23F8" : "\u25B6" }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: onNext, style: pbSkipStyle, children: "\u23ED" }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { flex: 1, minWidth: 0 }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 11, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, children: article.title }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { fontSize: 9, color: c.textMuted }, children: [
+          useSummary ? "Summary \xB7 " : "",
+          sourceLabel(article)
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { onClick: onSeek, style: { width: "100%", height: 3, background: c.border, borderRadius: 2, marginTop: 4, cursor: "pointer" }, children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { height: "100%", background: c.accent, borderRadius: 2, width: duration > 0 ? `${currentTime / duration * 100}%` : "0%", transition: "width 0.3s" } }) })
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: { fontSize: 10, color: c.textDim, fontFamily: font.mono }, children: [
+        fmtDur(currentTime),
+        " / ",
+        fmtDur(duration)
+      ] })
+    ] });
+  }
+  var pbSkipStyle = { width: 28, height: 28, borderRadius: "50%", border: "none", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, cursor: "pointer", transition: "0.1s", background: "transparent", color: c.textMuted, fontFamily: "inherit" };
+  function CenterPanel({ activeList, articles, listItems, focusedId, onSelectDoc, onToggleDone, playingIndex, audioState, onBatchNarrate, onPlayerToggle, onPlayerSeek, onPlayerPrev, onPlayerNext, search, onSearchChange }) {
+    const isAll = !activeList;
+    const listType = isAll ? "all" : activeList.type;
+    const listColor = activeList?.color || c.textMuted;
+    const listBg = activeList?.bg || c.accentBg;
+    const missingNarration = listType === "playlist" ? listItems.filter((item) => {
+      const art = item.article ? typeof item.article === "object" ? item.article : null : null;
+      if (!art) return true;
+      const rend = art.renditions || {};
+      const r = item.use_summary ? rend.audio_summary : rend.audio;
+      return !r || r.state !== "ready";
+    }).length : 0;
+    const sortedItems = (0, import_react.useMemo)(() => {
+      if (listType !== "todo") return listItems;
+      const today = /* @__PURE__ */ new Date();
+      today.setHours(0, 0, 0, 0);
+      return [...listItems].sort((a, b) => {
+        if ((a.done ? 1 : 0) !== (b.done ? 1 : 0)) return a.done ? 1 : -1;
+        if (!a.done) {
+          const da = a.due ? new Date(a.due) : null, db = b.due ? new Date(b.due) : null;
+          if (da && !db) return -1;
+          if (!da && db) return 1;
+          if (da && db) return da - db;
+        }
+        return 0;
+      });
+    }, [listItems, listType]);
+    const displayItems = listType === "todo" ? sortedItems : listItems;
+    const totalDuration = listType === "playlist" ? listItems.reduce((sum, item) => {
+      const art = item.article;
+      if (!art) return sum;
+      const rend = art.renditions || {};
+      const r = item.use_summary ? rend.audio_summary : rend.audio;
+      return sum + (r && r.duration ? r.duration : 0);
+    }, 0) : 0;
+    const playingItem = listType === "playlist" && playingIndex != null && listItems[playingIndex] ? listItems[playingIndex] : null;
+    const playingArticle = playingItem?.article || null;
+    return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { width: 380, flexShrink: 0, borderRight: `1px solid ${c.border}`, display: "flex", flexDirection: "column", background: c.bgPanel }, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { padding: "10px 14px", borderBottom: `1px solid ${c.border}`, display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 16, color: isAll ? c.textMuted : listColor }, children: isAll ? "\u2299" : activeList.icon }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 14, fontWeight: 600, flex: 1 }, children: isAll ? "All Items" : activeList.name }),
+        isAll && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 9, padding: "2px 6px", borderRadius: 4, fontWeight: 500, background: c.accentBg, color: c.accent }, children: articles.length }),
+        !isAll && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 9, padding: "2px 6px", borderRadius: 4, fontWeight: 500, background: listBg, color: listColor }, children: activeList.type }),
+        listType === "playlist" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: { marginLeft: "auto", fontSize: 10, color: c.textDim, fontFamily: font.mono }, children: [
+          fmtDur(totalDuration),
+          " total"
+        ] }),
+        listType === "collection" && !isAll && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { style: { ...btnStyle, marginLeft: "auto", color: c.purple, borderColor: "rgba(168,85,247,0.3)", padding: "3px 8px", fontSize: 10 }, children: "\u26A1 Spock" })
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { padding: "8px 12px", borderBottom: `1px solid ${c.borderLight}`, flexShrink: 0, position: "relative" }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { position: "absolute", left: 22, top: "50%", transform: "translateY(-50%)", color: c.textMuted, fontSize: 12, pointerEvents: "none" }, children: "\u2315" }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+          "input",
+          {
+            value: search,
+            onChange: (e) => onSearchChange(e.target.value),
+            placeholder: isAll ? "Search..." : `Search ${activeList?.name || ""}...`,
+            style: { width: "100%", padding: "7px 10px 7px 28px", borderRadius: 7, border: `1px solid ${c.border}`, background: c.bgSurface, color: c.text, fontSize: 12, fontFamily: "inherit", outline: "none" },
+            onFocus: (e) => e.target.style.borderColor = c.accent,
+            onBlur: (e) => e.target.style.borderColor = c.border
+          }
+        )
+      ] }),
+      listType === "playlist" && missingNarration > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { padding: "8px 12px", display: "flex", alignItems: "center", gap: 8, fontSize: 11, borderBottom: `1px solid ${c.borderLight}`, flexShrink: 0, background: "rgba(239,159,39,0.06)", color: c.amber }, children: [
+        "\u26A0 ",
+        missingNarration,
+        " item",
+        missingNarration > 1 ? "s" : "",
+        " need narration",
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: onBatchNarrate, style: { ...btnStyle, marginLeft: "auto", color: c.amber, borderColor: "rgba(239,159,39,0.3)", padding: "3px 8px", fontSize: 10 }, children: "Generate all" })
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { flex: 1, overflowY: "auto" }, children: [
+        isAll && articles.map((a) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(DocRow, { article: a, isFocused: focusedId === a.id, showListBadges: true, onSelect: onSelectDoc }, a.id)),
+        listType === "collection" && displayItems.map((item) => {
+          const art = item.article;
+          if (!art) return null;
+          return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(DocRow, { article: art, isFocused: focusedId === art.id, showListBadges: false, onSelect: onSelectDoc }, art.id);
+        }),
+        listType === "todo" && displayItems.map((item) => {
+          const art = item.article;
+          return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TodoRow, { item, article: art, isFocused: focusedId === item.doc_id, onSelect: onSelectDoc, onToggleDone }, item.doc_id);
+        }),
+        listType === "playlist" && displayItems.map((item, idx) => {
+          const art = item.article;
+          return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PlaylistRow, { item, article: art, position: idx, isPlaying: playingIndex === idx, isFocused: focusedId === item.doc_id, onSelect: onSelectDoc }, item.doc_id);
+        }),
+        (isAll && articles.length === 0 || !isAll && displayItems.length === 0) && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { padding: 32, textAlign: "center", fontSize: 12, color: c.textDim }, children: "No items. Add docs from All Items." })
+      ] }),
+      listType === "playlist" && playingArticle && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+        PlaylistPlayerBar,
+        {
+          article: playingArticle,
+          isPlaying: audioState.isPlaying,
+          currentTime: audioState.currentTime,
+          duration: audioState.duration,
+          onToggle: onPlayerToggle,
+          onSeek: onPlayerSeek,
+          onPrev: onPlayerPrev,
+          onNext: onPlayerNext,
+          useSummary: playingItem?.use_summary
         }
       )
     ] });
   }
-  function StatusDot({ status }) {
-    return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { width: 6, height: 6, borderRadius: "50%", background: statusColor(status), display: "inline-block", flexShrink: 0 } });
-  }
-  function StatusBadge({ status }) {
-    const col = statusColor(status);
-    return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 10, fontWeight: 500, padding: "2px 7px", borderRadius: 4, color: col, background: statusBg(status), border: `1px solid ${col}22` }, children: statusLabel(status) });
-  }
-  function ScoreBadge({ score }) {
-    if (score === null || score === void 0) return null;
-    const pct = Math.round(score * 100);
-    const color = pct > 60 ? c.green : pct > 30 ? c.amber : c.textDim;
-    return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: { fontSize: 10, fontFamily: font.mono, fontWeight: 600, color, padding: "2px 6px", borderRadius: 4, background: `${color}15`, border: `1px solid ${color}22`, minWidth: 36, textAlign: "center", display: "inline-block" }, children: [
-      ".",
-      String(pct).padStart(2, "0")
-    ] });
-  }
-  function TagDropdown({ allTags, activeFilters, onAdd, onClose }) {
-    const [query, setQuery] = (0, import_react.useState)("");
-    const ref = (0, import_react.useRef)(null);
-    (0, import_react.useEffect)(() => {
-      ref.current?.focus();
-    }, []);
-    const available = allTags.filter(
-      (t) => !activeFilters.includes(t.tag) && (query === "" || t.tag.toLowerCase().includes(query.toLowerCase()))
-    );
-    const projectTags = available.filter((t) => t.isProject);
-    const topicTags = available.filter((t) => !t.isProject);
-    return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { position: "absolute", top: "100%", left: 0, width: 240, background: c.surfaceRaised, border: `1px solid ${c.borderLight}`, borderRadius: 10, marginTop: 4, zIndex: 50, boxShadow: "0 12px 40px rgba(0,0,0,0.5)", maxHeight: 300, overflow: "hidden", display: "flex", flexDirection: "column" }, children: [
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { padding: "8px 10px", borderBottom: `1px solid ${c.border}` }, children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-        "input",
-        {
-          ref,
-          type: "text",
-          value: query,
-          onChange: (e) => setQuery(e.target.value),
-          onKeyDown: (e) => {
-            if (e.key === "Escape") onClose();
-            if (e.key === "Enter" && available.length > 0) {
-              onAdd(available[0].tag);
-              setQuery("");
-            }
-          },
-          placeholder: "Search tags...",
-          style: { width: "100%", padding: "6px 8px", borderRadius: 6, border: `1px solid ${c.border}`, background: c.bg, color: c.text, fontSize: 12, fontFamily: font.sans, outline: "none", boxSizing: "border-box" }
-        }
-      ) }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { overflow: "auto", flex: 1 }, children: [
-        projectTags.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { padding: "8px 12px 4px", fontSize: 9, fontWeight: 700, color: c.textDim, textTransform: "uppercase", letterSpacing: "0.08em" }, children: "Projects" }),
-          projectTags.map((t) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TagItem, { tag: t, onAdd }, t.tag))
-        ] }),
-        topicTags.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { padding: "8px 12px 4px", fontSize: 9, fontWeight: 700, color: c.textDim, textTransform: "uppercase", letterSpacing: "0.08em" }, children: "Topics" }),
-          topicTags.map((t) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TagItem, { tag: t, onAdd }, t.tag))
-        ] }),
-        available.length === 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { padding: 16, fontSize: 12, color: c.textDim, textAlign: "center" }, children: query ? "No matches" : "All tags active" })
-      ] })
-    ] });
-  }
-  function TagItem({ tag, onAdd }) {
-    const [h, setH] = (0, import_react.useState)(false);
-    const display = tag.isProject ? tag.tag.replace("project:", "") : tag.tag;
-    return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
-      "div",
-      {
-        onClick: () => onAdd(tag.tag),
-        onMouseEnter: () => setH(true),
-        onMouseLeave: () => setH(false),
-        style: { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 12px", cursor: "pointer", background: h ? c.surfaceHover : "transparent", transition: "background 0.08s" },
-        children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 6 }, children: [
-            tag.isProject && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 10, color: c.purple, opacity: 0.5 }, children: "\u2B21" }),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 12, color: h ? c.text : c.textSecondary }, children: display })
-          ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 10, color: c.textDim, padding: "1px 6px", borderRadius: 3, background: c.bg }, children: tag.count })
-        ]
-      }
-    );
-  }
-  function DeleteConfirmPanel({ count, deleting, onConfirm, onClose }) {
-    return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: modalOverlay, children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { ...modalInner, maxWidth: 460 }, children: [
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("h2", { style: modalTitle, children: [
-          "Delete ",
-          count,
-          " ",
-          count === 1 ? "article" : "articles",
-          "?"
-        ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: onClose, style: closeBtn, children: "\u2715" })
-      ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", { style: { color: c.textMuted, fontSize: 14, lineHeight: 1.6 }, children: [
-        "This deletes the full record and any generated audio for the selected ",
-        count === 1 ? "article" : "articles",
-        ". This cannot be undone."
-      ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 22 }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: onClose, style: secondaryBtn, disabled: deleting, children: "Cancel" }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: onConfirm, style: { ...dangerBtn, opacity: deleting ? 0.6 : 1 }, disabled: deleting, children: deleting ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SpinnerIcon, {}) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TrashIcon, { size: 15 }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "Delete" })
-        ] }) })
-      ] })
-    ] }) });
-  }
-  var BROWSERS = {
-    chrome: { name: "Chrome", url: "chrome://extensions" },
-    brave: { name: "Brave", url: "brave://extensions" },
-    edge: { name: "Edge", url: "edge://extensions" },
-    opera: { name: "Opera", url: "opera://extensions" },
-    vivaldi: { name: "Vivaldi", url: "vivaldi://extensions" }
-  };
-  function detectBrowser() {
-    const ua = navigator.userAgent;
-    if (ua.includes("Edg/")) return "edge";
-    if (ua.includes("Brave")) return "brave";
-    if (ua.includes("OPR/") || ua.includes("Opera")) return "opera";
-    if (ua.includes("Vivaldi")) return "vivaldi";
-    if (ua.includes("Chrome/")) return "chrome";
-    return "chrome";
-  }
-  function ExtensionPanel({ onClose }) {
-    const [browser, setBrowser] = (0, import_react.useState)(detectBrowser);
-    const info = BROWSERS[browser] || BROWSERS.chrome;
-    (0, import_react.useEffect)(() => {
-      const onKey = (event) => {
-        if (event.key === "Escape") onClose();
-      };
-      window.addEventListener("keydown", onKey);
-      return () => window.removeEventListener("keydown", onKey);
-    }, [onClose]);
-    return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: modalOverlay, role: "presentation", children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: modalInner, role: "dialog", "aria-modal": "true", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", { style: modalTitle, children: "Browser Extension" }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: onClose, style: closeBtn, "aria-label": "Close", children: "\u2715" })
-      ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 22 }, children: Object.entries(BROWSERS).map(([key, b]) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: () => setBrowser(key), style: browser === key ? voiceChipActive : voiceChipBase, children: b.name }, key)) }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", gap: 14, marginBottom: 20 }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { width: 28, height: 28, borderRadius: "50%", background: c.accentDim, color: c.accent, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, flexShrink: 0 }, children: "1" }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { flex: 1 }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 14, fontWeight: 600, marginBottom: 6, color: c.text }, children: "Download the extension" }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { fontSize: 13, color: c.textMuted, lineHeight: 1.5 }, children: [
-            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("a", { href: "/api/extension.zip", download: true, style: { display: "inline-flex", alignItems: "center", gap: 8, padding: "8px 16px", borderRadius: 8, border: "none", background: c.accent, color: c.bgDeep, fontSize: 13, fontWeight: 600, fontFamily: font.sans, cursor: "pointer", textDecoration: "none" }, children: [
-              /* @__PURE__ */ (0, import_jsx_runtime.jsx)(DownloadIcon, { size: 15 }),
-              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "Download Extension" })
-            ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { marginTop: 8 }, children: "Unzip the file after downloading." })
-          ] })
-        ] })
-      ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", gap: 14, marginBottom: 20 }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { width: 28, height: 28, borderRadius: "50%", background: c.accentDim, color: c.accent, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, flexShrink: 0 }, children: "2" }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { flex: 1 }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 14, fontWeight: 600, marginBottom: 6, color: c.text }, children: "Open your extensions page" }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { fontSize: 13, color: c.textMuted, lineHeight: 1.5 }, children: [
-            "Copy and paste this into your address bar:",
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { marginTop: 6 }, children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("code", { style: { display: "inline-block", padding: "3px 8px", borderRadius: 4, background: c.bg, fontFamily: font.mono, fontSize: 13, color: c.accent, letterSpacing: "0.02em", userSelect: "all" }, children: info.url }) }),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { marginTop: 6, fontSize: 12, opacity: 0.6 }, children: "Browsers block direct links to this page for security." })
-          ] })
-        ] })
-      ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", gap: 14, marginBottom: 20 }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { width: 28, height: 28, borderRadius: "50%", background: c.accentDim, color: c.accent, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, flexShrink: 0 }, children: "3" }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { flex: 1 }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 14, fontWeight: 600, marginBottom: 6, color: c.text }, children: "Load the extension" }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { fontSize: 13, color: c.textMuted, lineHeight: 1.5 }, children: [
-            "Enable ",
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", { children: "Developer mode" }),
-            " (top-right toggle), click ",
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", { children: "Load unpacked" }),
-            ", and select the extracted ",
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("code", { style: { display: "inline-block", padding: "3px 8px", borderRadius: 4, background: c.bg, fontFamily: font.mono, fontSize: 13, color: c.accent }, children: "readcast-extension" }),
-            " folder."
-          ] })
-        ] })
-      ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { marginTop: 8, fontSize: 13, color: c.textMuted, lineHeight: 1.5 }, children: "The extension adds right-click menus to send any page or text selection to readcast." })
-    ] }) });
-  }
-  function AddPanel({ voices, defaultVoice, onAdd, onPreview, onClose, onSaveDefaultVoice, error }) {
-    const [inputValue, setInputValue] = (0, import_react.useState)("");
-    const [preview, setPreview] = (0, import_react.useState)(null);
-    const [previewing, setPreviewing] = (0, import_react.useState)(false);
-    const [submitting, setSubmitting] = (0, import_react.useState)(false);
-    const [savingDefault, setSavingDefault] = (0, import_react.useState)(false);
-    const [showVoicePicker, setShowVoicePicker] = (0, import_react.useState)(false);
-    const inputRef = (0, import_react.useRef)(null);
-    (0, import_react.useEffect)(() => {
-      inputRef.current?.focus();
-    }, []);
-    const handlePreview = async () => {
-      if (!inputValue.trim()) return;
-      setPreviewing(true);
-      try {
-        const result = await onPreview({ input: inputValue.trim() });
-        setPreview(result);
-      } finally {
-        setPreviewing(false);
-      }
-    };
-    const handleSubmit = async () => {
-      if (!inputValue.trim()) return;
-      setSubmitting(true);
-      try {
-        await onAdd({ input: inputValue.trim() });
-      } finally {
-        setSubmitting(false);
-      }
-    };
-    const handleDefaultVoiceChange = async (voiceName) => {
-      if (!voiceName || voiceName === defaultVoice) {
-        setShowVoicePicker(false);
-        return;
-      }
-      setSavingDefault(true);
-      try {
-        await onSaveDefaultVoice(voiceName);
-        setShowVoicePicker(false);
-      } finally {
-        setSavingDefault(false);
-      }
-    };
-    const handleKeyDown = (event) => {
-      if (event.key === "Escape") onClose();
-      if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
-        event.preventDefault();
-        handleSubmit();
-      }
-    };
-    return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: modalOverlay, role: "presentation", children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: modalInner, role: "dialog", "aria-modal": "true", "aria-labelledby": "add-article-title", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", { id: "add-article-title", style: modalTitle, children: "New Article" }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: onClose, style: closeBtn, "aria-label": "Close", children: "\u2715" })
-      ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("label", { style: fieldLabel, children: "URL or text" }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-        "textarea",
-        {
-          ref: inputRef,
-          value: inputValue,
-          onChange: (e) => {
-            setInputValue(e.target.value);
-            setPreview(null);
-          },
-          onKeyDown: handleKeyDown,
-          placeholder: "https://example.com/article or paste plain text...",
-          rows: 5,
-          style: { width: "100%", padding: "12px 14px", borderRadius: 8, border: `1px solid ${c.border}`, background: c.bg, color: c.text, fontSize: 14, fontFamily: font.sans, resize: "vertical", outline: "none", lineHeight: 1.5 },
-          "aria-label": "Article URL or pasted text"
-        }
-      ),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("label", { style: fieldLabel, children: "Default voice" }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: 14, padding: "12px 14px", borderRadius: 10, border: `1px solid ${c.border}`, background: c.surface }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontFamily: font.serif, fontSize: 16, fontWeight: 600, color: c.text }, children: voiceLabel(defaultVoice || "af_sky") }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { marginTop: 4, fontSize: 12, color: c.textMuted }, children: "New articles use this automatically." })
-        ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: () => setShowVoicePicker((v) => !v), style: showVoicePicker ? secondaryBtnActive : secondaryBtn, disabled: savingDefault, children: showVoicePicker ? "Hide voices" : "Change default" })
-      ] }),
-      showVoicePicker && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { display: "flex", flexWrap: "wrap", gap: 6, marginTop: 10 }, children: voices.map((v) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-        "button",
-        {
-          onClick: () => handleDefaultVoiceChange(v.name),
-          style: { ...voiceChipBase, ...defaultVoice === v.name ? { background: c.accentDim, borderColor: c.accent, color: c.accent } : {}, opacity: savingDefault ? 0.6 : 1 },
-          disabled: savingDefault,
-          children: voiceLabel(v.name)
-        },
-        v.name
-      )) }),
-      preview && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { marginTop: 18, padding: "14px 16px", borderRadius: 12, border: `1px solid ${c.border}`, background: c.surface }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontFamily: font.serif, fontSize: 18, fontWeight: 700, lineHeight: 1.3, color: c.text }, children: preview.article.title }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { marginTop: 6, fontSize: 12, color: c.textMuted, display: "flex", flexWrap: "wrap", alignItems: "center" }, children: [
-          preview.source,
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { margin: "0 6px", opacity: 0.4 }, children: "\xB7" }),
-          preview.article.estimated_read_min,
-          "m read",
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { margin: "0 6px", opacity: 0.4 }, children: "\xB7" }),
-          preview.article.word_count,
-          " words"
-        ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { marginTop: 14, display: "flex", flexDirection: "column", gap: 10 }, children: preview.chunks.slice(0, 5).map((chunk) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { style: { fontSize: 13, color: c.textSecondary, lineHeight: 1.55 }, children: chunk.text }, `${chunk.idx}-${chunk.chunk_type}`)) })
-      ] }),
-      error && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { marginTop: 14, color: c.red, fontSize: 13, lineHeight: 1.45 }, children: error }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", gap: 10, marginTop: 24 }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-          "button",
-          {
-            onClick: handlePreview,
-            disabled: !inputValue.trim() || previewing,
-            style: { ...secondaryBtn, opacity: !inputValue.trim() || previewing ? 0.5 : 1 },
-            children: previewing ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SpinnerIcon, {}) : preview ? "Refresh Preview" : "Preview"
-          }
-        ),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-          "button",
-          {
-            onClick: handleSubmit,
-            disabled: !inputValue.trim() || submitting,
-            style: { flex: 1, padding: "12px 0", borderRadius: 8, border: "none", background: c.accent, color: c.bgDeep, fontSize: 14, fontWeight: 600, fontFamily: font.sans, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: !inputValue.trim() || submitting ? 0.5 : 1 },
-            children: submitting ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SpinnerIcon, {}) : "Add & Process"
-          }
-        )
-      ] })
-    ] }) });
-  }
-  function EditableField({ value, placeholder, onSave, style: wrapStyle, inputStyle }) {
-    const [editing, setEditing] = (0, import_react.useState)(false);
-    const [draft, setDraft] = (0, import_react.useState)(value || "");
-    const inputRef = (0, import_react.useRef)(null);
-    (0, import_react.useEffect)(() => {
-      setDraft(value || "");
-    }, [value]);
-    (0, import_react.useEffect)(() => {
-      if (editing) inputRef.current?.focus();
-    }, [editing]);
-    const save = () => {
-      setEditing(false);
-      const trimmed = draft.trim();
-      if (trimmed !== (value || "").trim()) onSave(trimmed);
-    };
-    if (editing) {
-      return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-        "input",
-        {
-          ref: inputRef,
-          value: draft,
-          onChange: (e) => setDraft(e.target.value),
-          onBlur: save,
-          onKeyDown: (e) => {
-            if (e.key === "Enter") save();
-            if (e.key === "Escape") {
-              setDraft(value || "");
-              setEditing(false);
-            }
-          },
-          style: { background: c.surface, border: `1px solid ${c.accent}`, borderRadius: 4, padding: "2px 6px", color: c.text, fontSize: "inherit", fontFamily: "inherit", fontWeight: "inherit", outline: "none", ...inputStyle },
-          placeholder
-        }
-      );
-    }
-    return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { onClick: () => setEditing(true), style: { borderBottom: "1px dashed transparent", transition: "border-color 0.15s", cursor: "pointer", ...wrapStyle }, title: "Click to edit", children: value || /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { opacity: 0.3 }, children: placeholder }) });
-  }
-  function ReadingPane({ article, articles, voices, onReprocess, onRefresh, onAddFilter, onFindSimilar, onPlay, onSelectDoc, activeId, isPlaying }) {
+  function DetailPanel({ article, lists, voices, onRefresh, onToggleListMembership }) {
     const [fullText, setFullText] = (0, import_react.useState)(null);
     const [loading, setLoading] = (0, import_react.useState)(true);
-    const [reprocessVoice, setReprocessVoice] = (0, import_react.useState)(article.voice || "");
-    const [reprocessing, setReprocessing] = (0, import_react.useState)(false);
-    const [removedIndices, setRemovedIndices] = (0, import_react.useState)(/* @__PURE__ */ new Set());
-    const [saving, setSaving] = (0, import_react.useState)(false);
-    const [textModified, setTextModified] = (0, import_react.useState)(false);
-    const [message, setMessage] = (0, import_react.useState)("");
-    const [entities, setEntities] = (0, import_react.useState)([]);
-    const paragraphs = (0, import_react.useMemo)(() => (fullText || "").split("\n\n").filter(Boolean), [fullText]);
-    const activeParagraphs = (0, import_react.useMemo)(() => paragraphs.filter((_, i) => !removedIndices.has(i)), [paragraphs, removedIndices]);
-    const liveWordCount = (0, import_react.useMemo)(() => activeParagraphs.reduce((sum, p) => sum + p.split(/\s+/).length, 0), [activeParagraphs]);
     (0, import_react.useEffect)(() => {
+      if (!article) return;
       setLoading(true);
-      setRemovedIndices(/* @__PURE__ */ new Set());
-      setTextModified(false);
-      setMessage("");
-      setReprocessVoice(article.voice || "");
       apiGet(`/api/articles/${article.id}/text`).then((data) => setFullText(data.text || "")).catch(() => setFullText("(Could not load text)")).finally(() => setLoading(false));
-      apiGet(`/api/articles/${article.id}/entities`).then((data) => setEntities(data.entities || [])).catch(() => setEntities([]));
-    }, [article.id]);
-    const handleMetaSave = async (field, value) => {
+    }, [article?.id]);
+    if (!article) return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { flex: 1, background: c.bgSurface } });
+    const rend = article.renditions || {};
+    const audio = rend.audio;
+    const summary = rend.summary;
+    const audioSummary = rend.audio_summary;
+    const tags = article.tags || [];
+    const memberships = article.list_memberships || [];
+    const membershipIds = new Set(memberships.map((m) => m.id));
+    const handleGenerateRendition = async (type) => {
       try {
-        await apiJson(`/api/articles/${article.id}`, "PUT", { [field]: value });
+        await apiJson(`/api/docs/${article.id}/renditions/${type}`, "POST", {});
         if (onRefresh) onRefresh();
       } catch {
       }
     };
-    const handleRemoveParagraph = (index) => {
-      setRemovedIndices((prev) => /* @__PURE__ */ new Set([...prev, index]));
-    };
-    const handleUndoRemove = (index) => {
-      setRemovedIndices((prev) => {
-        const next = new Set(prev);
-        next.delete(index);
-        return next;
-      });
-    };
-    const handleSaveText = async () => {
-      setSaving(true);
+    const handleRemoveRendition = async (type) => {
       try {
-        const newText = activeParagraphs.join("\n\n");
-        await apiJson(`/api/articles/${article.id}/text`, "PUT", { text: newText });
-        setFullText(newText);
-        setRemovedIndices(/* @__PURE__ */ new Set());
-        setTextModified(true);
-        setMessage("Text updated. Renarrate to update audio.");
+        await apiDelete(`/api/docs/${article.id}/renditions/${type}`);
         if (onRefresh) onRefresh();
-      } catch (err) {
-        setMessage("Failed to save: " + err.message);
-      } finally {
-        setSaving(false);
+      } catch {
       }
     };
-    const handleReprocess = async () => {
-      if (reprocessing) return;
-      setReprocessing(true);
-      try {
-        await onReprocess(article.id, reprocessVoice);
-        setTextModified(false);
-        setMessage("");
-      } finally {
-        setReprocessing(false);
-      }
-    };
-    const handleCancel = async () => {
-      try {
-        await apiJson(`/api/articles/${article.id}/cancel`, "POST", {});
-        if (onRefresh) onRefresh();
-      } catch (err) {
-        setMessage("Cancel failed: " + err.message);
-      }
-    };
-    const handleRemoveAudio = async () => {
-      try {
-        await fetch(`/api/articles/${article.id}/audio`, { method: "DELETE" });
-        if (onRefresh) onRefresh();
-      } catch (err) {
-        setMessage("Remove audio failed: " + err.message);
-      }
-    };
-    const isProcessingStatus = article.status === "queued" || article.status === "synthesizing";
-    const isFailed = article.status === "failed";
-    const hasAudio = !isProcessingStatus && !isFailed && article.audio_url;
-    const canRenarrate = !isProcessingStatus && (!article.audio_url || reprocessVoice !== article.voice || textModified);
-    const articleTags = article.tags || [];
-    const wordCount = removedIndices.size > 0 ? liveWordCount : article.word_count || liveWordCount;
-    return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { padding: "28px 32px", maxWidth: 680 }, children: [
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8, marginBottom: 12, flexWrap: "wrap" }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(StatusBadge, { status: article.status }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 11, color: c.textDim }, children: article.type || "article" }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { color: c.textDim }, children: "\xB7" }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 11, color: c.textDim }, children: timeAgo(article.ingested_at) }),
-        article.listened_at && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { color: c.textDim }, children: "\xB7" }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 10, fontWeight: 600, color: c.green, background: c.greenDim, padding: "2px 7px", borderRadius: 4, textTransform: "uppercase", letterSpacing: "0.03em" }, children: "Listened" })
+    return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { flex: 1, overflowY: "auto", background: c.bgSurface }, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { padding: "24px 24px 12px", borderBottom: `1px solid ${c.border}` }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { display: "flex", gap: 5, marginBottom: 12, flexWrap: "wrap" }, children: tags.map((t) => {
+          const [tc, tbg] = tagColor(t);
+          return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 9, padding: "2px 7px", borderRadius: 6, background: tbg, color: tc }, children: t }, t);
+        }) }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 20, fontWeight: 700, fontFamily: font.serif, lineHeight: 1.35, marginBottom: 8 }, children: article.title }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { fontSize: 12, color: c.textMuted, display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", marginBottom: 4 }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: sourceLabel(article) }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "\xB7" }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: timeAgo(article.ingested_at) }),
+          audio && audio.duration && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "\xB7" }),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: fmtDur(audio.duration) })
+          ] })
         ] }),
-        article.score != null && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { color: c.textDim }, children: "\xB7" }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ScoreBadge, { score: article.score })
+        article.source_url && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("a", { href: article.source_url, target: "_blank", rel: "noopener noreferrer", style: { fontSize: 11, color: c.accent, textDecoration: "none", marginBottom: 16, display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, children: article.source_url })
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { padding: "12px 24px", borderBottom: `1px solid ${c.border}` }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 10, fontWeight: 600, color: c.textDim, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 8 }, children: "Renditions" }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(RenditionRow, { icon: "\u266B", label: "Audio narration", rendition: audio, onGenerate: () => handleGenerateRendition("audio"), onRemove: () => handleRemoveRendition("audio") }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(RenditionRow, { icon: "\u{1F4DD}", label: "Summary", rendition: summary, isSummary: true, onGenerate: () => handleGenerateRendition("summary"), onRemove: () => handleRemoveRendition("summary") }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(RenditionRow, { icon: "\u{1F50A}", label: "Audio summary", rendition: audioSummary, disabled: !summary, onGenerate: () => handleGenerateRendition("audio_summary"), onRemove: () => handleRemoveRendition("audio_summary") }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8, padding: "6px 0" }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 11, color: c.textMuted }, children: "Voice:" }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("select", { style: { flex: 1, background: c.bgSurface, border: `1px solid ${c.border}`, borderRadius: 5, padding: "4px 8px", color: c.text, fontSize: 11, fontFamily: "inherit", outline: "none" }, children: voices.map((v) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", { value: v.name, selected: audio && audio.voice === v.name, children: voiceLabel(v.name) }, v.name)) })
         ] })
       ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("h1", { style: { fontSize: 22, fontWeight: 700, fontFamily: font.serif, color: c.text, lineHeight: 1.35, margin: "0 0 12px" }, children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(EditableField, { value: article.title, placeholder: "Title", onSave: (v) => handleMetaSave("title", v), style: { fontSize: 22, fontWeight: 700, fontFamily: font.serif }, inputStyle: { fontSize: 22, fontWeight: 700, fontFamily: font.serif, width: "100%" } }) }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: c.textMuted, marginBottom: 4, flexWrap: "wrap" }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: sourceLabel(article) }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { color: c.textDim }, children: "\xB7" }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontFamily: font.mono, fontSize: 11, color: c.textDim }, children: (article.id || "").slice(0, 8) }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { color: c.textDim }, children: "\xB7" }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { children: [
-          (wordCount || 0).toLocaleString(),
-          " words"
-        ] })
+      summary && summary.text && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { padding: "12px 24px", borderBottom: `1px solid ${c.border}` }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 10, fontWeight: 600, color: c.textDim, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 8 }, children: "Summary" }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { style: { fontSize: 13, color: c.textSecondary, lineHeight: 1.6, fontFamily: font.serif }, children: summary.text })
       ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: c.textMuted, marginBottom: 12, flexWrap: "wrap" }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(EditableField, { value: article.author, placeholder: "Author", onSave: (v) => handleMetaSave("author", v) }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { color: c.textDim }, children: "\xB7" }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(EditableField, { value: article.publication, placeholder: "Publication", onSave: (v) => handleMetaSave("publication", v) }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { color: c.textDim }, children: "\xB7" }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(EditableField, { value: article.published_date, placeholder: "Date", onSave: (v) => handleMetaSave("published_date", v) })
-      ] }),
-      article.source_url && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("a", { href: article.source_url, target: "_blank", rel: "noopener noreferrer", style: { display: "block", fontSize: 12, color: c.accent, marginBottom: 16, textDecoration: "none", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, children: article.source_url }),
-      articleTags.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { display: "flex", gap: 5, flexWrap: "wrap", marginBottom: 20, paddingBottom: 20, borderBottom: `1px solid ${c.border}` }, children: articleTags.map((t) => {
-        const isP = t.startsWith("project:");
-        const display = isP ? t.replace("project:", "") : t;
-        return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
-          "span",
-          {
-            onClick: () => onAddFilter(t),
-            style: {
-              fontSize: 11,
-              padding: "4px 10px",
-              borderRadius: 6,
-              background: isP ? c.purpleDim : c.accentDim,
-              color: isP ? c.purple : c.accent,
-              border: `1px solid ${(isP ? c.purple : c.accent) + "33"}`,
-              cursor: "pointer",
-              fontWeight: isP ? 600 : 400,
-              transition: "all 0.1s"
-            },
-            onMouseEnter: (e) => e.target.style.background = isP ? c.purple + "22" : c.accentMed,
-            onMouseLeave: (e) => e.target.style.background = isP ? c.purpleDim : c.accentDim,
-            children: [
-              isP ? "\u2B21 " : "#",
-              display
-            ]
-          },
-          t
-        );
-      }) }),
-      entities.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { marginBottom: 16, paddingBottom: 16, borderBottom: `1px solid ${c.border}` }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 11, color: c.textMuted, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 6 }, children: "Entities" }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { display: "flex", flexWrap: "wrap", gap: 6 }, children: entities.map((e) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: { display: "inline-flex", alignItems: "center", gap: 4, fontSize: 12, color: c.textSecondary, background: c.surface, padding: "3px 8px", borderRadius: 4 }, title: e.entity_type, children: [
-          e.name,
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 10, color: c.textDim, fontStyle: "italic" }, children: e.entity_type })
-        ] }, e.id)) })
-      ] }),
-      isFailed && article.error_message && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 12, color: c.red, padding: "8px 12px", background: c.redDim, borderRadius: 8, marginBottom: 12 }, children: article.error_message }),
-      message && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 12, color: c.accent, padding: "8px 12px", background: c.accentDim, borderRadius: 8, marginBottom: 12 }, children: message }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { borderRadius: 8, background: c.bg, padding: "16px 20px", marginBottom: 12 }, children: loading ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { color: c.textMuted, fontSize: 13, textAlign: "center", padding: 20 }, children: "Loading text..." }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontFamily: font.serif, fontSize: 15, lineHeight: 1.7, color: c.text }, children: paragraphs.map((para, i) => {
-        const removed = removedIndices.has(i);
-        if (removed) {
-          return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8, padding: "4px 0", marginBottom: 8 }, children: [
-            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: { flex: 1, fontSize: 13, color: c.textMuted, textDecoration: "line-through", opacity: 0.5 }, children: [
-              para.slice(0, 80),
-              "..."
-            ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: () => handleUndoRemove(i), style: { background: "none", border: `1px solid ${c.border}`, borderRadius: 4, color: c.accent, fontSize: 11, fontWeight: 600, fontFamily: font.sans, padding: "2px 8px", cursor: "pointer", whiteSpace: "nowrap" }, children: "Undo" })
-          ] }, i);
-        }
-        return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "flex-start", gap: 8, position: "relative" }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: () => handleRemoveParagraph(i), style: { background: "none", border: "none", color: "rgba(248,113,113,0)", fontSize: 18, fontWeight: 700, cursor: "pointer", padding: "0 4px", lineHeight: "1.7", flexShrink: 0, transition: "color 0.15s" }, title: "Remove this paragraph from narration", "aria-label": "Remove paragraph", children: "\xD7" }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { style: { marginBottom: 14, flex: 1 }, children: para })
-        ] }, i);
-      }) }) }),
-      removedIndices.size > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", marginBottom: 12, background: c.surface, borderRadius: 8 }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: { fontSize: 12, color: c.textMuted }, children: [
-          removedIndices.size,
-          " paragraph",
-          removedIndices.size > 1 ? "s" : "",
-          " removed"
-        ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: handleSaveText, disabled: saving, style: { padding: "5px 14px", borderRadius: 6, border: "none", background: c.accent, color: c.bgDeep, fontSize: 12, fontWeight: 600, fontFamily: font.sans, cursor: "pointer", opacity: saving ? 0.5 : 1 }, children: saving ? "Saving..." : "Save changes" })
-      ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-          "button",
-          {
-            onClick: () => onFindSimilar(article),
-            style: {
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              padding: "8px 14px",
-              borderRadius: 8,
-              border: `1px solid ${c.cyan}33`,
-              background: c.cyanDim,
-              color: c.cyan,
-              fontSize: 12,
-              fontWeight: 500,
-              fontFamily: font.sans,
-              cursor: "pointer",
-              transition: "all 0.12s"
-            },
-            onMouseEnter: (e) => e.currentTarget.style.background = c.cyan + "22",
-            onMouseLeave: (e) => e.currentTarget.style.background = c.cyanDim,
-            children: "\u25CE Find Similar"
-          }
-        ),
-        hasAudio && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: () => onPlay(article), style: {
-          display: "flex",
-          alignItems: "center",
-          gap: 6,
-          padding: "8px 14px",
-          borderRadius: 8,
-          border: `1px solid ${c.border}`,
-          background: "transparent",
-          color: c.textSecondary,
-          fontSize: 12,
-          fontWeight: 500,
-          fontFamily: font.sans,
-          cursor: "pointer"
-        }, children: activeId === article.id && isPlaying ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PauseIcon, { size: 14 }),
-          " Pause"
-        ] }) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PlayIcon, { size: 14 }),
-          " Listen"
-        ] }) })
-      ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: c.bg, borderRadius: 8, marginBottom: 8 }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 12, color: c.textMuted, fontWeight: 500 }, children: "Voice:" }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("select", { value: reprocessVoice, onChange: (e) => setReprocessVoice(e.target.value), style: { flex: 1, background: c.surface, border: `1px solid ${c.border}`, borderRadius: 6, padding: "5px 8px", color: c.text, fontSize: 12, fontFamily: font.sans, outline: "none" }, children: voices.map((v) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", { value: v.name, children: voiceLabel(v.name) }, v.name)) }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: handleReprocess, disabled: reprocessing || !canRenarrate || isProcessingStatus, style: { padding: "5px 14px", borderRadius: 6, border: "none", background: c.accent, color: c.bgDeep, fontSize: 12, fontWeight: 600, fontFamily: font.sans, cursor: "pointer", whiteSpace: "nowrap", opacity: reprocessing || !canRenarrate || isProcessingStatus ? 0.5 : 1 }, children: reprocessing || isProcessingStatus ? "Processing..." : !article.audio_url ? "Generate Audio" : "Renarrate" })
-      ] }),
-      (isProcessingStatus || hasAudio) && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8, marginBottom: 24, paddingLeft: 12 }, children: [
-        isProcessingStatus && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: handleCancel, style: { padding: "4px 12px", borderRadius: 6, border: `1px solid ${c.amber}`, background: c.amberDim, color: c.amber, fontSize: 11, fontWeight: 600, fontFamily: font.sans, cursor: "pointer" }, children: "Cancel Processing" }),
-        hasAudio && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: handleRemoveAudio, style: { padding: "4px 12px", borderRadius: 6, border: `1px solid ${c.red}`, background: c.redDim, color: c.red, fontSize: 11, fontWeight: 600, fontFamily: font.sans, cursor: "pointer" }, children: "Remove Audio" })
-      ] }),
-      !isProcessingStatus && !hasAudio && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { marginBottom: 24 } }),
-      (() => {
-        if (articleTags.length === 0) return null;
-        const related = articles.filter((d) => d.id !== article.id && (d.tags || []).some((t) => articleTags.includes(t))).slice(0, 3);
-        if (related.length === 0) return null;
-        return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 10, fontWeight: 600, color: c.textMuted, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }, children: "Related by Tags" }),
-          related.map((d) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
-            "div",
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { padding: "12px 24px", borderBottom: `1px solid ${c.border}` }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 10, fontWeight: 600, color: c.textDim, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 8 }, children: "Lists" }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { display: "flex", gap: 5, flexWrap: "wrap" }, children: lists.map((l) => {
+          const isIn = membershipIds.has(l.id);
+          return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+            "button",
             {
-              onClick: () => onSelectDoc(d.id),
-              style: { padding: "9px 12px", borderRadius: 8, border: `1px solid ${c.border}`, marginBottom: 5, display: "flex", alignItems: "center", gap: 8, cursor: "pointer", transition: "background 0.1s" },
-              onMouseEnter: (e) => e.currentTarget.style.background = c.surfaceHover,
-              onMouseLeave: (e) => e.currentTarget.style.background = "transparent",
+              onClick: () => onToggleListMembership(article.id, l.id, isIn),
+              style: {
+                padding: "4px 10px",
+                borderRadius: 6,
+                border: `1px solid ${isIn ? l.color : c.border}`,
+                background: isIn ? l.bg : "transparent",
+                color: isIn ? l.color : c.textMuted,
+                fontSize: 11,
+                fontWeight: isIn ? 600 : 500,
+                cursor: "pointer",
+                fontFamily: "inherit",
+                display: "flex",
+                alignItems: "center",
+                gap: 4,
+                transition: "0.1s"
+              },
               children: [
-                /* @__PURE__ */ (0, import_jsx_runtime.jsx)(StatusDot, { status: d.status }),
-                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { flex: 1, fontSize: 12, color: c.text, fontWeight: 500 }, children: d.title }),
-                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 10, color: c.textDim, fontFamily: font.mono }, children: (d.id || "").slice(0, 8) })
+                l.icon,
+                " ",
+                isIn ? "\u2713 " : "+ ",
+                l.name
               ]
             },
-            d.id
-          ))
-        ] });
-      })()
+            l.id
+          );
+        }) })
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { padding: "20px 24px", fontSize: 14, fontFamily: font.serif, lineHeight: 1.7, color: "#b8bac4" }, children: loading ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { color: c.textDim }, children: "Loading..." }) : fullText ? fullText.split("\n\n").filter(Boolean).map((p, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { style: { marginBottom: 12 }, children: p }, i)) : null })
     ] });
   }
-  function DocumentListItem({ article, isSelected, selectionMode, isChecked, activeFilters, onSelect, onToggleCheck, onAddFilter }) {
-    const tags = article.tags || [];
-    const visibleTags = tags.filter((t) => !activeFilters.includes(t));
-    const hasScore = article.score != null;
-    return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
-      "div",
-      {
-        id: `doc-${article.id}`,
-        onClick: () => selectionMode ? onToggleCheck(article.id) : onSelect(article.id),
-        style: {
-          padding: "12px 18px 12px 20px",
-          borderBottom: `1px solid ${c.border}`,
-          borderLeft: `2px solid ${isSelected ? c.accent : "transparent"}`,
-          background: isSelected ? c.surfaceRaised : "transparent",
-          cursor: "pointer",
-          transition: "all 0.08s"
-        },
-        onMouseEnter: (e) => {
-          if (!isSelected) e.currentTarget.style.background = `${c.surface}88`;
-        },
-        onMouseLeave: (e) => {
-          if (!isSelected) e.currentTarget.style.background = "transparent";
-        },
-        children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "start", gap: 8, marginBottom: 5 }, children: [
-            selectionMode && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { width: 18, height: 18, borderRadius: "50%", border: `1px solid ${isChecked ? c.accent : c.textMuted}`, display: "flex", alignItems: "center", justifyContent: "center", background: isChecked ? c.accent : "transparent", color: c.bgDeep, flexShrink: 0, marginTop: 2 }, children: isChecked && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CheckIcon, { size: 12 }) }),
-            hasScore && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ScoreBadge, { score: article.score }),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { flex: 1, fontSize: 13, fontWeight: isSelected ? 600 : 500, color: c.text, lineHeight: 1.4 }, children: article.title }),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)(StatusDot, { status: article.status })
-          ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 6, marginBottom: visibleTags.length > 0 ? 6 : 0, paddingLeft: selectionMode ? 26 : hasScore ? 44 : 0 }, children: [
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 10, color: c.textDim }, children: article.type || "article" }),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 10, color: c.textDim }, children: "\xB7" }),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 10, color: c.textDim }, children: sourceLabel(article) }),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 10, color: c.textDim }, children: "\xB7" }),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 10, color: c.textDim }, children: timeAgo(article.ingested_at) })
-          ] }),
-          visibleTags.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", gap: 3, flexWrap: "wrap", paddingLeft: selectionMode ? 26 : hasScore ? 44 : 0 }, children: [
-            visibleTags.slice(0, 4).map((t) => {
-              const isP = t.startsWith("project:");
-              const display = isP ? t.replace("project:", "") : t;
-              return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
-                "span",
-                {
-                  onClick: (e) => {
-                    e.stopPropagation();
-                    onAddFilter(t);
-                  },
-                  style: { fontSize: 9, padding: "1px 6px", borderRadius: 3, background: isP ? c.purpleDim : c.bg, color: isP ? c.purple : c.textMuted, border: `1px solid ${isP ? c.purple + "22" : c.border}`, cursor: "pointer", fontWeight: isP ? 600 : 400, transition: "all 0.1s" },
-                  onMouseEnter: (e) => {
-                    e.target.style.color = isP ? c.purple : c.accent;
-                    e.target.style.borderColor = (isP ? c.purple : c.accent) + "44";
-                  },
-                  onMouseLeave: (e) => {
-                    e.target.style.color = isP ? c.purple : c.textMuted;
-                    e.target.style.borderColor = isP ? c.purple + "22" : c.border;
-                  },
-                  children: [
-                    isP ? "\u2B21 " : "",
-                    display
-                  ]
-                },
-                t
-              );
-            }),
-            visibleTags.length > 4 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: { fontSize: 9, color: c.textDim }, children: [
-              "+",
-              visibleTags.length - 4
-            ] })
-          ] })
-        ]
-      }
-    );
-  }
-  function PlayerBar({ article, isPlaying, currentTime, duration, playbackRate, playbackRates, onToggle, onSeek, onPlaybackRateChange }) {
-    if (!article) return null;
-    const percent = duration > 0 ? currentTime / duration * 100 : 0;
-    return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { position: "fixed", bottom: 0, left: 0, right: 0, background: "rgba(19,21,29,0.95)", backdropFilter: "blur(20px)", borderTop: `1px solid ${c.border}`, zIndex: 100 }, children: [
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { height: 3, background: c.border, cursor: "pointer" }, onClick: onSeek, children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { height: "100%", background: c.accent, transition: "width 0.1s linear", width: `${percent}%` } }) }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 14, padding: "12px 24px 14px" }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: onToggle, style: { width: 40, height: 40, borderRadius: "50%", border: "none", background: c.accent, color: c.bgDeep, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }, "aria-label": isPlaying ? "Pause" : "Play", children: isPlaying ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PauseIcon, { size: 20 }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PlayIcon, { size: 20 }) }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { flex: 1, minWidth: 0 }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontFamily: font.serif, fontSize: 14, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", color: c.text }, children: article.title }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 12, color: c.textMuted, marginTop: 2 }, children: sourceLabel(article) })
-        ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", { style: { display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 12, color: c.textMuted }, children: "Speed" }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("select", { value: String(playbackRate), onChange: (e) => onPlaybackRateChange(Number(e.target.value)), style: { borderRadius: 8, border: `1px solid ${c.border}`, background: c.bg, color: c.text, fontSize: 12, padding: "6px 8px", fontFamily: font.sans }, "aria-label": "Playback speed", children: (playbackRates.length ? playbackRates : PLAYBACK_RATES).map((rate) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("option", { value: String(rate), children: [
-            rate,
-            "x"
-          ] }, rate)) })
-        ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { fontSize: 12, fontFamily: font.mono, color: c.textMuted, flexShrink: 0 }, children: [
-          formatDuration(currentTime),
-          " / ",
-          formatDuration(duration || article.audio_duration_sec)
-        ] })
-      ] })
+  function RenditionRow({ icon, label, rendition, isSummary, disabled, onGenerate, onRemove }) {
+    const isReady = rendition && (isSummary ? true : rendition.state === "ready");
+    const isGenerating = rendition && !isSummary && (rendition.state === "generating" || rendition.state === "queued");
+    let statusText = "none";
+    let statusClass = "none";
+    if (isReady) {
+      statusText = isSummary ? "ready" : `ready \xB7 ${fmtDur(rendition.duration)}`;
+      statusClass = "ready";
+    } else if (isGenerating) {
+      statusText = "generating...";
+      statusClass = "gen";
+    }
+    const statusColors = {
+      ready: { background: c.greenBg, color: c.green },
+      gen: { background: c.amberBg, color: c.amber },
+      none: { background: c.bgPanel, color: c.textDim }
+    };
+    return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8, padding: "6px 0" }, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: { fontSize: 12, color: c.textSecondary, flex: 1, display: "flex", alignItems: "center", gap: 6 }, children: [
+        icon,
+        " ",
+        label
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 10, padding: "2px 7px", borderRadius: 4, fontWeight: 500, ...statusColors[statusClass] }, children: statusText }),
+      isReady ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: onRemove, style: { ...rendBtnStyle, color: c.red, borderColor: "rgba(248,113,113,0.2)" }, children: "Remove" }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: onGenerate, disabled: disabled || isGenerating, style: { ...rendBtnStyle, ...disabled ? { opacity: 0.3 } : isGenerating ? { opacity: 0.5 } : {} }, title: disabled ? "Generate summary first" : void 0, children: "Generate" })
     ] });
   }
+  var rendBtnStyle = { padding: "4px 10px", borderRadius: 5, border: `1px solid ${c.border}`, background: "rgba(255,255,255,0.03)", color: c.textMuted, fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", transition: "0.1s" };
   function ReadcastApp() {
     const [articles, setArticles] = (0, import_react.useState)([]);
+    const [lists, setLists] = (0, import_react.useState)([]);
     const [voices, setVoices] = (0, import_react.useState)([]);
-    const [defaultVoice, setDefaultVoice] = (0, import_react.useState)("af_sky");
-    const [playbackRate, setPlaybackRate] = (0, import_react.useState)(1);
-    const [playbackRates, setPlaybackRates] = (0, import_react.useState)(PLAYBACK_RATES);
+    const [activeListId, setActiveListId] = (0, import_react.useState)(null);
+    const [listItems, setListItems] = (0, import_react.useState)([]);
+    const [focusedId, setFocusedId] = (0, import_react.useState)(null);
     const [search, setSearch] = (0, import_react.useState)("");
-    const [showAdd, setShowAdd] = (0, import_react.useState)(false);
-    const [activeId, setActiveId] = (0, import_react.useState)(null);
-    const [isPlaying, setIsPlaying] = (0, import_react.useState)(false);
-    const [currentTime, setCurrentTime] = (0, import_react.useState)(0);
-    const [duration, setDuration] = (0, import_react.useState)(0);
-    const [daemonConnected, setDaemonConnected] = (0, import_react.useState)(false);
-    const [daemonError, setDaemonError] = (0, import_react.useState)("");
-    const [daemonState, setDaemonState] = (0, import_react.useState)("offline");
-    const [daemonMessage, setDaemonMessage] = (0, import_react.useState)("");
-    const [addError, setAddError] = (0, import_react.useState)("");
-    const [selectionMode, setSelectionMode] = (0, import_react.useState)(false);
-    const [selectedIds, setSelectedIds] = (0, import_react.useState)([]);
-    const [showDeleteConfirm, setShowDeleteConfirm] = (0, import_react.useState)(false);
-    const [deleteError, setDeleteError] = (0, import_react.useState)("");
-    const [deleting, setDeleting] = (0, import_react.useState)(false);
-    const [feedCopied, setFeedCopied] = (0, import_react.useState)(false);
-    const [showExtension, setShowExtension] = (0, import_react.useState)(false);
-    const [updateInfo, setUpdateInfo] = (0, import_react.useState)(null);
-    const [updateDismissed, setUpdateDismissed] = (0, import_react.useState)(false);
-    const [selectedId, setSelectedId] = (0, import_react.useState)(null);
-    const [activeFilters, setActiveFilters] = (0, import_react.useState)([]);
-    const [tagDropdownOpen, setTagDropdownOpen] = (0, import_react.useState)(false);
-    const [sortMode, setSortMode] = (0, import_react.useState)("auto");
-    const [timeRange, setTimeRange] = (0, import_react.useState)("all");
-    const [similarMode, setSimilarMode] = (0, import_react.useState)(null);
+    const [showCreateList, setShowCreateList] = (0, import_react.useState)(false);
+    const [playingIndex, setPlayingIndex] = (0, import_react.useState)(0);
+    const [audioState, setAudioState] = (0, import_react.useState)({ isPlaying: false, currentTime: 0, duration: 0 });
     const audioRef = (0, import_react.useRef)(null);
-    const searchRef = (0, import_react.useRef)(null);
-    const listenedFiredRef = (0, import_react.useRef)(null);
-    const dropdownRef = (0, import_react.useRef)(null);
-    const activeArticle = (0, import_react.useMemo)(() => articles.find((a) => a.id === activeId) || null, [articles, activeId]);
-    const hasActiveWork = articles.some((a) => a.status === "queued" || a.status === "synthesizing");
-    const selectedCount = selectedIds.length;
-    const tagIndex = (0, import_react.useMemo)(() => buildTagIndex(articles), [articles]);
-    const isSearching = search.trim().length > 0;
-    const effectiveSort = sortMode === "auto" ? isSearching ? "relevance" : "date" : sortMode;
-    const indexedCount = articles.filter((a) => a.status === "done").length;
-    const filteredResults = (0, import_react.useMemo)(() => {
-      if (similarMode) {
-        const sourceDoc = articles.find((d) => d.id === similarMode);
-        if (sourceDoc) return findSimilar(sourceDoc, articles);
-        return [];
+    const activeList = (0, import_react.useMemo)(() => lists.find((l) => l.id === activeListId) || null, [lists, activeListId]);
+    const focusedArticle = (0, import_react.useMemo)(() => {
+      if (!focusedId) return null;
+      const fromItems = listItems.find((i) => i.doc_id === focusedId || i.article && i.article.id === focusedId);
+      if (fromItems?.article) return fromItems.article;
+      return articles.find((a) => a.id === focusedId) || null;
+    }, [focusedId, articles, listItems]);
+    const refreshArticles = (0, import_react.useCallback)(async (q = "") => {
+      try {
+        const suffix = q.trim() ? `?q=${encodeURIComponent(q.trim())}` : "";
+        const data = await apiGet(`/api/articles${suffix}`);
+        setArticles(data.articles || []);
+      } catch {
       }
-      let pool = [...articles];
-      if (activeFilters.length > 0) {
-        pool = pool.filter((d) => activeFilters.every((f) => (d.tags || []).includes(f)));
+    }, []);
+    const refreshLists = (0, import_react.useCallback)(async () => {
+      try {
+        const data = await apiGet("/api/lists");
+        setLists(data.lists || []);
+      } catch {
       }
-      pool = pool.filter((d) => withinRange(d.ingested_at, timeRange));
-      if (effectiveSort === "date") {
-        pool.sort((a, b) => new Date(b.ingested_at) - new Date(a.ingested_at));
+    }, []);
+    const refreshListItems = (0, import_react.useCallback)(async (listId) => {
+      if (!listId) {
+        setListItems([]);
+        return;
       }
-      return pool;
-    }, [articles, activeFilters, timeRange, effectiveSort, similarMode]);
-    const selectedDoc = (0, import_react.useMemo)(() => {
-      return filteredResults.find((d) => d.id === selectedId) || articles.find((d) => d.id === selectedId) || null;
-    }, [filteredResults, articles, selectedId]);
-    (0, import_react.useEffect)(() => {
-      if (filteredResults.length > 0 && (!selectedId || !filteredResults.find((d) => d.id === selectedId))) {
-        setSelectedId(filteredResults[0].id);
-      } else if (filteredResults.length === 0) {
-        setSelectedId(null);
+      try {
+        const data = await apiGet(`/api/lists/${listId}/items`);
+        setListItems(data.items || []);
+      } catch {
       }
-    }, [filteredResults]);
-    async function refreshArticles(query = search) {
-      const suffix = query.trim() ? `?q=${encodeURIComponent(query.trim())}` : "";
-      const data = await apiGet(`/api/articles${suffix}`);
-      setArticles(data.articles || []);
-    }
-    async function refreshVoices() {
+    }, []);
+    const refreshVoices = (0, import_react.useCallback)(async () => {
       try {
         const data = await apiGet("/api/voices");
         setVoices(data.voices || []);
-      } catch (error) {
-        setDaemonError(error.message);
+      } catch {
       }
-    }
-    async function refreshPreferences() {
-      try {
-        const data = await apiGet("/api/preferences");
-        setDefaultVoice(data.preferences?.default_voice || "af_sky");
-        setPlaybackRate(Number(data.preferences?.playback_rate || 1));
-        setPlaybackRates(data.preferences?.available_playback_rates || PLAYBACK_RATES);
-      } catch (error) {
-        setDaemonError(error.message);
-      }
-    }
-    async function refreshStatus() {
-      try {
-        const data = await apiGet("/api/status");
-        setDaemonConnected(Boolean(data.kokoro_edge?.connected));
-        setDaemonState(data.kokoro_edge?.state || "offline");
-        setDaemonMessage(data.kokoro_edge?.message || "");
-        setDaemonError(data.kokoro_edge?.error || "");
-      } catch (error) {
-        setDaemonConnected(false);
-        setDaemonState("offline");
-        setDaemonMessage("");
-        setDaemonError(error.message);
-      }
-    }
+    }, []);
+    const refreshAll = (0, import_react.useCallback)(async () => {
+      await Promise.all([refreshArticles(search), refreshLists()]);
+      if (activeListId) await refreshListItems(activeListId);
+    }, [refreshArticles, refreshLists, refreshListItems, activeListId, search]);
     (0, import_react.useEffect)(() => {
-      refreshArticles("");
+      refreshArticles();
+      refreshLists();
       refreshVoices();
-      refreshPreferences();
-      refreshStatus();
-      apiGet("/api/update-check").then((data) => {
-        if (data.update_available) setUpdateInfo(data);
-      }).catch(() => {
-      });
     }, []);
     (0, import_react.useEffect)(() => {
-      const timeout = window.setTimeout(() => {
-        refreshArticles(search);
-      }, 200);
-      return () => window.clearTimeout(timeout);
-    }, [search]);
+      refreshListItems(activeListId);
+    }, [activeListId, refreshListItems]);
     (0, import_react.useEffect)(() => {
-      setSelectedIds((current) => current.filter((id) => articles.some((a) => a.id === id)));
-    }, [articles]);
+      const timeout = setTimeout(() => refreshArticles(search), 200);
+      return () => clearTimeout(timeout);
+    }, [search, refreshArticles]);
+    const hasActiveWork = articles.some((a) => {
+      const rend = a.renditions || {};
+      const audio = rend.audio;
+      return audio && (audio.state === "queued" || audio.state === "generating");
+    });
     (0, import_react.useEffect)(() => {
-      if (!hasActiveWork) return void 0;
-      const interval = window.setInterval(() => {
-        refreshArticles(search);
-        refreshStatus();
-      }, 1500);
-      return () => window.clearInterval(interval);
-    }, [hasActiveWork, search]);
+      if (!hasActiveWork) return;
+      const interval = setInterval(() => refreshAll(), 2e3);
+      return () => clearInterval(interval);
+    }, [hasActiveWork, refreshAll]);
+    (0, import_react.useEffect)(() => {
+      if (!focusedId && articles.length > 0) setFocusedId(articles[0].id);
+    }, [articles, focusedId]);
+    (0, import_react.useEffect)(() => {
+      const audio = audioRef.current;
+      if (!audio) return;
+      const onTime = () => setAudioState((s) => ({ ...s, currentTime: audio.currentTime }));
+      const onMeta = () => setAudioState((s) => ({ ...s, duration: audio.duration }));
+      const onPlay = () => setAudioState((s) => ({ ...s, isPlaying: true }));
+      const onPause = () => setAudioState((s) => ({ ...s, isPlaying: false }));
+      const onEnded = () => {
+        setAudioState((s) => ({ ...s, isPlaying: false }));
+      };
+      audio.addEventListener("timeupdate", onTime);
+      audio.addEventListener("loadedmetadata", onMeta);
+      audio.addEventListener("play", onPlay);
+      audio.addEventListener("pause", onPause);
+      audio.addEventListener("ended", onEnded);
+      return () => {
+        audio.removeEventListener("timeupdate", onTime);
+        audio.removeEventListener("loadedmetadata", onMeta);
+        audio.removeEventListener("play", onPlay);
+        audio.removeEventListener("pause", onPause);
+        audio.removeEventListener("ended", onEnded);
+      };
+    }, []);
+    const handleSelectList = (id) => {
+      setActiveListId(id);
+      setSearch("");
+      setPlayingIndex(0);
+    };
+    const handleCreateList = async (payload) => {
+      try {
+        const data = await apiJson("/api/lists", "POST", payload);
+        await refreshLists();
+        setActiveListId(data.list.id);
+      } catch {
+      }
+    };
+    const handleSelectDoc = (docId) => setFocusedId(docId);
+    const handleToggleDone = async (item) => {
+      if (!activeListId) return;
+      try {
+        await apiJson(`/api/lists/${activeListId}/items/${item.doc_id}`, "PUT", { done: !item.done });
+        await refreshListItems(activeListId);
+        await refreshLists();
+      } catch {
+      }
+    };
+    const handleToggleListMembership = async (docId, listId, isIn) => {
+      try {
+        if (isIn) {
+          await apiDelete(`/api/lists/${listId}/items/${docId}`);
+        } else {
+          await apiJson(`/api/lists/${listId}/items`, "POST", { doc_id: docId });
+        }
+        await refreshAll();
+      } catch {
+      }
+    };
+    const handleBatchNarrate = async () => {
+      if (!activeListId) return;
+      try {
+        await apiJson(`/api/lists/${activeListId}/batch-narrate`, "POST", {});
+        await refreshAll();
+      } catch {
+      }
+    };
+    const handlePlayerToggle = async () => {
+      const audio = audioRef.current;
+      if (!audio) return;
+      if (audio.paused) await audio.play();
+      else audio.pause();
+    };
+    const handlePlayerSeek = (e) => {
+      const audio = audioRef.current;
+      if (!audio) return;
+      const rect = e.currentTarget.getBoundingClientRect();
+      const pct = (e.clientX - rect.left) / rect.width;
+      audio.currentTime = pct * audio.duration;
+    };
+    const handlePlayerPrev = () => setPlayingIndex((i) => Math.max(0, i - 1));
+    const handlePlayerNext = () => setPlayingIndex((i) => Math.min(listItems.length - 1, i + 1));
     (0, import_react.useEffect)(() => {
       const handler = (e) => {
-        if (dropdownRef.current && !dropdownRef.current.contains(e.target)) setTagDropdownOpen(false);
-      };
-      document.addEventListener("mousedown", handler);
-      return () => document.removeEventListener("mousedown", handler);
-    }, []);
-    (0, import_react.useEffect)(() => {
-      const audio = audioRef.current;
-      if (!audio) return void 0;
-      const onTimeUpdate = () => {
-        setCurrentTime(audio.currentTime || 0);
-        if (activeId && audio.duration > 0 && audio.currentTime / audio.duration > 0.8 && listenedFiredRef.current !== activeId) {
-          listenedFiredRef.current = activeId;
-          apiJson(`/api/articles/${activeId}/listened`, "POST", { complete: true }).catch(() => {
+        if (isTypingTarget(e.target)) return;
+        const currentItems = activeListId ? listItems : articles;
+        const ids = activeListId ? currentItems.map((i) => i.doc_id || i.article && i.article.id) : currentItems.map((a) => a.id);
+        const curIdx = ids.indexOf(focusedId);
+        if (e.key === "ArrowDown" || e.key === "j") {
+          e.preventDefault();
+          const next = Math.min(curIdx + 1, ids.length - 1);
+          if (ids[next]) setFocusedId(ids[next]);
+        }
+        if (e.key === "ArrowUp" || e.key === "k") {
+          e.preventDefault();
+          const prev = Math.max(curIdx - 1, 0);
+          if (ids[prev]) setFocusedId(ids[prev]);
+        }
+        if (e.key === "/") {
+          e.preventDefault();
+          document.querySelector("input[placeholder]")?.focus();
+        }
+        if (e.key === "Escape") {
+          if (search) setSearch("");
+          if (showCreateList) setShowCreateList(false);
+        }
+        if (e.key === "n" && focusedId) {
+          apiJson(`/api/docs/${focusedId}/renditions/audio`, "POST", {}).then(() => refreshAll()).catch(() => {
           });
         }
-      };
-      const onLoaded = () => setDuration(audio.duration || 0);
-      const onEnded = () => setIsPlaying(false);
-      const onPause = () => setIsPlaying(false);
-      const onPlay = () => setIsPlaying(true);
-      audio.addEventListener("timeupdate", onTimeUpdate);
-      audio.addEventListener("loadedmetadata", onLoaded);
-      audio.addEventListener("durationchange", onLoaded);
-      audio.addEventListener("ended", onEnded);
-      audio.addEventListener("pause", onPause);
-      audio.addEventListener("play", onPlay);
-      return () => {
-        audio.removeEventListener("timeupdate", onTimeUpdate);
-        audio.removeEventListener("loadedmetadata", onLoaded);
-        audio.removeEventListener("durationchange", onLoaded);
-        audio.removeEventListener("ended", onEnded);
-        audio.removeEventListener("pause", onPause);
-        audio.removeEventListener("play", onPlay);
-      };
-    }, []);
-    (0, import_react.useEffect)(() => {
-      const audio = audioRef.current;
-      if (audio) audio.playbackRate = playbackRate;
-    }, [playbackRate]);
-    (0, import_react.useEffect)(() => {
-      const onKeyDown = (event) => {
-        if (showExtension && event.key === "Escape") {
-          setShowExtension(false);
-          return;
+        if (e.key === "s" && focusedId) {
+          apiJson(`/api/docs/${focusedId}/renditions/summary`, "POST", {}).then(() => refreshAll()).catch(() => {
+          });
         }
-        if (showAdd && event.key === "Escape") {
-          setAddError("");
-          setShowAdd(false);
-          return;
+        if (e.key === "e" && activeList?.type === "todo") {
+          const item = listItems.find((i) => i.doc_id === focusedId);
+          if (item) handleToggleDone(item);
         }
-        if (tagDropdownOpen && event.key === "Escape") {
-          setTagDropdownOpen(false);
-          return;
-        }
-        if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
-          event.preventDefault();
-          setShowAdd(true);
-          return;
-        }
-        if (isTypingTarget(event.target)) return;
-        if (event.key === "/") {
-          event.preventDefault();
-          searchRef.current?.focus();
-          return;
-        }
-        if (event.key.toLowerCase() === "n") {
-          event.preventDefault();
-          setShowAdd(true);
-          return;
-        }
-        if (event.key === " ") {
-          event.preventDefault();
-          const audio = audioRef.current;
-          if (audio && activeArticle) {
-            audio.paused ? audio.play() : audio.pause();
-          }
-          return;
-        }
-        if (event.key.toLowerCase() === "k") {
-          event.preventDefault();
-          const audio = audioRef.current;
-          if (audio && activeArticle) {
-            audio.paused ? audio.play() : audio.pause();
-          }
-          return;
-        }
-        if (event.key === "Escape") {
-          if (similarMode) {
-            setSimilarMode(null);
-            return;
-          }
-          return;
-        }
-        if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-          event.preventDefault();
-          if (filteredResults.length === 0) return;
-          const idx = filteredResults.findIndex((d) => d.id === selectedId);
-          const next = event.key === "ArrowDown" ? idx < filteredResults.length - 1 ? idx + 1 : 0 : idx > 0 ? idx - 1 : filteredResults.length - 1;
-          setSelectedId(filteredResults[next].id);
-          setTimeout(() => {
-            document.getElementById(`doc-${filteredResults[next].id}`)?.scrollIntoView({ block: "nearest", behavior: "smooth" });
-          }, 0);
+        const num = parseInt(e.key);
+        if (num >= 1 && num <= 9) {
+          const allListIds = [null, ...lists.map((l) => l.id)];
+          if (num <= allListIds.length) handleSelectList(allListIds[num - 1]);
         }
       };
-      window.addEventListener("keydown", onKeyDown);
-      return () => window.removeEventListener("keydown", onKeyDown);
-    }, [showAdd, showExtension, tagDropdownOpen, similarMode, activeArticle, filteredResults, selectedId]);
-    async function handleAdd(payload) {
-      setAddError("");
-      try {
-        await apiJson("/api/articles", "POST", { ...payload, process: true });
-        setShowAdd(false);
-        refreshArticles(search);
-        refreshStatus();
-      } catch (error) {
-        setAddError(error.message);
-        throw error;
-      }
-    }
-    async function handlePreview(payload) {
-      setAddError("");
-      try {
-        return (await apiJson("/api/preview", "POST", payload)).preview;
-      } catch (error) {
-        setAddError(error.message);
-        throw error;
-      }
-    }
-    async function handleSaveDefaultVoice(voice) {
-      setAddError("");
-      const data = await apiJson("/api/preferences", "PUT", { default_voice: voice });
-      setDefaultVoice(data.preferences?.default_voice || voice);
-      setPlaybackRate(Number(data.preferences?.playback_rate || playbackRate));
-      setPlaybackRates(data.preferences?.available_playback_rates || PLAYBACK_RATES);
-      await refreshArticles(search);
-    }
-    async function handleSavePlaybackRate(rate) {
-      const data = await apiJson("/api/preferences", "PUT", { playback_rate: rate });
-      setPlaybackRate(Number(data.preferences?.playback_rate || rate));
-      setPlaybackRates(data.preferences?.available_playback_rates || PLAYBACK_RATES);
-    }
-    function handleToggleSelect(articleId) {
-      setSelectedIds((current) => current.includes(articleId) ? current.filter((id) => id !== articleId) : [...current, articleId]);
-    }
-    function handleSelectionModeToggle() {
-      setDeleteError("");
-      setShowDeleteConfirm(false);
-      setSelectionMode((current) => {
-        if (current) setSelectedIds([]);
-        return !current;
-      });
-    }
-    async function handleDeleteSelected() {
-      if (!selectedIds.length) return;
-      setDeleteError("");
-      setDeleting(true);
-      try {
-        for (const articleId of selectedIds) {
-          await apiJson(`/api/articles/${articleId}`, "DELETE");
-          if (articleId === activeId) {
-            const audio = audioRef.current;
-            if (audio) {
-              audio.pause();
-              audio.removeAttribute("src");
-              audio.load();
-            }
-            setActiveId(null);
-            setIsPlaying(false);
-            setCurrentTime(0);
-            setDuration(0);
-          }
-        }
-        setSelectedIds([]);
-        setShowDeleteConfirm(false);
-        setSelectionMode(false);
-        await refreshArticles(search);
-        await refreshStatus();
-      } catch (error) {
-        setDeleteError(error.message);
-      } finally {
-        setDeleting(false);
-      }
-    }
-    async function handlePlay(article) {
-      const audio = audioRef.current;
-      if (!audio || !article.audio_url) return;
-      if (activeId === article.id) {
-        audio.paused ? await audio.play() : audio.pause();
-        return;
-      }
-      setActiveId(article.id);
-      setCurrentTime(0);
-      setDuration(article.audio_duration_sec || 0);
-      listenedFiredRef.current = null;
-      audio.src = article.audio_url;
-      await audio.play();
-    }
-    function handleSeek(event) {
-      const audio = audioRef.current;
-      if (!audio || !duration) return;
-      const rect = event.currentTarget.getBoundingClientRect();
-      const percent = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
-      audio.currentTime = percent * duration;
-      setCurrentTime(audio.currentTime);
-    }
-    async function handleReprocess(articleId, voice) {
-      await apiJson(`/api/articles/${articleId}/reprocess`, "POST", { voice });
-      refreshArticles(search);
-      refreshStatus();
-    }
-    async function handleCopyFeed() {
-      const feedUrl = new URL("/feed.xml", window.location.href).toString();
-      if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(feedUrl);
-      } else {
-        window.prompt("Copy feed URL", feedUrl);
-      }
-      setFeedCopied(true);
-      window.setTimeout(() => setFeedCopied(false), 1500);
-    }
-    const addFilter = (tag) => {
-      if (similarMode) setSimilarMode(null);
-      if (!activeFilters.includes(tag)) setActiveFilters((prev) => [...prev, tag]);
-    };
-    const removeFilter = (tag) => setActiveFilters((prev) => prev.filter((f) => f !== tag));
-    const clearAll = () => {
-      setActiveFilters([]);
-      setSearch("");
-      setTimeRange("all");
-      setSimilarMode(null);
-      setSortMode("auto");
-    };
-    const handleFindSimilar = (doc) => {
-      setSimilarMode(doc.id);
-      setActiveFilters([]);
-      setSearch("");
-      setTimeRange("all");
-    };
-    const hasActiveScope = activeFilters.length > 0 || isSearching || timeRange !== "all" || similarMode;
-    return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { height: "100vh", background: c.bgDeep, fontFamily: font.sans, display: "flex", flexDirection: "column", color: c.text }, children: [
+      document.addEventListener("keydown", handler);
+      return () => document.removeEventListener("keydown", handler);
+    }, [focusedId, activeListId, listItems, articles, lists, search, showCreateList, activeList]);
+    return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
       /* @__PURE__ */ (0, import_jsx_runtime.jsx)("style", { children: globalStyles }),
       /* @__PURE__ */ (0, import_jsx_runtime.jsx)("audio", { ref: audioRef, preload: "metadata" }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 12, padding: "10px 20px", borderBottom: `1px solid ${c.border}`, background: c.bg, flexShrink: 0 }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8 }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { width: 8, height: 8, borderRadius: "50%", background: daemonState === "ready" ? c.green : daemonConnected ? c.amber : c.red } }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 14, fontWeight: 700, color: c.text }, children: "Local Knowledge" })
-        ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: { fontSize: 11, color: c.textDim }, children: [
-          articles.length,
-          " docs \xB7 ",
-          indexedCount,
-          " indexed"
-        ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { flex: 1 } }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: handleCopyFeed, style: { display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", borderRadius: 8, border: `1px solid ${c.border}`, background: "rgba(255,255,255,0.04)", color: c.textMuted, fontSize: 13, fontWeight: 600, fontFamily: font.sans, cursor: "pointer" }, children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: feedCopied ? "Feed Copied" : "Copy Feed" }) }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", { onClick: () => setShowExtension(true), style: { display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", borderRadius: 8, border: `1px solid ${c.border}`, background: "rgba(255,255,255,0.04)", color: c.textMuted, fontSize: 13, fontWeight: 600, fontFamily: font.sans, cursor: "pointer" }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ExtensionIcon, { size: 15 }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "Ext" })
-        ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", { onClick: handleSelectionModeToggle, style: selectionMode ? { display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", borderRadius: 8, border: `1px solid ${c.accent}`, background: c.accentDim, color: c.accent, fontSize: 13, fontWeight: 600, fontFamily: font.sans, cursor: "pointer" } : { display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", borderRadius: 8, border: `1px solid ${c.border}`, background: "rgba(255,255,255,0.04)", color: c.textMuted, fontSize: 13, fontWeight: 600, fontFamily: font.sans, cursor: "pointer" }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CheckIcon, { size: 15 }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: selectionMode ? "Done" : "Select" })
-        ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", { onClick: () => setShowAdd(true), style: { display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 8, border: "none", background: c.accent, color: c.bgDeep, fontSize: 13, fontWeight: 600, fontFamily: font.sans, cursor: "pointer" }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PlusIcon, { size: 16 }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "Add" })
-        ] })
-      ] }),
-      (daemonError || daemonState !== "ready") && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { padding: "10px 20px", fontSize: 13, background: daemonError ? c.redDim : c.greenDim, color: daemonError ? c.red : c.green, borderBottom: `1px solid ${(daemonError ? c.red : c.green) + "22"}`, flexShrink: 0 }, children: daemonError || daemonMessage }),
-      deleteError && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { padding: "10px 20px", fontSize: 13, background: c.redDim, color: c.red, borderBottom: `1px solid ${c.red}22`, flexShrink: 0 }, children: deleteError }),
-      updateInfo && !updateDismissed && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { padding: "10px 20px", fontSize: 13, background: c.amberDim, color: c.amber, borderBottom: `1px solid ${c.amber}22`, flexShrink: 0, display: "flex", justifyContent: "space-between", alignItems: "center" }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { children: [
-          "readcast ",
-          updateInfo.latest,
-          " is available (you have ",
-          updateInfo.current,
-          ").",
-          " ",
-          "Run ",
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("code", { style: { padding: "2px 6px", borderRadius: 4, background: c.bg, fontFamily: font.mono, fontSize: 12 }, children: "pixi global upgrade readcast" }),
-          " to update."
-        ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: () => setUpdateDismissed(true), style: { background: "none", border: "none", color: c.textMuted, cursor: "pointer", fontSize: 14, padding: "0 4px", fontFamily: "inherit", flexShrink: 0 }, "aria-label": "Dismiss", children: "\u2715" })
-      ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 6, padding: "8px 20px", borderBottom: `1px solid ${c.border}`, background: c.surface, flexShrink: 0, flexWrap: "wrap", minHeight: 44 }, children: [
-        similarMode && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 6, padding: "3px 5px 3px 10px", borderRadius: 6, background: c.cyanDim, border: `1px solid ${c.cyan}33`, fontSize: 11, color: c.cyan, fontWeight: 500 }, children: [
-          "\u25CE Similar to: ",
-          (articles.find((d) => d.id === similarMode)?.title || "").slice(0, 35),
-          "...",
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-            "span",
-            {
-              onClick: () => setSimilarMode(null),
-              style: { cursor: "pointer", padding: "0 4px", fontSize: 10 },
-              onMouseEnter: (e) => e.target.style.background = `${c.cyan}22`,
-              onMouseLeave: (e) => e.target.style.background = "transparent",
-              children: "\xD7"
-            }
-          )
-        ] }),
-        !similarMode && activeFilters.map((f) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(FilterChip, { tag: f, onRemove: () => removeFilter(f) }, f)),
-        !similarMode && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { ref: dropdownRef, style: { position: "relative" }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", { onClick: () => setTagDropdownOpen(!tagDropdownOpen), style: {
-            display: "flex",
-            alignItems: "center",
-            gap: 4,
-            padding: "3px 9px",
-            borderRadius: 6,
-            border: `1px dashed ${tagDropdownOpen ? c.accent + "66" : c.border}`,
-            background: tagDropdownOpen ? c.accentDim : "transparent",
-            color: tagDropdownOpen ? c.accent : c.textMuted,
-            fontSize: 11,
-            fontFamily: font.sans,
-            cursor: "pointer",
-            transition: "all 0.12s"
-          }, children: [
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 12, lineHeight: 1 }, children: "+" }),
-            activeFilters.length === 0 ? "Filter by tag" : "Add"
-          ] }),
-          tagDropdownOpen && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TagDropdown, { allTags: tagIndex, activeFilters, onAdd: addFilter, onClose: () => setTagDropdownOpen(false) })
-        ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { flex: 1 } }),
-        !similarMode && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { display: "flex", gap: 1, borderRadius: 6, overflow: "hidden", border: `1px solid ${c.border}` }, children: [["7d", "7d"], ["30d", "30d"], ["all", "All"]].map(([val, label]) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: () => setTimeRange(val), style: {
-          padding: "3px 9px",
-          border: "none",
-          fontSize: 10,
-          fontFamily: font.sans,
-          background: timeRange === val ? c.accentDim : c.bg,
-          color: timeRange === val ? c.accent : c.textDim,
-          cursor: "pointer",
-          fontWeight: timeRange === val ? 600 : 400
-        }, children: label }, val)) }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { display: "flex", gap: 1, borderRadius: 6, overflow: "hidden", border: `1px solid ${c.border}` }, children: [["auto", "Auto"], ["date", "Date"], ["relevance", "Score"]].map(([val, label]) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", { onClick: () => setSortMode(val), style: {
-          padding: "3px 9px",
-          border: "none",
-          fontSize: 10,
-          fontFamily: font.sans,
-          background: sortMode === val ? c.accentDim : c.bg,
-          color: sortMode === val ? c.accent : c.textDim,
-          cursor: "pointer",
-          fontWeight: sortMode === val ? 600 : 400
-        }, children: [
-          label,
-          val === "auto" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: { fontSize: 8, opacity: 0.5, marginLeft: 2 }, children: [
-            "(",
-            isSearching ? "rel" : "date",
-            ")"
-          ] })
-        ] }, val)) }),
-        hasActiveScope && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: { fontSize: 10, color: c.textMuted }, children: [
-            filteredResults.length,
-            " result",
-            filteredResults.length !== 1 ? "s" : ""
-          ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: clearAll, style: { padding: "2px 8px", borderRadius: 4, border: `1px solid ${c.border}`, background: "transparent", color: c.textMuted, fontSize: 10, fontFamily: font.sans, cursor: "pointer" }, children: "Clear" })
-        ] })
-      ] }),
-      selectionMode && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "10px 20px", background: c.surface, borderBottom: `1px solid ${c.border}`, flexShrink: 0 }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 13, color: c.textMuted }, children: selectedCount ? `${selectedCount} selected` : "Select articles to delete" }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", { onClick: () => setShowDeleteConfirm(true), style: { ...dangerBtn, opacity: selectedCount ? 1 : 0.45 }, disabled: !selectedCount, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TrashIcon, { size: 15 }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "Delete" })
-        ] })
-      ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", flex: 1, overflow: "hidden" }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { width: 400, flexShrink: 0, borderRight: `1px solid ${c.border}`, display: "flex", flexDirection: "column", background: c.bg }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { padding: "10px 18px 10px 20px", borderBottom: `1px solid ${c.border}` }, children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { position: "relative" }, children: [
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: c.textDim, pointerEvents: "none" }, children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SearchIcon, { size: 14 }) }),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-              "input",
-              {
-                ref: searchRef,
-                type: "text",
-                value: search,
-                onChange: (e) => {
-                  setSearch(e.target.value);
-                  if (similarMode) setSimilarMode(null);
-                },
-                placeholder: activeFilters.length > 0 ? `Search within ${filteredResults.length} docs...` : "Search all documents...",
-                style: { width: "100%", padding: "9px 12px 9px 32px", borderRadius: 8, border: `1px solid ${c.border}`, background: c.surface, color: c.text, fontSize: 13, fontFamily: font.sans, outline: "none" },
-                onFocus: (e) => e.target.style.borderColor = c.accent + "55",
-                onBlur: (e) => e.target.style.borderColor = c.border,
-                "aria-label": "Search articles"
-              }
-            ),
-            search && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: () => setSearch(""), style: { position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: c.textMuted, cursor: "pointer", fontSize: 13, padding: "2px 4px" }, "aria-label": "Clear search", children: "\u2715" })
-          ] }) }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { flex: 1, overflow: "auto" }, children: filteredResults.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { padding: 40, textAlign: "center" }, children: [
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 28, marginBottom: 8, opacity: 0.2 }, children: "\u2205" }),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 13, color: c.textMuted }, children: search ? "No documents match" : articles.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
-              "No articles yet. Add one with the",
-              " ",
-              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { onClick: () => setShowExtension(true), style: { color: c.accent, cursor: "pointer", textDecoration: "underline" }, role: "button", tabIndex: 0, onKeyDown: (e) => {
-                if (e.key === "Enter") setShowExtension(true);
-              }, children: "browser extension" }),
-              " ",
-              "or the Add button above."
-            ] }) : "No documents match" }),
-            (search || activeFilters.length > 0) && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 11, color: c.textDim, marginTop: 4 }, children: "Try broader terms or remove a filter" })
-          ] }) : filteredResults.map((article) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-            DocumentListItem,
-            {
-              article,
-              isSelected: selectedId === article.id,
-              selectionMode,
-              isChecked: selectedIds.includes(article.id),
-              activeFilters,
-              onSelect: setSelectedId,
-              onToggleCheck: handleToggleSelect,
-              onAddFilter: addFilter
-            },
-            article.id
-          )) })
-        ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { flex: 1, overflow: "auto", background: c.surface }, children: selectedDoc ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-          ReadingPane,
-          {
-            article: selectedDoc,
-            articles,
-            voices,
-            onReprocess: handleReprocess,
-            onRefresh: () => refreshArticles(search),
-            onAddFilter: addFilter,
-            onFindSimilar: handleFindSimilar,
-            onPlay: handlePlay,
-            onSelectDoc: setSelectedId,
-            activeId,
-            isPlaying
-          }
-        ) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", justifyContent: "center", height: "100%", flexDirection: "column", gap: 8 }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 32, opacity: 0.12 }, children: "\u{1F4C4}" }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 14, color: c.textDim }, children: "Select a document" })
-        ] }) })
-      ] }),
-      activeArticle && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { height: 72, flexShrink: 0 } }),
       /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-        PlayerBar,
+        NavSidebar,
         {
-          article: activeArticle,
-          isPlaying,
-          currentTime,
-          duration,
-          playbackRate,
-          playbackRates,
-          onToggle: () => {
-            const audio = audioRef.current;
-            if (audio && activeArticle) {
-              audio.paused ? audio.play() : audio.pause();
-            }
-          },
-          onSeek: handleSeek,
-          onPlaybackRateChange: handleSavePlaybackRate
+          lists,
+          activeListId,
+          totalCount: articles.length,
+          onSelectList: handleSelectList,
+          onCreateList: () => setShowCreateList(true)
         }
       ),
-      showAdd && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(AddPanel, { voices, defaultVoice, onAdd: handleAdd, onPreview: handlePreview, onSaveDefaultVoice: handleSaveDefaultVoice, onClose: () => {
-        setAddError("");
-        setShowAdd(false);
-      }, error: addError }),
-      showDeleteConfirm && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(DeleteConfirmPanel, { count: selectedCount, deleting, onConfirm: handleDeleteSelected, onClose: () => {
-        setDeleteError("");
-        setShowDeleteConfirm(false);
-      } }),
-      showExtension && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ExtensionPanel, { onClose: () => setShowExtension(false) })
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+        CenterPanel,
+        {
+          activeList,
+          articles,
+          listItems,
+          focusedId,
+          onSelectDoc: handleSelectDoc,
+          onToggleDone: handleToggleDone,
+          playingIndex,
+          audioState,
+          onBatchNarrate: handleBatchNarrate,
+          onPlayerToggle: handlePlayerToggle,
+          onPlayerSeek: handlePlayerSeek,
+          onPlayerPrev: handlePlayerPrev,
+          onPlayerNext: handlePlayerNext,
+          search,
+          onSearchChange: setSearch
+        }
+      ),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+        DetailPanel,
+        {
+          article: focusedArticle,
+          lists,
+          voices,
+          onRefresh: refreshAll,
+          onToggleListMembership: handleToggleListMembership
+        }
+      ),
+      showCreateList && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CreateListModal, { onClose: () => setShowCreateList(false), onCreate: handleCreateList })
     ] });
   }
   (0, import_client.createRoot)(document.getElementById("root")).render(/* @__PURE__ */ (0, import_jsx_runtime.jsx)(ReadcastApp, {}));
