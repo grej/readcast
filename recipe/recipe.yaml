@@ -40,7 +40,7 @@ requirements:
     - uvicorn >=0.30
     - num2words >=0.5
     - packaging >=23.0
-    - local-knowledge >=0.2.0
+    - local-knowledge >=0.5.0
     - yt-dlp
 
 tests:
