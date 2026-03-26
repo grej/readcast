@@ -552,7 +552,16 @@ def create_app(base_dir: Optional[Path] = None) -> FastAPI:
         service = _service(request)
         if service.store.get_list(list_id) is None:
             raise HTTPException(status_code=404, detail="List not found")
-        return {"items": service.store.get_list_items(list_id)}
+        items = service.store.get_list_items(list_id)
+        for item in items:
+            if "article" in item and item["article"]:
+                art_id = item["article"].get("id") or item.get("doc_id")
+                if art_id:
+                    path = service.audio_path_for_article(art_id)
+                    item["article"]["audio_url"] = f"/api/articles/{art_id}/audio" if path else None
+                    item["article"]["has_audio"] = path is not None
+                    item["article"]["renditions"] = service.store.get_renditions(art_id)
+        return {"items": items}
 
     @app.post("/api/lists/{list_id}/items", status_code=201)
     async def add_list_item(request: Request, list_id: str, payload: AddListItemRequest) -> dict[str, object]:
@@ -714,6 +723,13 @@ def _serialize_article(service: ReadcastService, article: Article) -> dict[str, 
     payload["has_audio"] = path is not None
     payload["renditions"] = service.store.get_renditions(article.id)
     payload["list_memberships"] = service.store.get_doc_list_memberships(article.id)
+    # Populate tags from document_tags table if article.tags is empty
+    if not payload.get("tags"):
+        try:
+            doc_tags = service.store._svc.tags.get_document_tags(article.id)
+            payload["tags"] = [t["name"] for t in doc_tags]
+        except Exception:
+            payload["tags"] = []
     return payload
 
 

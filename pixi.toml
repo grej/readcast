@@ -37,6 +37,8 @@ check = { cmd = "ruff check . && pytest -q && npm run build:frontend", env = { P
 "check:runtime" = { cmd = "ruff check . && pytest -q && npm run build:frontend", env = { PYTHONPATH = "src" }, depends-on = ["setup"] }
 "frontend:build" = "npm run build:frontend"
 "package:check" = { cmd = "python scripts/verify_distribution.py", env = { PYTHONPATH = "src" } }
+"test:e2e" = "npx playwright test"
+"test:e2e:headed" = "npx playwright test --headed"
 
 [environments]
 default = { features = ["dev"], solve-group = "default" }

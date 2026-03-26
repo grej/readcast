@@ -14,7 +14,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 DIST_DIR = ROOT / "dist"
 STATIC_EXPECTED = [
     "readcast/web/static/index.html",
-    "readcast/web/static/bundle.js",
+    "readcast/web/static/app.js",
     "readcast/web/extension/manifest.json",
     "readcast/web/extension/background.js",
     "readcast/web/extension/content.js",
@@ -51,7 +51,7 @@ def main() -> int:
                     "from readcast.api.app import STATIC_DIR; "
                     "assert STATIC_DIR.exists(); "
                     "assert (STATIC_DIR / 'index.html').exists(); "
-                    "assert (STATIC_DIR / 'bundle.js').exists(); "
+                    "assert (STATIC_DIR / 'app.js').exists(); "
                     "print('distribution-ok')"
                 ),
             ],

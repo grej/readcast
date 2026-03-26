@@ -36,11 +36,11 @@ def test_api_serves_frontend_shell_and_bundle(base_dir) -> None:
     app = create_app(base_dir)
     with TestClient(app) as client:
         index = client.get("/")
-        bundle = client.get("/static/bundle.js")
+        bundle = client.get("/static/app.js")
 
         assert index.status_code == 200
         assert "text/html" in index.headers["content-type"]
-        assert "bundle.js" in index.text
+        assert "app.js" in index.text
         assert bundle.status_code == 200
         assert bundle.text
 
