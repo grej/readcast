@@ -24495,81 +24495,93 @@
     bg1: "#0c0d12",
     bg2: "#13151d",
     bg3: "#181b26",
-    bg4: "#1a1d27",
+    bg4: "#1e2130",
     br: "#222538",
     br2: "#181a28",
+    br3: "#2a2d42",
     t1: "#e4e5ea",
     t2: "#a0a4b8",
     t3: "#6b7084",
     t4: "#4a4d60",
+    t5: "#363849",
     acc: "#6c8cff",
+    acc2: "#5474e8",
     abg: "rgba(108,140,255,0.1)",
+    abr: "rgba(108,140,255,0.25)",
     grn: "#4ade80",
-    gbg: "rgba(74,222,128,0.12)",
+    gbg: "rgba(74,222,128,0.1)",
     red: "#f87171",
-    rbg: "rgba(248,113,113,0.12)",
+    rbg: "rgba(248,113,113,0.1)",
     amb: "#ef9f27",
-    ambg: "rgba(239,159,39,0.12)",
-    pur: "#a855f7",
-    pbg: "rgba(168,85,247,0.12)",
+    ambg: "rgba(239,159,39,0.1)",
+    pur: "#a78bfa",
+    pbg: "rgba(167,139,250,0.1)",
     teal: "#2dd4bf",
-    tbg: "rgba(45,212,191,0.12)"
+    tbg: "rgba(45,212,191,0.1)",
+    rose: "#fb7185",
+    rosebg: "rgba(251,113,133,0.1)",
+    sky: "#38bdf8",
+    skybg: "rgba(56,189,248,0.1)"
   };
   var FONT = {
-    sans: "'DM Sans', 'Avenir Next', system-ui, sans-serif",
+    sans: "'DM Sans', system-ui, sans-serif",
     serif: "'Source Serif 4', Georgia, serif",
-    mono: "'JetBrains Mono', 'SF Mono', monospace"
+    mono: "'JetBrains Mono', monospace"
   };
-  var TAG_CLS = {
-    "ai-tools": [C.acc, C.abg],
-    "ai-research": [C.teal, C.tbg],
-    email: [C.grn, C.gbg],
-    geopolitics: [C.red, C.rbg],
-    "mil-tech": [C.amb, C.ambg],
-    reading: [C.pur, C.pbg],
-    defense: [C.red, C.rbg]
+  var TYPES = [
+    { key: "all", icon: "\u2299", label: "All Items" },
+    { key: "action", icon: "\u2610", label: "Action Items", listType: "todo" },
+    { key: "collection", icon: "\u25CE", label: "Collections", listType: "collection" },
+    { key: "playlist", icon: "\u266B", label: "Playlists", listType: "playlist" }
+  ];
+  var SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
+  var EMOJIS = ["\u{1F4CC}", "\u{1F4DA}", "\u{1F3AF}", "\u{1F52C}", "\u{1F4A1}", "\u{1F3D7}", "\u{1F4CA}", "\u{1F3A8}", "\u{1F9EA}", "\u{1F5FA}", "\u270F\uFE0F", "\u{1F516}", "\u{1F393}", "\u{1F4E1}", "\u{1F6E0}", "\u2709", "\u{1F9E0}", "\u{1F30D}", "\u{1F3A7}", "\u26A1", "\u{1F4D6}", "\u{1F52E}"];
+  var COLOR_CLASSES = {
+    "on-amb": { border: "rgba(239,159,39,0.3)", color: C.amb, bg: C.ambg },
+    "on-pur": { border: "rgba(167,139,250,0.25)", color: C.pur, bg: C.pbg },
+    "on-red": { border: "rgba(248,113,113,0.25)", color: C.red, bg: C.rbg },
+    "on-teal": { border: "rgba(45,212,191,0.25)", color: C.teal, bg: C.tbg },
+    "on-acc": { border: C.abr, color: C.acc, bg: C.abg },
+    "on-sky": { border: "rgba(56,189,248,0.25)", color: C.sky, bg: C.skybg },
+    "on-rose": { border: "rgba(251,113,133,0.25)", color: C.rose, bg: C.rosebg },
+    "on-grn": { border: "rgba(74,222,128,0.25)", color: C.grn, bg: C.gbg }
   };
-  var TYPE_BADGE = { collection: "\u25CE", todo: "\u2610", playlist: "\u266B" };
-  var DEFAULT_COLORS = {
-    collection: [C.pur, C.pbg],
-    todo: [C.amb, C.ambg],
-    playlist: [C.acc, C.abg]
-  };
-  var EMOJIS = ["\u{1F4DA}", "\u{1F9E0}", "\u2709", "\u{1F30D}", "\u26A1", "\u{1F3A7}", "\u{1F4DD}", "\u{1F52C}", "\u{1F4BC}", "\u{1F3AF}", "\u{1F3D7}", "\u{1F393}", "\u2694", "\u{1F6E1}", "\u{1F4CA}", "\u{1F9EA}"];
   var globalCSS = `
-@keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.4;} }
-@keyframes fadeIn { from{opacity:0;transform:translateY(-3px);} to{opacity:1;transform:translateY(0);} }
-@keyframes flashAcc { 0%{background:rgba(108,140,255,0.18);} 100%{background:transparent;} }
-@keyframes bar1 { 0%,100%{height:3px} 50%{height:11px} }
-@keyframes bar2 { 0%,100%{height:9px} 50%{height:3px} }
-@keyframes bar3 { 0%,100%{height:5px} 50%{height:13px} }
-@keyframes bar4 { 0%,100%{height:12px} 50%{height:5px} }
-*{box-sizing:border-box;margin:0;padding:0;}
-body{background:${C.bg0};color:${C.t1};font-family:${FONT.sans};height:100vh;display:flex;flex-direction:column;overflow:hidden;}
-#root{flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden;}
-::selection{background:rgba(108,140,255,0.3);}
-::-webkit-scrollbar{width:5px;}
-::-webkit-scrollbar-track{background:transparent;}
-::-webkit-scrollbar-thumb{background:${C.br};border-radius:3px;}
-input::placeholder{color:${C.t3};}
-button{font-family:inherit;cursor:pointer;}
-.flash{animation:flashAcc 0.4s ease;}
-[data-testid="detail-panel"]{overflow-y:scroll !important;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;}
-.drawer{width:0;overflow:hidden;transition:width .2s ease;flex-shrink:0;display:flex;flex-direction:column;background:${C.bg1};border-left:1px solid ${C.br};}
-.drawer.open{width:280px;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(-3px)}to{opacity:1;transform:none}}
+@keyframes flashAcc{0%{background:rgba(108,140,255,0.18)}100%{background:transparent}}
+@keyframes b1{0%,100%{height:3px}50%{height:10px}}
+@keyframes b2{0%,100%{height:8px}50%{height:3px}}
+@keyframes b3{0%,100%{height:5px}50%{height:12px}}
+@keyframes popIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+@keyframes toastIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:${C.bg0};color:${C.t1};font-family:${FONT.sans};overflow:hidden;-webkit-font-smoothing:antialiased}
+#root{display:flex;flex-direction:column;height:100%;overflow:hidden}
+button{font-family:inherit;cursor:pointer;border:none;background:none}
+input,select{font-family:inherit}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:${C.br};border-radius:2px}
+::selection{background:rgba(108,140,255,0.3)}
+.eq{display:flex;align-items:flex-end;gap:1px;height:14px}
+.eq span{width:2px;background:${C.acc};border-radius:1px}
+.eq span:nth-child(1){animation:b1 .8s infinite}
+.eq span:nth-child(2){animation:b2 .7s infinite}
+.eq span:nth-child(3){animation:b3 .9s infinite}
 `;
   function fmtDur(seconds) {
-    if (!seconds && seconds !== 0) return "--:--";
+    if (!seconds && seconds !== 0) return "\u2014";
     const whole = Math.max(0, Math.floor(seconds));
-    const m = Math.floor(whole / 60);
-    const s = whole % 60;
+    const m = Math.floor(whole / 60), s = whole % 60;
     return `${m}:${String(s).padStart(2, "0")}`;
+  }
+  function fmtSpeed(s) {
+    return s === 1 ? "1\xD7" : s + "\xD7";
   }
   function sourceLabel(article) {
     const raw = article.source || article.publication || article.source_url || article.source_file || "";
     if (!raw) return "Pasted";
     try {
-      if (raw.startsWith("http://") || raw.startsWith("https://")) {
+      if (raw.startsWith("http")) {
         const host = new URL(raw).hostname.replace(/^www\./, "");
         const parts = host.split(".");
         if (parts.length >= 2) {
@@ -24579,7 +24591,6 @@ button{font-family:inherit;cursor:pointer;}
           if (host.includes("substack")) return "Substack";
           return domain.charAt(0).toUpperCase() + domain.slice(1);
         }
-        return host;
       }
     } catch {
     }
@@ -24590,480 +24601,84 @@ button{font-family:inherit;cursor:pointer;}
   function timeAgo(iso) {
     if (!iso) return "";
     try {
-      const d = new Date(iso);
-      const now = /* @__PURE__ */ new Date();
-      const diffMs = now - d;
-      const diffMin = Math.floor(diffMs / 6e4);
+      const d = new Date(iso), now = /* @__PURE__ */ new Date(), diffMin = Math.floor((now - d) / 6e4);
       if (diffMin < 60) return `${diffMin}m`;
       const diffH = Math.floor(diffMin / 60);
       if (diffH < 24) return `${diffH}h`;
-      const diffD = Math.floor(diffH / 24);
-      return `${diffD}d`;
+      return `${Math.floor(diffH / 24)}d`;
     } catch {
       return "";
     }
   }
-  function tagColor(tag) {
-    return TAG_CLS[tag] || [C.acc, C.abg];
-  }
   function isTypingTarget(target) {
     if (!(target instanceof HTMLElement)) return false;
-    const tag = target.tagName;
-    return target.isContentEditable || tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
+    return target.isContentEditable || target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT";
+  }
+  function listsOfType(lists, typeKey) {
+    const t = TYPES.find((x) => x.key === typeKey);
+    if (!t || !t.listType) return [];
+    return lists.filter((l) => l.type === t.listType);
+  }
+  function totalDurSecs(items) {
+    return items.reduce((sum, item) => {
+      const art = item.article || item;
+      const rend = art.renditions || {};
+      const r = item.use_summary ? rend.audio_summary : rend.audio;
+      return sum + (r && r.duration ? r.duration : 0);
+    }, 0);
+  }
+  function listColorClass(list) {
+    if (!list) return null;
+    const c = list.color || "";
+    if (c.includes("amb") || c.includes("ef9f")) return "on-amb";
+    if (c.includes("pur") || c.includes("a855") || c.includes("a78b")) return "on-pur";
+    if (c.includes("red") || c.includes("f871")) return "on-red";
+    if (c.includes("teal") || c.includes("2dd4")) return "on-teal";
+    if (c.includes("sky") || c.includes("38bd")) return "on-sky";
+    if (c.includes("rose") || c.includes("fb71")) return "on-rose";
+    if (c.includes("4ade") || c.includes("grn")) return "on-grn";
+    return "on-acc";
   }
   async function apiGet(path) {
-    const response = await fetch(path);
-    if (!response.ok) {
-      let detail = `Request failed (${response.status})`;
+    const r = await fetch(path);
+    if (!r.ok) {
+      let d = `Request failed (${r.status})`;
       try {
-        const data = await response.json();
-        detail = data.detail || detail;
+        d = (await r.json()).detail || d;
       } catch {
       }
-      throw new Error(detail);
+      throw new Error(d);
     }
-    return response.json();
+    return r.json();
   }
   async function apiJson(path, method, body) {
-    const response = await fetch(path, {
-      method,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body)
-    });
-    if (!response.ok) {
-      let detail = `Request failed (${response.status})`;
+    const r = await fetch(path, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    if (!r.ok) {
+      let d = `Request failed (${r.status})`;
       try {
-        const data = await response.json();
-        detail = data.detail || detail;
+        d = (await r.json()).detail || d;
       } catch {
       }
-      throw new Error(detail);
+      throw new Error(d);
     }
-    if (response.status === 204) return null;
-    return response.json();
+    return r.status === 204 ? null : r.json();
   }
   async function apiDelete(path) {
-    const response = await fetch(path, { method: "DELETE" });
-    if (!response.ok && response.status !== 204) {
-      let detail = `Request failed (${response.status})`;
+    const r = await fetch(path, { method: "DELETE" });
+    if (!r.ok && r.status !== 204) {
+      let d = `Request failed (${r.status})`;
       try {
-        const data = await response.json();
-        detail = data.detail || detail;
+        d = (await r.json()).detail || d;
       } catch {
       }
-      throw new Error(detail);
+      throw new Error(d);
     }
     return null;
   }
-  function AddToListPopover({ docId, x, y, lists, docTitle, articleMemberships, onToggle, onClose, onCreateList }) {
-    const ref = (0, import_react.useRef)(null);
-    (0, import_react.useEffect)(() => {
-      const handler = (e) => {
-        if (ref.current && !ref.current.contains(e.target)) onClose();
-      };
-      setTimeout(() => document.addEventListener("click", handler), 10);
-      return () => document.removeEventListener("click", handler);
-    }, [onClose]);
-    const memberIds = new Set((articleMemberships || []).map((m) => m.id));
-    return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { ref, style: {
-      position: "fixed",
-      zIndex: 200,
-      background: C.bg4,
-      border: `1px solid ${C.br}`,
-      borderRadius: 8,
-      padding: 4,
-      minWidth: 190,
-      boxShadow: "0 4px 20px rgba(0,0,0,0.5)",
-      left: Math.min(x, window.innerWidth - 200),
-      top: Math.min(y, window.innerHeight - 200)
-    }, children: [
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { padding: "4px 10px", fontSize: 10, color: C.t4, pointerEvents: "none" }, children: [
-        'Add "',
-        (docTitle || "").substring(0, 30),
-        (docTitle || "").length > 30 ? "..." : "",
-        '" to:'
-      ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { height: 1, background: C.br, margin: "3px 0" } }),
-      lists.map((l) => {
-        const inL = memberIds.has(l.id);
-        return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
-          "div",
-          {
-            onClick: (e) => {
-              e.stopPropagation();
-              onToggle(docId, l.id, inL);
-              onClose();
-            },
-            style: {
-              padding: "6px 10px",
-              borderRadius: 5,
-              fontSize: 11,
-              color: C.t2,
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: 7,
-              transition: "background 0.06s"
-            },
-            onMouseEnter: (e) => e.currentTarget.style.background = C.bg3,
-            onMouseLeave: (e) => e.currentTarget.style.background = "transparent",
-            children: [
-              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 13, width: 18, textAlign: "center", color: l.color }, children: l.icon }),
-              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: l.name }),
-              inL && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { marginLeft: "auto", color: C.grn, fontSize: 11 }, children: "\u2713" })
-            ]
-          },
-          l.id
-        );
-      }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { height: 1, background: C.br, margin: "3px 0" } }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
-        "div",
-        {
-          onClick: onCreateList,
-          style: { padding: "6px 10px", borderRadius: 5, fontSize: 11, color: C.t4, cursor: "pointer", display: "flex", alignItems: "center", gap: 7, transition: "background 0.06s" },
-          onMouseEnter: (e) => e.currentTarget.style.background = C.bg3,
-          onMouseLeave: (e) => e.currentTarget.style.background = "transparent",
-          children: [
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 13, width: 18, textAlign: "center" }, children: "+" }),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "New list" })
-          ]
-        }
-      )
-    ] });
-  }
-  function PlaylistPickerPopover({ docId, x, y, lists, articleMemberships, onToggle, onClose, onCreateList }) {
-    const ref = (0, import_react.useRef)(null);
-    (0, import_react.useEffect)(() => {
-      const handler = (e) => {
-        if (ref.current && !ref.current.contains(e.target)) onClose();
-      };
-      setTimeout(() => document.addEventListener("click", handler), 10);
-      return () => document.removeEventListener("click", handler);
-    }, [onClose]);
-    const playlists = lists.filter((l) => l.type === "playlist");
-    const memberIds = new Set((articleMemberships || []).map((m) => m.id));
-    return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { ref, style: {
-      position: "fixed",
-      zIndex: 200,
-      background: C.bg4,
-      border: `1px solid ${C.br}`,
-      borderRadius: 8,
-      padding: 4,
-      minWidth: 190,
-      boxShadow: "0 4px 20px rgba(0,0,0,0.5)",
-      left: Math.min(x, window.innerWidth - 210),
-      top: Math.min(y, window.innerHeight - 200)
-    }, children: [
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { padding: "4px 10px", fontSize: 10, color: C.t4, pointerEvents: "none" }, children: "Add to playlist:" }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { height: 1, background: C.br, margin: "3px 0" } }),
-      playlists.map((l) => {
-        const inL = memberIds.has(l.id);
-        return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
-          "div",
-          {
-            onClick: (e) => {
-              e.stopPropagation();
-              onToggle(docId, l.id, inL);
-              onClose();
-            },
-            style: {
-              padding: "6px 10px",
-              borderRadius: 5,
-              fontSize: 11,
-              color: C.t2,
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: 7,
-              transition: "background 0.06s"
-            },
-            onMouseEnter: (e) => e.currentTarget.style.background = C.bg3,
-            onMouseLeave: (e) => e.currentTarget.style.background = "transparent",
-            children: [
-              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 13, width: 18, textAlign: "center", color: l.color }, children: l.icon }),
-              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: l.name }),
-              inL && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { marginLeft: "auto", color: C.grn, fontSize: 11 }, children: "\u2713" })
-            ]
-          },
-          l.id
-        );
-      }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { height: 1, background: C.br, margin: "3px 0" } }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
-        "div",
-        {
-          onClick: onCreateList,
-          style: { padding: "6px 10px", borderRadius: 5, fontSize: 11, color: C.t4, cursor: "pointer", display: "flex", alignItems: "center", gap: 7, transition: "background 0.06s" },
-          onMouseEnter: (e) => e.currentTarget.style.background = C.bg3,
-          onMouseLeave: (e) => e.currentTarget.style.background = "transparent",
-          children: [
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 13, width: 18, textAlign: "center" }, children: "+" }),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "New playlist" })
-          ]
-        }
-      )
-    ] });
-  }
-  function CreateListModal({ onClose, onCreate }) {
-    const [name, setName] = (0, import_react.useState)("");
-    const [type, setType] = (0, import_react.useState)("collection");
-    const [icon, setIcon] = (0, import_react.useState)("\u{1F4DA}");
-    const nameRef = (0, import_react.useRef)(null);
-    (0, import_react.useEffect)(() => {
-      nameRef.current?.focus();
-    }, []);
-    const handleCreate = () => {
-      if (!name.trim()) return;
-      const [color, bg] = DEFAULT_COLORS[type] || DEFAULT_COLORS.collection;
-      onCreate({ name: name.trim(), type, icon, color, bg });
-      onClose();
-    };
-    const inputStyle = { width: "100%", padding: "8px 10px", borderRadius: 6, border: `1px solid ${C.br}`, background: C.bg1, color: C.t1, fontSize: 13, fontFamily: "inherit", outline: "none", marginBottom: 8 };
-    const selectStyle = { ...inputStyle, fontSize: 12, padding: "7px 10px" };
-    const btnStyle = { padding: "5px 12px", borderRadius: 6, border: `1px solid ${C.br}`, background: "rgba(255,255,255,0.03)", color: C.t3, fontSize: 11, fontWeight: 600, fontFamily: "inherit", cursor: "pointer", display: "flex", alignItems: "center", gap: 5, transition: "0.1s", whiteSpace: "nowrap" };
-    return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 500, display: "flex", alignItems: "flex-start", justifyContent: "center", paddingTop: 100 }, onClick: onClose, children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { onClick: (e) => e.stopPropagation(), style: { background: C.bg2, border: `1px solid ${C.br}`, borderRadius: 12, width: 360, overflow: "hidden", animation: "fadeIn 0.15s ease" }, children: [
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { padding: "14px 18px", borderBottom: `1px solid ${C.br}`, fontSize: 14, fontWeight: 600, display: "flex", alignItems: "center", gap: 8 }, children: "Create new list" }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { padding: "14px 18px" }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("label", { style: { fontSize: 12, color: C.t2, display: "block", marginBottom: 4 }, children: "Name" }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-          "input",
-          {
-            ref: nameRef,
-            type: "text",
-            value: name,
-            onChange: (e) => setName(e.target.value),
-            placeholder: "e.g. Study Psychology",
-            style: inputStyle,
-            onFocus: (e) => e.target.style.borderColor = C.acc,
-            onBlur: (e) => e.target.style.borderColor = C.br,
-            onKeyDown: (e) => {
-              if (e.key === "Enter") handleCreate();
-            }
-          }
-        ),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("label", { style: { fontSize: 12, color: C.t2, display: "block", marginBottom: 4 }, children: "Type" }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("select", { value: type, onChange: (e) => setType(e.target.value), style: selectStyle, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", { value: "collection", children: "Collection \u2014 curated topic group" }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", { value: "todo", children: "Todo \u2014 action items with due dates" }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", { value: "playlist", children: "Playlist \u2014 audio narration queue" })
-        ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("label", { style: { fontSize: 12, color: C.t2, display: "block", marginBottom: 4 }, children: "Icon" }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 8 }, children: EMOJIS.map((e) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: () => setIcon(e), style: { width: 30, height: 30, borderRadius: 6, border: `1px solid ${icon === e ? C.acc : C.br}`, background: icon === e ? C.abg : C.bg1, fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "0.1s", fontFamily: "inherit" }, children: e }, e)) })
-      ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { padding: "10px 18px", borderTop: `1px solid ${C.br}`, display: "flex", justifyContent: "flex-end", gap: 6 }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: onClose, style: btnStyle, children: "Cancel" }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: handleCreate, style: { ...btnStyle, background: C.acc, color: C.bg0, borderColor: C.acc }, children: "Create" })
-      ] })
-    ] }) });
-  }
-  function NavSidebar({ lists, activeListId, totalCount, onSelectList, onCreateList, collapsed, onToggleCollapse, playerPlaylistId, isPlaying, sections, onToggleSection }) {
-    const todoLists = lists.filter((l) => l.type === "todo");
-    const otherLists = lists.filter((l) => l.type === "collection" || l.type === "playlist");
-    return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { "data-testid": "nav-sidebar", style: {
-      width: collapsed ? 0 : 210,
-      flexShrink: 0,
-      borderRight: collapsed ? "none" : `1px solid ${C.br}`,
-      display: "flex",
-      flexDirection: "column",
-      background: C.bg0,
-      userSelect: "none",
-      overflowY: "auto",
-      overflowX: "hidden",
-      transition: "width 0.2s ease"
-    }, children: [
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { padding: "12px 14px 8px", display: "flex", alignItems: "center", gap: 8 }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { width: 8, height: 8, borderRadius: "50%", background: C.grn } }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 13, fontWeight: 700 }, children: "Local Knowledge" }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-          "button",
-          {
-            "data-testid": "nav-collapse",
-            onClick: onToggleCollapse,
-            title: "Collapse sidebar",
-            style: {
-              marginLeft: "auto",
-              width: 28,
-              height: 28,
-              borderRadius: 6,
-              border: `1px solid ${C.br}`,
-              background: C.bg1,
-              color: C.t3,
-              fontSize: 11,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              cursor: "pointer",
-              transition: "0.1s",
-              flexShrink: 0
-            },
-            onMouseEnter: (e) => {
-              e.currentTarget.style.background = C.bg3;
-              e.currentTarget.style.color = C.t2;
-            },
-            onMouseLeave: (e) => {
-              e.currentTarget.style.background = C.bg1;
-              e.currentTarget.style.color = C.t3;
-            },
-            children: "\u25C2"
-          }
-        )
-      ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(NavSection, { label: "Knowledge base", sectionKey: "kb", open: sections.kb !== false, onToggle: () => onToggleSection("kb"), children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-        NavItem,
-        {
-          id: null,
-          icon: "\u2299",
-          label: "All items",
-          count: totalCount,
-          isActive: activeListId === null,
-          onSelect: onSelectList
-        }
-      ) }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { height: 1, background: C.br2, margin: "3px 12px" } }),
-      todoLists.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(NavSection, { label: "Action items", sectionKey: "action", open: sections.action !== false, onToggle: () => onToggleSection("action"), children: todoLists.map((l) => {
-          const undone = l.item_count != null ? l.item_count : 0;
-          return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-            NavItem,
-            {
-              id: l.id,
-              icon: l.icon,
-              label: l.name,
-              typeBadge: TYPE_BADGE[l.type],
-              listColor: l.color,
-              listBg: l.bg,
-              count: undone,
-              isActive: activeListId === l.id,
-              onSelect: onSelectList
-            },
-            l.id
-          );
-        }) }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { height: 1, background: C.br2, margin: "3px 12px" } })
-      ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(NavSection, { label: "Lists", sectionKey: "lists", open: sections.lists !== false, onToggle: () => onToggleSection("lists"), children: otherLists.map((l) => {
-        const isPlayingThis = playerPlaylistId === l.id && isPlaying;
-        return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-          NavItem,
-          {
-            id: l.id,
-            icon: l.icon,
-            label: l.name,
-            typeBadge: TYPE_BADGE[l.type],
-            listColor: l.color,
-            listBg: l.bg,
-            count: l.item_count,
-            isActive: activeListId === l.id,
-            isPlayingDot: isPlayingThis,
-            onSelect: onSelectList
-          },
-          l.id
-        );
-      }) }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
-        "div",
-        {
-          onClick: onCreateList,
-          style: { padding: "6px 14px", display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 11, color: C.t4, transition: "0.1s" },
-          onMouseEnter: (e) => e.currentTarget.style.color = C.acc,
-          onMouseLeave: (e) => e.currentTarget.style.color = C.t4,
-          children: [
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 14, width: 18, textAlign: "center" }, children: "+" }),
-            "New list"
-          ]
-        }
-      ),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { marginTop: "auto", padding: "8px 14px", borderTop: `1px solid ${C.br2}`, fontSize: 10, color: C.t4, lineHeight: 1.8 }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Kbd, { children: "\u2191\u2193" }),
-        " navigate ",
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Kbd, { children: "\u23CE" }),
-        " open",
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("br", {}),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Kbd, { children: "q" }),
-        " queue ",
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Kbd, { children: "e" }),
-        " done ",
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Kbd, { children: "n" }),
-        " narrate",
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("br", {}),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Kbd, { children: "[" }),
-        " toggle sidebar"
-      ] })
-    ] });
-  }
-  function Kbd({ children }) {
-    return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("kbd", { style: { fontFamily: FONT.mono, fontSize: 9, padding: "1px 4px", borderRadius: 3, background: C.bg2, border: `1px solid ${C.br}`, color: C.t3 }, children });
-  }
-  function NavSection({ label, open, onToggle, children }) {
-    return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
-        "div",
-        {
-          onClick: onToggle,
-          style: {
-            padding: "5px 14px",
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-            cursor: "pointer",
-            fontSize: 10,
-            fontWeight: 600,
-            color: C.t4,
-            textTransform: "uppercase",
-            letterSpacing: 0.7,
-            userSelect: "none",
-            transition: "color 0.1s"
-          },
-          onMouseEnter: (e) => e.currentTarget.style.color = C.t3,
-          onMouseLeave: (e) => e.currentTarget.style.color = C.t4,
-          children: [
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 8, transition: "transform 0.15s", width: 12, textAlign: "center", transform: open ? "none" : "rotate(-90deg)" }, children: "\u25BC" }),
-            label
-          ]
-        }
-      ),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { overflow: "hidden", transition: "max-height 0.2s ease", maxHeight: open ? 600 : 0 }, children })
-    ] });
-  }
-  function NavItem({ id, icon, label, typeBadge, listColor, listBg, count, isActive, isPlayingDot, onSelect }) {
-    return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
-      "div",
-      {
-        "data-testid": id ? `nav-item-${id}` : "nav-item-all",
-        onClick: () => onSelect(id),
-        style: {
-          padding: "6px 14px",
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          cursor: "pointer",
-          fontSize: 12,
-          color: isActive ? listColor || C.t1 : C.t2,
-          transition: "background 0.06s",
-          borderLeft: `2px solid ${isActive ? C.acc : "transparent"}`,
-          background: isActive ? C.bg4 : "transparent",
-          fontWeight: isActive ? 600 : 400
-        },
-        onMouseEnter: (e) => {
-          if (!isActive) e.currentTarget.style.background = C.bg2;
-        },
-        onMouseLeave: (e) => {
-          if (!isActive) e.currentTarget.style.background = isActive ? C.bg4 : "transparent";
-        },
-        children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 14, width: 18, textAlign: "center", flexShrink: 0 }, children: icon }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, children: label }),
-          isPlayingDot && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { width: 6, height: 6, borderRadius: "50%", background: C.acc, flexShrink: 0, animation: "pulse 1.5s infinite" } }),
-          typeBadge && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 8, padding: "1px 4px", borderRadius: 3, background: listBg || C.abg, color: listColor || C.acc }, children: typeBadge }),
-          count != null && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 10, color: C.t4, fontFamily: FONT.mono }, children: count })
-        ]
-      }
-    );
-  }
-  function NavRail({ lists, activeListId, onSelectList, onExpandNav }) {
-    return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { "data-testid": "nav-rail", style: {
-      width: 36,
+  function NavRail({ railType, onNavType, lists }) {
+    const hasDueItems = lists.some((l) => l.type === "todo" && l.item_count > 0);
+    return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { "data-testid": "nav-rail", style: {
+      width: 40,
       flexShrink: 0,
       borderRight: `1px solid ${C.br}`,
       background: C.bg0,
@@ -25071,111 +24686,175 @@ button{font-family:inherit;cursor:pointer;}
       flexDirection: "column",
       alignItems: "center",
       paddingTop: 10,
-      gap: 4
-    }, children: [
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-        "button",
-        {
-          onClick: onExpandNav,
-          title: "Expand sidebar",
-          style: {
-            width: 28,
-            height: 28,
-            borderRadius: 6,
-            border: "none",
-            background: "transparent",
-            color: C.t3,
-            fontSize: 13,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            cursor: "pointer",
-            transition: "0.1s"
-          },
-          onMouseEnter: (e) => {
-            e.currentTarget.style.background = C.bg2;
-            e.currentTarget.style.color = C.t2;
-          },
-          onMouseLeave: (e) => {
-            e.currentTarget.style.background = "transparent";
-            e.currentTarget.style.color = C.t3;
-          },
-          children: "\u2630"
-        }
-      ),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { height: 1, width: 20, background: C.br2, margin: "4px 0" } }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-        RailBtn,
-        {
-          icon: "\u2299",
-          isActive: activeListId === null,
-          color: C.acc,
-          bg: C.abg,
-          onClick: () => onSelectList(null),
-          title: "All items"
-        }
-      ),
-      lists.map((l) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-        RailBtn,
-        {
-          icon: l.icon,
-          isActive: activeListId === l.id,
-          color: l.color,
-          bg: l.bg,
-          onClick: () => onSelectList(l.id),
-          title: l.name
-        },
-        l.id
-      ))
+      gap: 2
+    }, children: TYPES.map((t, i) => {
+      const isOn = railType === t.key;
+      const matching = t.listType ? lists.filter((l) => l.type === t.listType) : [];
+      const count = matching.length;
+      return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_react.default.Fragment, { children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+          "button",
+          {
+            "data-testid": `rail-${t.key}`,
+            onClick: () => onNavType(t.key),
+            title: t.label,
+            style: {
+              width: 30,
+              height: 30,
+              borderRadius: 7,
+              border: "none",
+              position: "relative",
+              background: isOn ? C.abg : "transparent",
+              color: isOn ? C.acc : C.t4,
+              fontSize: 14,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+              transition: ".12s",
+              flexShrink: 0
+            },
+            onMouseEnter: (e) => {
+              if (!isOn) {
+                e.currentTarget.style.background = C.bg3;
+                e.currentTarget.style.color = C.t2;
+              }
+            },
+            onMouseLeave: (e) => {
+              if (!isOn) {
+                e.currentTarget.style.background = isOn ? C.abg : "transparent";
+                e.currentTarget.style.color = isOn ? C.acc : C.t4;
+              }
+            },
+            children: [
+              t.icon,
+              t.key === "action" && hasDueItems && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { position: "absolute", top: 3, right: 3, width: 6, height: 6, borderRadius: "50%", background: C.amb } }),
+              count > 1 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { position: "absolute", bottom: 2, right: 1, fontSize: 7, fontWeight: 700, color: isOn ? C.acc : C.t4, fontFamily: FONT.mono }, children: count })
+            ]
+          }
+        ),
+        i === 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { width: 20, height: 1, background: C.br2, margin: "4px 0", flexShrink: 0 } })
+      ] }, t.key);
+    }) });
+  }
+  function ChooserView({ typeInfo, matchingLists, onSelectList, onCreateList, playerPlaylistId, listItemCounts }) {
+    const gradients = {
+      playlist: "linear-gradient(135deg,rgba(108,140,255,0.15),rgba(167,139,250,0.1))",
+      collection: "linear-gradient(135deg,rgba(167,139,250,0.12),rgba(45,212,191,0.08))",
+      todo: "linear-gradient(135deg,rgba(239,159,39,0.12),rgba(248,113,113,0.08))"
+    };
+    return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { padding: "10px 12px", borderBottom: `1px solid ${C.br}`, display: "flex", alignItems: "center", gap: 8, flexShrink: 0, minHeight: 42 }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 14 }, children: typeInfo.icon }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 13, fontWeight: 700, flex: 1 }, children: typeInfo.label }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 10, padding: "2px 6px", borderRadius: 4, fontWeight: 600, background: C.abg, color: C.acc, fontFamily: FONT.mono }, children: matchingLists.length })
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { flex: 1, overflowY: "auto", minHeight: 0, padding: "4px 0" }, children: [
+        matchingLists.map((l) => {
+          const isActive = l.id === playerPlaylistId;
+          return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+            "div",
+            {
+              onClick: () => onSelectList(l.id),
+              style: {
+                padding: 12,
+                margin: "6px 10px",
+                borderRadius: 10,
+                border: `1px solid ${isActive ? C.acc : C.br}`,
+                background: isActive ? "rgba(108,140,255,0.06)" : C.bg3,
+                cursor: "pointer",
+                display: "flex",
+                gap: 12,
+                alignItems: "center",
+                transition: ".12s"
+              },
+              onMouseEnter: (e) => {
+                if (!isActive) {
+                  e.currentTarget.style.borderColor = C.t4;
+                  e.currentTarget.style.background = C.bg4;
+                }
+              },
+              onMouseLeave: (e) => {
+                if (!isActive) {
+                  e.currentTarget.style.borderColor = C.br;
+                  e.currentTarget.style.background = C.bg3;
+                }
+              },
+              children: [
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { width: 44, height: 44, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, flexShrink: 0, background: gradients[l.type] || gradients.collection }, children: l.icon }),
+                /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { flex: 1, minWidth: 0 }, children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 13, fontWeight: 600, marginBottom: 2 }, children: l.name }),
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { fontSize: 10, color: C.t3 }, children: [
+                    l.item_count || 0,
+                    " items"
+                  ] })
+                ] }),
+                isActive && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "eq", style: { flexShrink: 0 }, children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {}),
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {}),
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {})
+                ] }),
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { color: C.t5, fontSize: 14, flexShrink: 0 }, children: "\u203A" })
+              ]
+            },
+            l.id
+          );
+        }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+          "div",
+          {
+            onClick: () => onCreateList(typeInfo.listType),
+            style: {
+              padding: 12,
+              margin: "6px 10px",
+              borderRadius: 10,
+              border: `1px dashed ${C.t5}`,
+              background: "transparent",
+              cursor: "pointer",
+              display: "flex",
+              gap: 12,
+              alignItems: "center",
+              transition: ".12s"
+            },
+            onMouseEnter: (e) => {
+              e.currentTarget.style.borderColor = C.t4;
+              e.currentTarget.style.background = C.bg3;
+            },
+            onMouseLeave: (e) => {
+              e.currentTarget.style.borderColor = C.t5;
+              e.currentTarget.style.background = "transparent";
+            },
+            children: [
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { width: 44, height: 44, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0, background: C.bg2, color: C.t4 }, children: "+" }),
+              /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
+                /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { fontSize: 13, fontWeight: 600, color: C.t3 }, children: [
+                  "New ",
+                  typeInfo.listType || "list"
+                ] }),
+                /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { fontSize: 10, color: C.t4 }, children: [
+                  "Create a new ",
+                  typeInfo.listType === "playlist" ? "ordered playlist" : typeInfo.listType === "todo" ? "action list" : "collection"
+                ] })
+              ] })
+            ]
+          }
+        )
+      ] })
     ] });
   }
-  function RailBtn({ icon, isActive, color, bg, onClick, title }) {
-    return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-      "button",
-      {
-        onClick,
-        title,
-        style: {
-          width: 28,
-          height: 28,
-          borderRadius: 6,
-          border: "none",
-          background: isActive ? bg : "transparent",
-          color: isActive ? color : C.t3,
-          fontSize: 13,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          cursor: "pointer",
-          transition: "0.1s"
-        },
-        onMouseEnter: (e) => {
-          if (!isActive) {
-            e.currentTarget.style.background = C.bg2;
-            e.currentTarget.style.color = C.t2;
-          }
-        },
-        onMouseLeave: (e) => {
-          if (!isActive) {
-            e.currentTarget.style.background = "transparent";
-            e.currentTarget.style.color = C.t3;
-          }
-        },
-        children: icon
-      }
-    );
-  }
   function CenterPanel({
+    railType,
     activeList,
+    lists,
     articles,
     listItems,
     focusedId,
-    onSelectDoc,
     search,
+    onSelectDoc,
     onSearchChange,
-    onPlayNow,
-    onAddToQueue,
-    onShowATP,
+    onSelectList,
+    onBackToChooser,
+    onCreateList,
     playerPlaylistId,
     playerIdx,
     isPlaying,
@@ -25188,673 +24867,363 @@ button{font-family:inherit;cursor:pointer;}
     onBatchNarrate,
     onLoadPlaylist,
     onToggleDone,
-    onToggleDrawer
+    onPlayNow,
+    onAddToQueue,
+    editing,
+    onToggleEditing,
+    onRenameList,
+    onDeleteList,
+    speed,
+    onCycleSpeed,
+    onRemoveFromList
   }) {
-    const isAll = !activeList;
-    const listType = isAll ? "all" : activeList.type;
-    const isPlaylistView = listType === "playlist";
-    const totalDuration = isPlaylistView ? listItems.reduce((sum, item) => {
-      const art = item.article;
-      if (!art) return sum;
-      const rend = art.renditions || {};
-      const r = item.use_summary ? rend.audio_summary : rend.audio;
-      return sum + (r && r.duration ? r.duration : 0);
-    }, 0) : 0;
-    const missingNarration = isPlaylistView ? listItems.filter((item) => {
-      const art = item.article;
-      if (!art) return true;
-      const rend = art.renditions || {};
-      const r = item.use_summary ? rend.audio_summary : rend.audio;
-      return !r || r.state !== "ready";
-    }).length : 0;
-    const isActivePlaylist = isPlaylistView && activeList && playerPlaylistId === activeList.id;
-    const nowPlayingItem = isActivePlaylist && playerIdx != null && listItems[playerIdx] ? listItems[playerIdx] : null;
-    const nowPlayingArticle = nowPlayingItem?.article || null;
-    const currentPlaylistItems = (0, import_react.useMemo)(() => {
-      return [];
-    }, []);
-    const sortedItems = (0, import_react.useMemo)(() => {
-      if (listType !== "todo") return listItems;
-      const today = /* @__PURE__ */ new Date();
-      today.setHours(0, 0, 0, 0);
-      return [...listItems].sort((a, b) => {
-        if ((a.done ? 1 : 0) !== (b.done ? 1 : 0)) return a.done ? 1 : -1;
-        if (!a.done) {
-          const da = a.due ? new Date(a.due) : null, db = b.due ? new Date(b.due) : null;
-          if (da && !db) return -1;
-          if (!da && db) return 1;
-          if (da && db) return da - db;
-        }
-        return 0;
-      });
-    }, [listItems, listType]);
-    const displayItems = listType === "todo" ? sortedItems : listItems;
-    const [dragFrom, setDragFrom] = (0, import_react.useState)(null);
-    return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { "data-testid": "center-panel", style: { width: 370, flexShrink: 0, borderRight: `1px solid ${C.br}`, display: "flex", flexDirection: "column", background: C.bg1, overflow: "hidden" }, children: isPlaylistView ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { "data-testid": "playlist-hero", style: {
-        padding: 16,
-        borderBottom: `1px solid ${C.br}`,
-        flexShrink: 0,
-        background: "linear-gradient(180deg, rgba(108,140,255,0.05) 0%, transparent 100%)"
-      }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", gap: 14, alignItems: "center", marginBottom: 14 }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: {
-            width: 60,
-            height: 60,
-            borderRadius: 12,
-            background: "linear-gradient(135deg, rgba(108,140,255,0.2), rgba(168,85,247,0.15))",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: 26,
-            flexShrink: 0
-          }, children: activeList.icon }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { flex: 1, minWidth: 0 }, children: [
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 15, fontWeight: 700, marginBottom: 2 }, children: activeList.name }),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { fontSize: 10, color: C.t3 }, children: [
-              listItems.length,
-              " items ",
-              "\xB7",
-              " ",
-              fmtDur(totalDuration)
-            ] })
+    const typeInfo = TYPES.find((t) => t.key === railType);
+    const matching = typeInfo?.listType ? lists.filter((l) => l.type === typeInfo.listType) : [];
+    const list = activeList ? lists.find((l) => l.id === activeList) : null;
+    const showChooser = railType !== "all" && !activeList;
+    const showBack = list && matching.length > 1;
+    if (list && list.type === "playlist") {
+      const docs = listItems;
+      const totalSecs = totalDurSecs(docs);
+      const needsNarr = docs.filter((i) => {
+        const r = (i.article?.renditions || {}).audio;
+        return !r || r.state !== "ready";
+      }).length;
+      const isActivePlaylist = playerPlaylistId === list.id;
+      const isNon1 = speed !== 1;
+      return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { "data-testid": "center-panel", style: { width: 350, flexShrink: 0, borderRight: `1px solid ${C.br}`, display: "flex", flexDirection: "column", background: C.bg1, overflow: "hidden" }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { "data-testid": "playlist-hero", style: { padding: "14px 12px 10px", borderBottom: `1px solid ${C.br}`, background: "linear-gradient(180deg,rgba(108,140,255,0.06) 0%,transparent 100%)", flexShrink: 0 }, children: [
+          showBack && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { fontSize: 10, color: C.acc, cursor: "pointer", marginBottom: 6, display: "flex", alignItems: "center", gap: 3 }, onClick: onBackToChooser, children: [
+            "\u2039",
+            " All ",
+            typeInfo.label
           ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
-            "button",
-            {
-              "data-testid": "play-all-btn",
-              onClick: () => onLoadPlaylist(activeList.id),
-              style: {
-                padding: "7px 16px",
-                borderRadius: 6,
-                border: `1px solid ${C.acc}`,
-                background: C.acc,
-                color: C.bg0,
-                fontSize: 11,
-                fontWeight: 600,
-                fontFamily: "inherit",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: 4,
-                transition: "0.1s",
-                whiteSpace: "nowrap"
-              },
-              onMouseEnter: (e) => e.currentTarget.style.background = "#8aa4ff",
-              onMouseLeave: (e) => e.currentTarget.style.background = C.acc,
-              children: [
-                "\u25B6",
-                " Play all"
-              ]
-            }
-          ),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-            "button",
-            {
-              onClick: onToggleDrawer,
-              title: "Queue",
-              style: {
-                width: 30,
-                height: 26,
-                borderRadius: 6,
-                border: `1px solid ${C.br}`,
-                background: "transparent",
-                color: C.t3,
-                fontSize: 11,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                transition: "0.1s",
-                cursor: "pointer",
-                fontFamily: "inherit"
-              },
-              onMouseEnter: (e) => {
-                e.currentTarget.style.background = C.abg;
-                e.currentTarget.style.color = C.acc;
-              },
-              onMouseLeave: (e) => {
-                e.currentTarget.style.background = "transparent";
-                e.currentTarget.style.color = C.t3;
-              },
-              children: "\u2261"
-            }
-          )
-        ] }),
-        isActivePlaylist && nowPlayingArticle && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 9, color: C.t4, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 }, children: "Now playing" }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 13, fontWeight: 600, marginBottom: 6, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, children: nowPlayingArticle.title }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8 }, children: [
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: onPlayerPrev, style: bbSkipStyle, children: "\u23EE" }),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-              "button",
-              {
-                onClick: onPlayerToggle,
-                style: { ...bbPlayStyle, width: 32, height: 32, fontSize: 12 },
-                children: isPlaying ? "\u25AE\u25AE" : "\u25B6"
-              }
-            ),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: onPlayerNext, style: bbSkipStyle, children: "\u23ED" }),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { onClick: onPlayerSeek, style: { flex: 1, height: 4, background: C.br, borderRadius: 2, cursor: "pointer" }, children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: {
-              height: "100%",
-              background: C.acc,
-              borderRadius: 2,
-              width: audioDuration > 0 ? `${audioCurrentTime / audioDuration * 100}%` : "0%",
-              transition: "width 0.3s"
-            } }) }),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: { fontSize: 10, color: C.t4, fontFamily: FONT.mono }, children: [
-              fmtDur(audioCurrentTime),
-              " / ",
-              fmtDur(audioDuration)
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", gap: 10, alignItems: "center", marginBottom: 10 }, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { width: 46, height: 46, borderRadius: 9, background: "linear-gradient(135deg,rgba(108,140,255,0.2),rgba(167,139,250,0.15))", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, flexShrink: 0 }, children: list.icon }),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { flex: 1, minWidth: 0 }, children: [
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 13, fontWeight: 700, marginBottom: 1 }, children: list.name }),
+              /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { fontSize: 10, color: C.t3 }, children: [
+                docs.length,
+                " tracks ",
+                "\xB7",
+                " ",
+                fmtDur(totalSecs),
+                isNon1 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: { color: C.acc }, children: [
+                  " (",
+                  fmtDur(Math.round(totalSecs / speed)),
+                  " at ",
+                  fmtSpeed(speed),
+                  ")"
+                ] }),
+                needsNarr > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: { color: C.amb }, children: [
+                  " ",
+                  "\xB7",
+                  " ",
+                  needsNarr,
+                  " unnarrated"
+                ] })
+              ] })
+            ] }),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", { "data-testid": "play-all-btn", onClick: () => onLoadPlaylist(list.id), style: { padding: "5px 12px", borderRadius: 6, border: `1px solid ${C.acc}`, background: C.acc, color: C.bg0, fontSize: 10, fontWeight: 600, fontFamily: "inherit", cursor: "pointer" }, children: [
+              "\u25B6",
+              " Play all"
+            ] }),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: onCycleSpeed, style: { padding: "2px 6px", borderRadius: 4, border: `1px solid ${isNon1 ? C.abr : C.br}`, background: isNon1 ? C.abg : C.bg3, color: isNon1 ? C.acc : C.t2, fontSize: 9, fontWeight: 600, fontFamily: FONT.mono, cursor: "pointer", minWidth: 34, textAlign: "center" }, children: fmtSpeed(speed) })
+          ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 6 }, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: onToggleEditing, style: { padding: "3px 8px", borderRadius: 5, border: `1px solid ${editing ? C.acc : C.br}`, background: editing ? C.acc : "transparent", color: editing ? C.bg0 : C.t3, fontSize: 9, fontWeight: 600, fontFamily: "inherit", cursor: "pointer" }, children: editing ? "\u2713 Done" : "\u270E Edit" }),
+            editing && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+              /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", { onClick: onRenameList, style: { padding: "3px 8px", borderRadius: 5, border: `1px solid ${C.br}`, background: "transparent", color: C.t3, fontSize: 9, fontWeight: 600, fontFamily: "inherit", cursor: "pointer" }, children: [
+                "\u270F",
+                " Rename"
+              ] }),
+              /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", { onClick: onDeleteList, style: { padding: "3px 8px", borderRadius: 5, border: `1px solid rgba(248,113,113,0.2)`, background: "transparent", color: C.red, fontSize: 9, fontWeight: 600, fontFamily: "inherit", cursor: "pointer", marginLeft: "auto" }, children: [
+                "\u{1F5D1}",
+                " Delete"
+              ] })
+            ] }),
+            !editing && needsNarr > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", { onClick: () => onBatchNarrate(list.id), style: { padding: "2px 6px", borderRadius: 5, border: `1px solid ${C.acc}`, background: C.acc, color: C.bg0, fontSize: 8, fontWeight: 600, fontFamily: "inherit", cursor: "pointer" }, children: [
+              "\u{1F399}",
+              " Generate ",
+              needsNarr
             ] })
           ] })
+        ] }),
+        editing ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { padding: "6px 10px", borderBottom: `1px solid ${C.br}`, background: "rgba(108,140,255,0.04)", display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 9, fontWeight: 600, color: C.acc, textTransform: "uppercase", letterSpacing: 0.5 }, children: "Edit mode" }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: { fontSize: 9, color: C.t4, marginLeft: "auto" }, children: [
+            "Click ",
+            "\xD7",
+            " to remove"
+          ] })
+        ] }) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { padding: "4px 12px", borderBottom: `1px solid ${C.br2}`, fontSize: 8, color: C.t5, textTransform: "uppercase", letterSpacing: 0.5, display: "flex", flexShrink: 0 }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "TRACKLIST" }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { flex: 1 } }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontStyle: "italic", textTransform: "none", letterSpacing: 0 }, children: "drag to reorder" })
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { flex: 1, overflowY: "auto", minHeight: 0 }, children: [
+          docs.map((item, idx) => {
+            const art = item.article;
+            if (!art) return null;
+            const rend = art.renditions || {};
+            const r = item.use_summary ? rend.audio_summary : rend.audio;
+            const aState = r ? r.state === "ready" ? "ready" : "gen" : "miss";
+            const isP = isActivePlaylist && playerIdx === idx;
+            const isSel = focusedId === (item.doc_id || art.id);
+            return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+              "div",
+              {
+                onClick: () => onSelectDoc(item.doc_id || art.id),
+                style: {
+                  padding: "7px 12px",
+                  borderBottom: `1px solid ${C.br2}`,
+                  cursor: "pointer",
+                  display: "flex",
+                  gap: 7,
+                  alignItems: "center",
+                  transition: "background .06s",
+                  background: isP ? "rgba(108,140,255,0.04)" : isSel ? C.bg4 : "transparent",
+                  borderLeft: isSel ? `2px solid ${C.acc}` : "2px solid transparent"
+                },
+                onMouseEnter: (e) => {
+                  if (!isSel && !isP) e.currentTarget.style.background = C.bg3;
+                },
+                onMouseLeave: (e) => {
+                  if (!isSel && !isP) e.currentTarget.style.background = isP ? "rgba(108,140,255,0.04)" : "transparent";
+                },
+                children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { width: 18, fontSize: 10, color: isP ? C.acc : C.t4, textAlign: "center", fontFamily: FONT.mono, flexShrink: 0 }, children: isP ? "\u25B6" : idx + 1 }),
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { cursor: "grab", color: C.t5, fontSize: 12, flexShrink: 0 }, children: "\u2807" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { width: 18, height: 18, borderRadius: 4, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8, flexShrink: 0, background: aState === "ready" ? C.abg : aState === "gen" ? C.ambg : C.rbg, color: aState === "ready" ? C.acc : aState === "gen" ? C.amb : C.red }, children: aState === "ready" ? "\u266B" : aState === "gen" ? "\u25CC" : "\u2715" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { flex: 1, minWidth: 0 }, children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 11, fontWeight: isP || isSel ? 600 : 400, color: isP ? C.t1 : C.t2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, children: art.title }) }),
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 9, color: C.t4, fontFamily: FONT.mono, flexShrink: 0 }, children: fmtDur(r?.duration) }),
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+                    "span",
+                    {
+                      style: { fontSize: 13, color: C.red, cursor: "pointer", flexShrink: 0, width: 16, textAlign: "center", opacity: editing ? 0.4 : 0, transition: "opacity .1s" },
+                      onClick: (e) => {
+                        e.stopPropagation();
+                        onRemoveFromList(item.doc_id || art.id, list.id);
+                      },
+                      onMouseEnter: (e) => {
+                        if (editing) e.currentTarget.style.opacity = "1";
+                      },
+                      onMouseLeave: (e) => {
+                        if (editing) e.currentTarget.style.opacity = "0.4";
+                      },
+                      children: "\xD7"
+                    }
+                  )
+                ]
+              },
+              item.doc_id || art.id
+            );
+          }),
+          docs.length === 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { padding: 24, textAlign: "center", color: C.t4, fontSize: 11 }, children: "Empty playlist. Browse All Items and use the list pills to add tracks." })
         ] })
-      ] }),
-      missingNarration > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { "data-testid": "narration-banner", style: {
-        padding: "7px 12px",
-        display: "flex",
-        alignItems: "center",
-        gap: 6,
-        fontSize: 11,
-        borderBottom: `1px solid ${C.br2}`,
-        flexShrink: 0,
-        background: "rgba(239,159,39,0.04)",
-        color: C.amb
-      }, children: [
-        "\u26A0",
-        " ",
-        missingNarration,
-        " item",
-        missingNarration > 1 ? "s" : "",
-        " need narration",
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-          "button",
-          {
-            onClick: onBatchNarrate,
-            style: {
-              marginLeft: "auto",
-              padding: "3px 8px",
-              borderRadius: 6,
-              border: `1px solid rgba(239,159,39,0.3)`,
-              background: "rgba(255,255,255,0.03)",
-              color: C.amb,
-              fontSize: 10,
-              fontWeight: 600,
-              fontFamily: "inherit",
-              cursor: "pointer",
-              transition: "0.1s",
-              whiteSpace: "nowrap"
-            },
-            children: "Generate all"
-          }
-        )
-      ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { padding: "5px 12px", borderBottom: `1px solid ${C.br2}`, fontSize: 9, color: C.t4, display: "flex", flexShrink: 0 }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "TRACKLIST" }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { flex: 1 } }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "Drag to reorder" })
-      ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { flex: 1, overflowY: "auto", minHeight: 0 }, children: displayItems.map((item, idx) => {
-        const art = item.article;
-        if (!art) return null;
-        const rend = art.renditions || {};
-        const rendition = item.use_summary ? rend.audio_summary : rend.audio;
-        const aState = rendition ? rendition.state === "ready" ? "ready" : rendition.state === "generating" || rendition.state === "queued" ? "gen" : "miss" : "miss";
-        const dur = rendition && rendition.duration ? fmtDur(rendition.duration) : "--:--";
-        const isP = isActivePlaylist && playerIdx === idx;
-        const isSel = focusedId === (item.doc_id || art.id);
-        const tags = art.tags || [];
-        return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
-          "div",
-          {
-            "data-drag-item": idx,
-            draggable: true,
-            onDragStart: (e) => {
-              setDragFrom(idx);
-              e.dataTransfer.effectAllowed = "move";
-              e.currentTarget.style.opacity = "0.3";
-            },
-            onDragOver: (e) => {
-              e.preventDefault();
-              e.currentTarget.parentNode.querySelectorAll("[data-drag-item]").forEach((el) => el.style.borderTop = "");
-              e.currentTarget.style.borderTop = `2px solid ${C.acc}`;
-            },
-            onDragEnd: (e) => {
-              e.currentTarget.style.opacity = "1";
-              e.currentTarget.parentNode.querySelectorAll("[data-drag-item]").forEach((el) => {
-                el.style.borderTop = "";
-                el.style.opacity = "1";
-              });
-            },
-            onDrop: (e) => {
-              e.preventDefault();
-              e.currentTarget.parentNode.querySelectorAll("[data-drag-item]").forEach((el) => {
-                el.style.borderTop = "";
-                el.style.opacity = "1";
-              });
-              if (dragFrom != null && dragFrom !== idx) {
-                handlePlaylistReorder(dragFrom, idx);
-              }
-              setDragFrom(null);
-            },
-            onClick: () => onSelectDoc(item.doc_id || art.id),
-            style: {
-              padding: isSel ? "7px 12px 7px 10px" : "7px 12px",
-              borderBottom: `1px solid ${C.br2}`,
-              cursor: "pointer",
-              display: "flex",
-              gap: 7,
-              alignItems: "center",
-              transition: "background 0.06s",
-              background: isP ? "rgba(108,140,255,0.04)" : isSel ? C.bg4 : "transparent",
-              borderLeft: isSel ? `2px solid ${C.acc}` : "2px solid transparent"
-            },
-            onMouseEnter: (e) => {
-              if (!isSel && !isP) e.currentTarget.style.background = C.bg3;
-            },
-            onMouseLeave: (e) => {
-              if (!isSel && !isP) e.currentTarget.style.background = isP ? "rgba(108,140,255,0.04)" : "transparent";
-            },
-            children: [
-              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { width: 18, fontSize: 10, color: isP ? C.acc : C.t4, textAlign: "center", fontFamily: FONT.mono, flexShrink: 0 }, children: isP ? "\u25B6" : idx + 1 }),
-              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { cursor: "grab", color: C.t4, fontSize: 12, flexShrink: 0 }, children: "\u2807" }),
-              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: {
-                width: 18,
-                height: 18,
-                borderRadius: 4,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: aState === "miss" ? 8 : 9,
-                flexShrink: 0,
-                background: aState === "ready" ? C.abg : aState === "gen" ? C.ambg : C.rbg,
-                color: aState === "ready" ? C.acc : aState === "gen" ? C.amb : C.red,
-                ...aState === "gen" ? { animation: "pulse 1.2s infinite" } : {}
-              }, children: aState === "ready" ? "\u266B" : aState === "gen" ? "\u25CC" : "\u2715" }),
-              /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { flex: 1, minWidth: 0 }, children: [
-                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 12, fontWeight: isP ? 600 : 400, lineHeight: 1.4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, children: art.title }),
-                /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { fontSize: 10, color: C.t3, display: "flex", gap: 4, alignItems: "center", flexWrap: "wrap" }, children: [
-                  tags.slice(0, 3).map((t) => {
-                    const [tc, tbg] = tagColor(t);
-                    return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 8, padding: "1px 5px", borderRadius: 6, background: tbg, color: tc }, children: t }, t);
-                  }),
-                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: sourceLabel(art) })
-                ] })
-              ] }),
-              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 10, color: C.t4, fontFamily: FONT.mono, flexShrink: 0 }, children: dur }),
-              /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-                "span",
-                {
-                  style: { opacity: 0, fontSize: 13, color: C.red, cursor: "pointer", flexShrink: 0, width: 16, textAlign: "center", transition: "opacity 0.1s" },
-                  className: "plrm-hover",
-                  onClick: (e) => {
+      ] });
+    }
+    if (list && list.type === "todo") {
+      const docs = [...listItems].sort((a, b) => {
+        if (a.due && b.due) return a.due < b.due ? -1 : 1;
+        return a.due ? -1 : 1;
+      });
+      return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { "data-testid": "center-panel", style: { width: 350, flexShrink: 0, borderRight: `1px solid ${C.br}`, display: "flex", flexDirection: "column", background: C.bg1, overflow: "hidden" }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { padding: "10px 12px", borderBottom: `1px solid ${C.br}`, display: "flex", alignItems: "center", gap: 8, flexShrink: 0, minHeight: 42, background: "rgba(239,159,39,0.03)" }, children: [
+          showBack && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 10, color: C.acc, cursor: "pointer", marginRight: 4 }, onClick: onBackToChooser, children: "\u2039" }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 14 }, children: list.icon }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 13, fontWeight: 700, flex: 1 }, children: list.name }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 10, padding: "2px 6px", borderRadius: 4, fontWeight: 600, background: C.ambg, color: C.amb, fontFamily: FONT.mono }, children: docs.length }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: onToggleEditing, style: { padding: "3px 8px", borderRadius: 5, border: `1px solid ${editing ? C.acc : C.br}`, background: editing ? C.acc : "transparent", color: editing ? C.bg0 : C.t3, fontSize: 9, fontWeight: 600, fontFamily: "inherit", cursor: "pointer" }, children: editing ? "\u2713 Done" : "\u270E Edit" })
+        ] }),
+        editing && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { padding: "6px 10px", borderBottom: `1px solid ${C.br}`, background: "rgba(108,140,255,0.04)", display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 9, fontWeight: 600, color: C.acc, textTransform: "uppercase", letterSpacing: 0.5 }, children: "Edit mode" }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", { onClick: onRenameList, style: { padding: "3px 8px", borderRadius: 5, border: `1px solid ${C.br}`, background: "transparent", color: C.t3, fontSize: 9, fontWeight: 600, fontFamily: "inherit", cursor: "pointer" }, children: [
+            "\u270F",
+            " Rename"
+          ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", { onClick: onDeleteList, style: { padding: "3px 8px", borderRadius: 5, border: `1px solid rgba(248,113,113,0.2)`, background: "transparent", color: C.red, fontSize: 9, fontWeight: 600, fontFamily: "inherit", cursor: "pointer", marginLeft: "auto" }, children: [
+            "\u{1F5D1}",
+            " Delete"
+          ] })
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { flex: 1, overflowY: "auto", minHeight: 0 }, children: [
+          docs.map((item) => {
+            const art = item.article;
+            if (!art) return null;
+            const isSel = focusedId === (item.doc_id || art.id);
+            return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+              "div",
+              {
+                onClick: () => onSelectDoc(item.doc_id || art.id),
+                style: { padding: "7px 10px", borderBottom: `1px solid ${C.br2}`, cursor: "pointer", display: "flex", gap: 7, alignItems: "center", transition: "background .06s", background: isSel ? C.bg4 : "transparent", borderLeft: isSel ? `2px solid ${C.acc}` : "2px solid transparent" },
+                onMouseEnter: (e) => {
+                  if (!isSel) e.currentTarget.style.background = C.bg3;
+                },
+                onMouseLeave: (e) => {
+                  if (!isSel) e.currentTarget.style.background = "transparent";
+                },
+                children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { flex: 1, minWidth: 0 }, children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 11, fontWeight: isSel ? 600 : 500, lineHeight: 1.4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, children: art.title }),
+                    /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { fontSize: 9, color: C.t3, marginTop: 1 }, children: [
+                      sourceLabel(art),
+                      " ",
+                      "\xB7",
+                      " ",
+                      timeAgo(art.ingested_at),
+                      item.due ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+                        " ",
+                        "\xB7",
+                        " ",
+                        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: { color: C.amb, fontWeight: 500 }, children: [
+                          "due ",
+                          item.due
+                        ] })
+                      ] }) : ""
+                    ] })
+                  ] }),
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", { onClick: (e) => {
                     e.stopPropagation();
-                    onRemoveFromPlaylist && onRemoveFromPlaylist(item.doc_id || art.id);
-                  },
-                  children: "\xD7"
-                }
-              )
-            ]
-          },
-          item.doc_id || art.id
-        );
-      }) })
-    ] }) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { padding: "8px 12px", borderBottom: `1px solid ${C.br}`, display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 15, color: isAll ? void 0 : activeList?.color }, children: isAll ? "\u2299" : activeList?.icon }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 13, fontWeight: 600, flex: 1 }, children: isAll ? "All Items" : activeList?.name }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 9, padding: "2px 6px", borderRadius: 4, fontWeight: 500, background: isAll ? C.abg : activeList?.bg || C.abg, color: isAll ? C.acc : activeList?.color || C.acc }, children: isAll ? articles.length : activeList?.type === "collection" || activeList?.type === "todo" ? displayItems.length : displayItems.length }),
-        listType === "collection" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", { style: {
-          marginLeft: "auto",
-          padding: "3px 8px",
-          borderRadius: 6,
-          border: `1px solid rgba(168,85,247,0.3)`,
-          background: "rgba(255,255,255,0.03)",
-          color: C.pur,
-          fontSize: 10,
-          fontWeight: 600,
-          fontFamily: "inherit",
-          cursor: "pointer",
-          display: "flex",
-          alignItems: "center",
-          gap: 4,
-          transition: "0.1s",
-          whiteSpace: "nowrap"
-        }, children: [
-          "\u26A1",
-          " Spock"
+                    onToggleDone(item);
+                  }, style: { padding: "2px 5px", borderRadius: 5, border: `1px solid ${C.br}`, background: "transparent", color: C.t3, fontSize: 8, fontWeight: 600, fontFamily: "inherit", cursor: "pointer", flexShrink: 0 }, children: [
+                    "\u2713",
+                    " Done"
+                  ] })
+                ]
+              },
+              item.doc_id || art.id
+            );
+          }),
+          docs.length === 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { padding: 24, textAlign: "center", color: C.t4, fontSize: 11 }, children: [
+            "All done! ",
+            "\u{1F389}"
+          ] })
+        ] })
+      ] });
+    }
+    if (list && list.type === "collection") {
+      const docs = listItems;
+      const needsNarr = docs.filter((i) => {
+        const r = (i.article?.renditions || {}).audio;
+        return !r || r.state !== "ready";
+      }).length;
+      return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { "data-testid": "center-panel", style: { width: 350, flexShrink: 0, borderRight: `1px solid ${C.br}`, display: "flex", flexDirection: "column", background: C.bg1, overflow: "hidden" }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { padding: "10px 12px", borderBottom: `1px solid ${C.br}`, display: "flex", alignItems: "center", gap: 8, flexShrink: 0, minHeight: 42 }, children: [
+          showBack && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 10, color: C.acc, cursor: "pointer", marginRight: 4 }, onClick: onBackToChooser, children: "\u2039" }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 14 }, children: list.icon }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 13, fontWeight: 700, flex: 1 }, children: list.name }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 10, padding: "2px 6px", borderRadius: 4, fontWeight: 600, background: list.bg || C.pbg, color: list.color || C.pur, fontFamily: FONT.mono }, children: docs.length }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: onToggleEditing, style: { padding: "3px 8px", borderRadius: 5, border: `1px solid ${editing ? C.acc : C.br}`, background: editing ? C.acc : "transparent", color: editing ? C.bg0 : C.t3, fontSize: 9, fontWeight: 600, fontFamily: "inherit", cursor: "pointer" }, children: editing ? "\u2713 Done" : "\u270E Edit" })
+        ] }),
+        editing && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { padding: "6px 10px", borderBottom: `1px solid ${C.br}`, background: "rgba(108,140,255,0.04)", display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 9, fontWeight: 600, color: C.acc, textTransform: "uppercase", letterSpacing: 0.5 }, children: "Edit mode" }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", { onClick: onRenameList, style: { padding: "3px 8px", borderRadius: 5, border: `1px solid ${C.br}`, background: "transparent", color: C.t3, fontSize: 9, fontWeight: 600, fontFamily: "inherit", cursor: "pointer" }, children: [
+            "\u270F",
+            " Rename"
+          ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", { onClick: onDeleteList, style: { padding: "3px 8px", borderRadius: 5, border: `1px solid rgba(248,113,113,0.2)`, background: "transparent", color: C.red, fontSize: 9, fontWeight: 600, fontFamily: "inherit", cursor: "pointer", marginLeft: "auto" }, children: [
+            "\u{1F5D1}",
+            " Delete"
+          ] })
+        ] }),
+        !editing && needsNarr > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { padding: "5px 12px", borderBottom: `1px solid ${C.br2}`, display: "flex", alignItems: "center", gap: 6, fontSize: 10, color: C.amb, flexShrink: 0, background: "rgba(239,159,39,0.03)" }, children: [
+          "\u{1F399}",
+          " ",
+          needsNarr,
+          " need narration",
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: () => onBatchNarrate(list.id), style: { padding: "2px 6px", borderRadius: 5, border: `1px solid ${C.acc}`, background: C.acc, color: C.bg0, fontSize: 8, fontWeight: 600, fontFamily: "inherit", cursor: "pointer", marginLeft: "auto" }, children: "Generate all" })
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { flex: 1, overflowY: "auto", minHeight: 0 }, children: [
+          docs.map((item) => {
+            const art = item.article;
+            if (!art) return null;
+            return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(DocRow, { article: art, isFocused: focusedId === art.id, onSelect: onSelectDoc, onPlayNow, showRemove: editing, onRemove: () => onRemoveFromList(art.id, list.id) }, art.id);
+          }),
+          docs.length === 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { padding: 24, textAlign: "center", color: C.t4, fontSize: 11 }, children: "Empty. Use list pills on any doc to add items." })
+        ] })
+      ] });
+    }
+    if (showChooser) {
+      return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { "data-testid": "center-panel", style: { width: 350, flexShrink: 0, borderRight: `1px solid ${C.br}`, display: "flex", flexDirection: "column", background: C.bg1, overflow: "hidden" }, children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ChooserView, { typeInfo, matchingLists: matching, onSelectList, onCreateList, playerPlaylistId }) });
+    }
+    const dueCount = articles.filter((a) => {
+      const mems = a.list_memberships || [];
+      return mems.some((m) => {
+        const l = lists.find((ll) => ll.id === m.id);
+        return l && l.type === "todo";
+      });
+    }).length;
+    const narrCount = articles.filter((a) => {
+      const r = (a.renditions || {}).audio;
+      return !r || r.state !== "ready";
+    }).length;
+    let filtered = articles;
+    if (search) {
+      const q = search.toLowerCase();
+      filtered = articles.filter((a) => (a.title || "").toLowerCase().includes(q) || sourceLabel(a).toLowerCase().includes(q));
+    }
+    return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { "data-testid": "center-panel", style: { width: 350, flexShrink: 0, borderRight: `1px solid ${C.br}`, display: "flex", flexDirection: "column", background: C.bg1, overflow: "hidden" }, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { padding: "10px 12px", borderBottom: `1px solid ${C.br}`, display: "flex", alignItems: "center", gap: 8, flexShrink: 0, minHeight: 42 }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 14 }, children: "\u2299" }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 13, fontWeight: 700, flex: 1 }, children: "All Items" }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 10, padding: "2px 6px", borderRadius: 4, fontWeight: 600, background: C.abg, color: C.acc, fontFamily: FONT.mono }, children: articles.length })
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { padding: "8px 12px", borderBottom: `1px solid ${C.br}`, display: "flex", gap: 8, alignItems: "center", flexShrink: 0, flexWrap: "wrap" }, children: [
+        dueCount > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { onClick: () => onSelectList(null, "action"), style: { padding: "3px 8px", borderRadius: 5, fontSize: 9, fontWeight: 600, background: C.ambg, color: C.amb, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }, children: [
+          "\u2709",
+          " ",
+          dueCount,
+          " due"
+        ] }),
+        narrCount > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { padding: "3px 8px", borderRadius: 5, fontSize: 9, fontWeight: 600, background: "rgba(108,140,255,0.08)", color: C.acc, display: "flex", alignItems: "center", gap: 4 }, children: [
+          "\u{1F399}",
+          " ",
+          narrCount,
+          " unnarrated ",
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: () => onBatchNarrate(null), style: { padding: "1px 5px", borderRadius: 3, border: `1px solid ${C.acc}`, background: C.acc, color: C.bg0, fontSize: 7, fontWeight: 600, fontFamily: "inherit", cursor: "pointer", marginLeft: 2 }, children: "Gen all" })
         ] })
       ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { padding: "7px 10px", borderBottom: `1px solid ${C.br2}`, flexShrink: 0, position: "relative" }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { position: "absolute", left: 20, top: "50%", transform: "translateY(-50%)", color: C.t3, fontSize: 12, pointerEvents: "none" }, children: "\u2315" }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { padding: "6px 10px", borderBottom: `1px solid ${C.br2}`, flexShrink: 0, position: "relative" }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { position: "absolute", left: 18, top: "50%", transform: "translateY(-50%)", fontSize: 10, color: C.t5, pointerEvents: "none" }, children: "\u2315" }),
         /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
           "input",
           {
             "data-testid": "search-input",
             value: search,
             onChange: (e) => onSearchChange(e.target.value),
-            placeholder: isAll ? "Search..." : `Search ${activeList?.name || ""}...`,
-            style: {
-              width: "100%",
-              padding: "6px 10px 6px 26px",
-              borderRadius: 6,
-              border: `1px solid ${C.br}`,
-              background: C.bg2,
-              color: C.t1,
-              fontSize: 12,
-              fontFamily: "inherit",
-              outline: "none"
-            },
+            placeholder: "Search documents...",
+            style: { width: "100%", padding: "5px 8px 5px 26px", borderRadius: 6, border: `1px solid ${C.br}`, background: C.bg3, color: C.t1, fontSize: 11, fontFamily: "inherit", outline: "none" },
             onFocus: (e) => e.target.style.borderColor = C.acc,
             onBlur: (e) => e.target.style.borderColor = C.br
           }
         )
       ] }),
-      listType === "todo" && (() => {
-        const missing = displayItems.filter((item) => {
-          const art = item.article;
-          if (!art) return false;
-          const rend = art.renditions || {};
-          return !rend.audio || rend.audio.state !== "ready";
-        });
-        if (missing.length === 0) return null;
-        return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: {
-          padding: "7px 12px",
-          display: "flex",
-          alignItems: "center",
-          gap: 6,
-          fontSize: 11,
-          borderBottom: `1px solid ${C.br2}`,
-          flexShrink: 0,
-          background: "rgba(239,159,39,0.04)",
-          color: C.amb
-        }, children: [
-          "\u26A0",
-          " ",
-          missing.length,
-          " item",
-          missing.length > 1 ? "s" : "",
-          " need narration"
-        ] });
-      })(),
       /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { flex: 1, overflowY: "auto", minHeight: 0 }, children: [
-        isAll && articles.map((a) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-          DocRow,
-          {
-            article: a,
-            isFocused: focusedId === a.id,
-            showListBadges: true,
-            onSelect: onSelectDoc,
-            onPlayNow,
-            onAddToQueue,
-            onShowATP,
-            playerPlaylistId
-          },
-          a.id
-        )),
-        listType === "collection" && displayItems.map((item) => {
-          const art = item.article;
-          if (!art) return null;
-          return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-            DocRow,
-            {
-              article: art,
-              isFocused: focusedId === art.id,
-              showListBadges: false,
-              onSelect: onSelectDoc,
-              onPlayNow,
-              onAddToQueue,
-              onShowATP,
-              playerPlaylistId
-            },
-            art.id
-          );
-        }),
-        listType === "todo" && displayItems.map((item) => {
-          const art = item.article;
-          if (!art) return null;
-          return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-            TodoRow,
-            {
-              item,
-              article: art,
-              isFocused: focusedId === item.doc_id,
-              onSelect: onSelectDoc,
-              onToggleDone
-            },
-            item.doc_id
-          );
-        }),
-        (isAll && articles.length === 0 || !isAll && displayItems.length === 0) && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { padding: 32, textAlign: "center", fontSize: 12, color: C.t4 }, children: "No items." })
+        filtered.map((a) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(DocRow, { article: a, isFocused: focusedId === a.id, onSelect: onSelectDoc, onPlayNow, lists }, a.id)),
+        filtered.length === 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { padding: 24, textAlign: "center", color: C.t4, fontSize: 11 }, children: "No results" })
       ] })
-    ] }) });
-    function handlePlaylistReorder(from, to) {
-    }
+    ] });
   }
-  function DocRow({ article, isFocused, showListBadges, onSelect, onPlayNow, onAddToQueue, onShowATP, playerPlaylistId }) {
+  function DocRow({ article, isFocused, onSelect, onPlayNow, lists, showRemove, onRemove }) {
     const rend = article.renditions || {};
     const audio = rend.audio;
     const audioReady = audio && audio.state === "ready";
-    const memberships = article.list_memberships || [];
     const tags = article.tags || [];
-    const inQueue = memberships.some((m) => m.id === playerPlaylistId);
+    const memberships = article.list_memberships || [];
     return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
       "div",
       {
         "data-testid": `doc-row-${article.id}`,
         onClick: () => onSelect(article.id),
-        className: "doc-row-hover",
         style: {
-          padding: isFocused ? "8px 10px 8px 8px" : "8px 10px",
+          padding: "7px 10px",
           borderBottom: `1px solid ${C.br2}`,
           cursor: "pointer",
           display: "flex",
           gap: 7,
           alignItems: "flex-start",
-          transition: "background 0.06s",
-          background: isFocused ? C.bg4 : "transparent",
-          borderLeft: isFocused ? `2px solid ${C.acc}` : "2px solid transparent",
-          paddingLeft: isFocused ? 8 : 10
-        },
-        onMouseEnter: (e) => {
-          if (!isFocused) e.currentTarget.style.background = C.bg3;
-        },
-        onMouseLeave: (e) => {
-          if (!isFocused) e.currentTarget.style.background = isFocused ? C.bg4 : "transparent";
-        },
-        children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(AudioIcon, { audio, articleId: article.id, onPlayNow }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { flex: 1, minWidth: 0 }, children: [
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 12, fontWeight: 500, lineHeight: 1.4, marginBottom: 2 }, children: article.title }),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { fontSize: 10, color: C.t3, display: "flex", gap: 4, alignItems: "center", flexWrap: "wrap" }, children: [
-              tags.slice(0, 3).map((t) => {
-                const [tc, tbg] = tagColor(t);
-                return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 8, padding: "1px 5px", borderRadius: 6, background: tbg, color: tc }, children: t }, t);
-              }),
-              /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { children: [
-                sourceLabel(article),
-                " ",
-                "\xB7",
-                " ",
-                timeAgo(article.ingested_at)
-              ] })
-            ] }),
-            showListBadges && memberships.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { display: "flex", gap: 3, flexWrap: "wrap", marginTop: 2 }, children: memberships.map((m) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: { fontSize: 7, padding: "1px 5px", borderRadius: 4, fontWeight: 600, letterSpacing: 0.3, textTransform: "uppercase", background: m.bg || "rgba(107,112,132,0.12)", color: m.color || C.t3 }, children: [
-              m.icon,
-              " ",
-              m.name
-            ] }, m.id)) })
-          ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", gap: 2, flexShrink: 0, flexDirection: "column", alignItems: "center", marginTop: 1 }, children: [
-            audioReady && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(GutterAction, { icon: "\u25B6", tip: "Play now", onClick: (e) => {
-              e.stopPropagation();
-              onPlayNow(article.id);
-            } }),
-            audioReady && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-              GutterAction,
-              {
-                icon: inQueue ? "\u2611" : "\u2295",
-                tip: inQueue ? "In queue" : "Add to queue",
-                isInQueue: inQueue,
-                onClick: (e) => {
-                  e.stopPropagation();
-                  onAddToQueue(article.id);
-                }
-              }
-            ),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)(GutterAction, { icon: "\u2630", tip: "Add to list", onClick: (e) => {
-              e.stopPropagation();
-              onShowATP(e, article.id);
-            } })
-          ] })
-        ]
-      }
-    );
-  }
-  function AudioIcon({ audio, articleId, onPlayNow }) {
-    const audioReady = audio && audio.state === "ready";
-    const isGen = audio && (audio.state === "generating" || audio.state === "queued");
-    const baseStyle = {
-      width: 26,
-      height: 26,
-      borderRadius: 6,
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      fontSize: 10,
-      flexShrink: 0,
-      marginTop: 1,
-      background: "transparent",
-      color: C.t4,
-      border: "none",
-      position: "relative",
-      transition: "0.12s",
-      cursor: audioReady ? "pointer" : "default"
-    };
-    if (audioReady) {
-      return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
-        "div",
-        {
-          className: "aud-icon-wrap",
-          style: { ...baseStyle, color: C.acc, background: C.abg },
-          title: audio.duration ? fmtDur(audio.duration) : "",
-          onClick: (e) => {
-            e.stopPropagation();
-            onPlayNow(articleId);
-          },
-          children: [
-            "\u266B",
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "hover-play-overlay", style: {
-              position: "absolute",
-              inset: 0,
-              borderRadius: 6,
-              background: C.acc,
-              color: C.bg0,
-              display: "none",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: 10,
-              fontWeight: 700
-            }, children: "\u25B6" })
-          ]
-        }
-      );
-    }
-    if (isGen) {
-      return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { ...baseStyle, color: C.amb, animation: "pulse 1.2s infinite" }, children: "\u25CC" });
-    }
-    return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: baseStyle, children: "\u266A" });
-  }
-  function GutterAction({ icon, tip, isInQueue, onClick }) {
-    const [hovered, setHovered] = (0, import_react.useState)(false);
-    return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
-      "button",
-      {
-        onClick,
-        onMouseEnter: () => setHovered(true),
-        onMouseLeave: () => setHovered(false),
-        style: {
-          width: 24,
-          height: 20,
-          borderRadius: 4,
-          border: "none",
-          fontSize: 9,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          transition: "0.1s",
-          background: isInQueue ? C.abg : hovered ? "rgba(255,255,255,0.06)" : "transparent",
-          color: isInQueue ? C.acc : hovered ? C.t2 : C.t4,
-          position: "relative"
-        },
-        children: [
-          hovered && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: {
-            display: "block",
-            position: "absolute",
-            right: 28,
-            top: "50%",
-            transform: "translateY(-50%)",
-            background: C.bg4,
-            border: `1px solid ${C.br}`,
-            borderRadius: 5,
-            padding: "3px 8px",
-            fontSize: 9,
-            color: C.t2,
-            whiteSpace: "nowrap",
-            zIndex: 10,
-            pointerEvents: "none"
-          }, children: tip }),
-          icon
-        ]
-      }
-    );
-  }
-  function TodoRow({ item, article, isFocused, onSelect, onToggleDone }) {
-    if (!article) return null;
-    const rend = article.renditions || {};
-    const audioReady = rend.audio && rend.audio.state === "ready";
-    const today = /* @__PURE__ */ new Date();
-    today.setHours(0, 0, 0, 0);
-    let dueClass = "none", dueText = "no date";
-    if (item.due) {
-      const dd = new Date(item.due);
-      const diff = Math.ceil((dd - today) / (1e3 * 60 * 60 * 24));
-      if (item.done) {
-        dueClass = "ok";
-        dueText = item.due.slice(5);
-      } else if (diff < 0) {
-        dueClass = "overdue";
-        dueText = `overdue ${Math.abs(diff)}d`;
-      } else if (diff <= 3) {
-        dueClass = "soon";
-        dueText = `due in ${diff}d`;
-      } else {
-        dueClass = "ok";
-        dueText = item.due.slice(5);
-      }
-    }
-    if (item.ai_suggested_due && !item.done && item.due) {
-      dueClass = "ai";
-      dueText += " \u2728";
-    }
-    const dueColors = {
-      overdue: { background: C.rbg, color: C.red },
-      soon: { background: C.ambg, color: C.amb },
-      ok: { background: C.gbg, color: C.grn },
-      ai: { border: `1px dashed ${C.amb}`, background: "transparent", color: C.amb, fontSize: 9 },
-      none: { color: C.t4, fontStyle: "italic", fontFamily: "inherit", fontSize: 10 }
-    };
-    return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
-      "div",
-      {
-        onClick: () => onSelect(article.id),
-        style: {
-          padding: isFocused ? "8px 12px 8px 10px" : "8px 12px",
-          borderBottom: `1px solid ${C.br2}`,
-          cursor: "pointer",
-          display: "flex",
-          gap: 9,
-          alignItems: "center",
-          transition: "background 0.06s",
+          transition: "background .06s",
           background: isFocused ? C.bg4 : "transparent",
           borderLeft: isFocused ? `2px solid ${C.acc}` : "2px solid transparent"
         },
@@ -25865,40 +25234,33 @@ button{font-family:inherit;cursor:pointer;}
           if (!isFocused) e.currentTarget.style.background = isFocused ? C.bg4 : "transparent";
         },
         children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-            "button",
-            {
-              onClick: (e) => {
-                e.stopPropagation();
-                onToggleDone(item);
-              },
-              style: {
-                width: 18,
-                height: 18,
-                borderRadius: "50%",
-                border: `1.5px solid ${item.done ? C.grn : "#444"}`,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 10,
-                cursor: "pointer",
-                transition: "0.12s",
-                flexShrink: 0,
-                background: item.done ? C.gbg : "none",
-                color: item.done ? C.grn : "transparent",
-                fontFamily: "inherit"
-              },
-              children: item.done ? "\u2713" : ""
-            }
-          ),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 12, flex: 1, lineHeight: 1.3, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textDecoration: item.done ? "line-through" : "none", opacity: item.done ? 0.35 : 1 }, children: article.title }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 10, color: audioReady ? C.acc : C.t4, flexShrink: 0 }, children: "\u266B" }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 10, padding: "2px 7px", borderRadius: 5, fontFamily: FONT.mono, flexShrink: 0, fontWeight: 500, ...dueColors[dueClass] }, children: dueText })
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { width: 20, height: 20, borderRadius: 5, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8, flexShrink: 0, marginTop: 1, background: audioReady ? C.abg : C.bg3, color: audioReady ? C.acc : C.t4 }, children: audioReady ? "\u266B" : "\u266A" }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { flex: 1, minWidth: 0 }, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 11, fontWeight: isFocused ? 600 : 500, lineHeight: 1.4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, children: article.title }),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { fontSize: 9, color: C.t3, marginTop: 1 }, children: [
+              sourceLabel(article),
+              " ",
+              "\xB7",
+              " ",
+              timeAgo(article.ingested_at),
+              audio?.duration ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+                " ",
+                "\xB7",
+                " ",
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontFamily: FONT.mono }, children: fmtDur(audio.duration) })
+              ] }) : ""
+            ] }),
+            memberships.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { display: "flex", gap: 2, flexWrap: "wrap", marginTop: 2 }, children: memberships.map((m) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 7.5, padding: "2px 5px", borderRadius: 3, fontWeight: 600, letterSpacing: 0.3, textTransform: "uppercase", background: m.bg || C.abg, color: m.color || C.acc }, children: m.icon }, m.id)) })
+          ] }),
+          showRemove && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { style: { fontSize: 13, color: C.red, cursor: "pointer", background: "none", border: "none", padding: 2, flexShrink: 0 }, onClick: (e) => {
+            e.stopPropagation();
+            onRemove();
+          }, children: "\xD7" })
         ]
       }
     );
   }
-  function DetailPanel({ article, lists, voices, onRefresh, onToggleListMembership, onPlayNow, onAddToQueue, onShowPlaylistPicker, playerPlaylistId }) {
+  function DetailPanel({ article, lists, onRefresh, onToggleListMembership, onPlayNow, playerPlaylistId }) {
     const [fullText, setFullText] = (0, import_react.useState)(null);
     const [loading, setLoading] = (0, import_react.useState)(true);
     (0, import_react.useEffect)(() => {
@@ -25907,16 +25269,19 @@ button{font-family:inherit;cursor:pointer;}
       setFullText(null);
       apiGet(`/api/articles/${article.id}/text`).then((data) => setFullText(data.text || "")).catch(() => setFullText("(Could not load text)")).finally(() => setLoading(false));
     }, [article?.id]);
-    if (!article) return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { "data-testid": "detail-panel", style: { flex: 1, background: C.bg2, display: "flex", alignItems: "center", justifyContent: "center", minWidth: 0, minHeight: 0 }, children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 12, color: C.t4 }, children: "Select an article to view details" }) });
+    if (!article) return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { "data-testid": "detail-panel", style: { flex: 1, background: C.bg2, display: "flex", alignItems: "center", justifyContent: "center", minWidth: 0, minHeight: 0 }, children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { textAlign: "center" }, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 28, marginBottom: 8 }, children: "\u{1F4C4}" }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 12, color: C.t4 }, children: "Select a document" })
+    ] }) });
     const rend = article.renditions || {};
     const audio = rend.audio;
-    const summary = rend.summary;
-    const tags = article.tags || [];
-    const memberships = article.list_memberships || [];
-    const membershipIds = new Set(memberships.map((m) => m.id));
     const audioReady = audio && audio.state === "ready";
     const audioGen = audio && (audio.state === "generating" || audio.state === "queued");
-    const inQueue = memberships.some((m) => m.id === playerPlaylistId);
+    const memberships = article.list_memberships || [];
+    const membershipIds = new Set(memberships.map((m) => m.id));
+    const inPlaylists = lists.filter((l) => l.type === "playlist" && membershipIds.has(l.id));
+    let playLabel = "\u25B6 Play";
+    if (inPlaylists.length === 1) playLabel = `\u25B6 Play in ${inPlaylists[0].name}`;
     const handleGenerateRendition = async (type) => {
       try {
         await apiJson(`/api/docs/${article.id}/renditions/${type}`, "POST", {});
@@ -25924,645 +25289,372 @@ button{font-family:inherit;cursor:pointer;}
       } catch {
       }
     };
-    const handleRemoveRendition = async (type) => {
-      try {
-        await apiDelete(`/api/docs/${article.id}/renditions/${type}`);
-        if (onRefresh) onRefresh();
-      } catch {
-      }
-    };
     return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { "data-testid": "detail-panel", style: { flex: 1, overflowY: "scroll", WebkitOverflowScrolling: "touch", overscrollBehavior: "contain", background: C.bg2, minWidth: 0, minHeight: 0 }, children: [
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { padding: "20px 24px 12px", borderBottom: `1px solid ${C.br}` }, children: [
-        (tags.length > 0 || memberships.length > 0) && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", gap: 5, marginBottom: 8, flexWrap: "wrap" }, children: [
-          tags.map((t) => {
-            const [tc, tbg] = tagColor(t);
-            return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 8, padding: "1px 5px", borderRadius: 6, background: tbg, color: tc }, children: t }, t);
-          }),
-          memberships.map((m) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: { fontSize: 7, padding: "1px 5px", borderRadius: 4, fontWeight: 600, letterSpacing: 0.3, textTransform: "uppercase", background: m.bg || C.pbg, color: m.color || C.pur }, children: [
-            m.icon,
-            " ",
-            m.name
-          ] }, m.id))
-        ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 18, fontWeight: 700, fontFamily: FONT.serif, lineHeight: 1.35, marginBottom: 6 }, children: article.title }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { fontSize: 11, color: C.t3, display: "flex", gap: 6, flexWrap: "wrap" }, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { padding: "20px 24px 14px", borderBottom: `1px solid ${C.br}` }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontFamily: FONT.serif, fontSize: 17, fontWeight: 700, lineHeight: 1.35, marginBottom: 4 }, children: article.title }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { fontSize: 10, color: C.t3, display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }, children: [
           /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: sourceLabel(article) }),
           /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "\xB7" }),
           /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: timeAgo(article.ingested_at) }),
-          audio && audio.duration && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+          audio?.duration && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
             /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "\xB7" }),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: fmtDur(audio.duration) })
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontFamily: FONT.mono }, children: fmtDur(audio.duration) })
           ] })
         ] })
       ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { padding: "10px 24px", borderBottom: `1px solid ${C.br}`, display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: {
-          fontSize: 10,
-          padding: "3px 8px",
-          borderRadius: 5,
-          fontWeight: 500,
-          display: "flex",
-          alignItems: "center",
-          gap: 5,
-          background: audioReady ? C.abg : audioGen ? C.ambg : C.bg1,
-          color: audioReady ? C.acc : audioGen ? C.amb : C.t4
-        }, children: [
-          "\u266B",
-          " ",
-          audioReady ? `Audio \xB7 ${fmtDur(audio.duration)}` : audioGen ? "Generating..." : "No audio"
-        ] }),
-        audioReady ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+      (article.source_url || article.author || article.publication || article.published_date || article.word_count) && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { padding: "8px 24px", borderBottom: `1px solid ${C.br2}`, display: "flex", flexDirection: "column", gap: 4 }, children: [
+        article.source_url && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { fontSize: 10, color: C.t3, display: "flex", alignItems: "center", gap: 4 }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { color: C.t4, flexShrink: 0 }, children: "Source:" }),
           /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-            "button",
+            "a",
             {
-              onClick: () => onPlayNow(article.id),
-              title: "Play now",
-              style: {
-                background: C.acc,
-                color: C.bg0,
-                borderColor: C.acc,
-                borderRadius: "50%",
-                width: 28,
-                height: 28,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                padding: 0,
-                fontSize: 11,
-                border: "none",
-                flexShrink: 0,
-                cursor: "pointer",
-                transition: "0.1s"
-              },
-              onMouseEnter: (e) => e.currentTarget.style.background = "#8aa4ff",
-              onMouseLeave: (e) => e.currentTarget.style.background = C.acc,
-              children: "\u25B6"
+              href: article.source_url,
+              target: "_blank",
+              rel: "noopener noreferrer",
+              style: { color: C.acc, textDecoration: "none", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
+              onMouseEnter: (e) => e.currentTarget.style.textDecoration = "underline",
+              onMouseLeave: (e) => e.currentTarget.style.textDecoration = "none",
+              children: article.source_url
             }
-          ),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", border: `1px solid ${C.br}`, borderRadius: 6, overflow: "hidden" }, children: [
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-              "button",
-              {
-                onClick: () => onAddToQueue(article.id),
-                style: {
-                  padding: "3px 10px",
-                  borderRadius: 0,
-                  border: "none",
-                  background: "rgba(255,255,255,0.03)",
-                  color: C.t3,
-                  fontSize: 10,
-                  fontWeight: 600,
-                  fontFamily: "inherit",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 4,
-                  transition: "0.1s",
-                  whiteSpace: "nowrap"
-                },
-                onMouseEnter: (e) => {
-                  e.currentTarget.style.background = "rgba(255,255,255,0.06)";
-                  e.currentTarget.style.color = C.t2;
-                },
-                onMouseLeave: (e) => {
-                  e.currentTarget.style.background = "rgba(255,255,255,0.03)";
-                  e.currentTarget.style.color = C.t3;
-                },
-                children: inQueue ? "\u2713 Queued" : "+ Queue"
-              }
-            ),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
-              "button",
-              {
-                onClick: (e) => onShowPlaylistPicker(e, article.id),
-                style: {
-                  padding: "3px 10px",
-                  borderRadius: 0,
-                  border: "none",
-                  borderLeft: `1px solid ${C.br}`,
-                  background: "rgba(255,255,255,0.03)",
-                  color: C.acc,
-                  fontSize: 10,
-                  fontWeight: 600,
-                  fontFamily: "inherit",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 4,
-                  transition: "0.1s",
-                  whiteSpace: "nowrap"
-                },
-                onMouseEnter: (e) => {
-                  e.currentTarget.style.background = "rgba(255,255,255,0.06)";
-                },
-                onMouseLeave: (e) => {
-                  e.currentTarget.style.background = "rgba(255,255,255,0.03)";
-                },
-                children: [
-                  "\u{1F3A7}",
-                  " ",
-                  "\u25BE"
-                ]
-              }
-            )
+          )
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { fontSize: 10, color: C.t3, display: "flex", gap: 8, flexWrap: "wrap" }, children: [
+          article.author && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { children: [
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { color: C.t4 }, children: "By" }),
+            " ",
+            article.author
+          ] }),
+          article.publication && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { children: [
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { color: C.t4 }, children: "in" }),
+            " ",
+            article.publication
+          ] }),
+          article.published_date && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { children: [
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { color: C.t4 }, children: "published" }),
+            " ",
+            article.published_date
+          ] }),
+          article.word_count > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: { fontFamily: FONT.mono }, children: [
+            article.word_count.toLocaleString(),
+            " words"
           ] })
-        ] }) : !audioGen && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-          "button",
-          {
-            onClick: () => handleGenerateRendition("audio"),
-            style: {
-              padding: "3px 8px",
-              borderRadius: 6,
-              border: `1px solid ${C.acc}`,
-              background: C.acc,
-              color: C.bg0,
-              fontSize: 10,
-              fontWeight: 600,
-              fontFamily: "inherit",
-              cursor: "pointer",
-              transition: "0.1s",
-              whiteSpace: "nowrap"
-            },
-            children: "Generate narration"
-          }
-        ),
+        ] })
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { padding: "8px 24px", borderBottom: `1px solid ${C.br}`, display: "flex", gap: 5, alignItems: "center", flexWrap: "wrap" }, children: [
+        audioReady ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: { fontSize: 10, padding: "3px 8px", borderRadius: 5, background: C.abg, color: C.acc, fontWeight: 500 }, children: [
+            "\u266B",
+            " ",
+            fmtDur(audio.duration)
+          ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: () => onPlayNow(article.id), style: { padding: "3px 8px", borderRadius: 5, border: `1px solid ${C.br}`, background: "transparent", color: C.t3, fontSize: 9, fontWeight: 600, fontFamily: "inherit", cursor: "pointer" }, children: playLabel })
+        ] }) : audioGen ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: { fontSize: 10, padding: "3px 8px", borderRadius: 5, background: C.ambg, color: C.amb, fontWeight: 500, animation: "pulse 1.2s infinite" }, children: [
+          "\u25CC",
+          " Generating..."
+        ] }) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: { fontSize: 10, padding: "3px 8px", borderRadius: 5, background: C.bg1, color: C.t4 }, children: [
+            "\u266A",
+            " No audio"
+          ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: () => handleGenerateRendition("audio"), style: { padding: "3px 8px", borderRadius: 5, border: `1px solid ${C.acc}`, background: C.acc, color: C.bg0, fontSize: 9, fontWeight: 600, fontFamily: "inherit", cursor: "pointer" }, children: "Generate narration" })
+        ] }),
         /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { flex: 1 } }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
-          "button",
-          {
-            onClick: () => summary ? null : handleGenerateRendition("summary"),
-            style: {
-              padding: "3px 8px",
-              borderRadius: 6,
-              border: "none",
-              background: "none",
-              color: C.t4,
-              fontSize: 10,
-              fontWeight: 600,
-              fontFamily: "inherit",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: 4,
-              transition: "0.1s",
-              whiteSpace: "nowrap"
-            },
-            onMouseEnter: (e) => {
-              e.currentTarget.style.color = C.t2;
-            },
-            onMouseLeave: (e) => {
-              e.currentTarget.style.color = C.t4;
-            },
-            children: [
-              "\u{1F4DD}",
-              " Summary"
-            ]
-          }
-        )
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", { onClick: () => handleGenerateRendition("summary"), style: { padding: "3px 6px", border: "none", background: "none", color: C.t4, fontSize: 9, cursor: "pointer", fontFamily: "inherit" }, children: [
+          "\u{1F4DD}",
+          " Summary"
+        ] })
       ] }),
       /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { padding: "10px 24px", borderBottom: `1px solid ${C.br}`, display: "flex", gap: 5, flexWrap: "wrap", alignItems: "center" }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 9, color: C.t4, marginRight: 4 }, children: "Lists:" }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 9, color: C.t4, marginRight: 2 }, children: "Lists:" }),
         lists.map((l) => {
           const isIn = membershipIds.has(l.id);
+          const cls = COLOR_CLASSES[listColorClass(l)] || COLOR_CLASSES["on-acc"];
           return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
             "button",
             {
               onClick: () => onToggleListMembership(article.id, l.id, isIn),
               style: {
-                padding: "4px 9px",
-                borderRadius: 6,
-                border: `1px solid ${isIn ? l.color || C.br : C.br}`,
-                background: isIn ? l.bg || "transparent" : "transparent",
-                color: isIn ? l.color || C.t3 : C.t3,
-                fontSize: 10,
-                fontWeight: isIn ? 600 : 500,
+                fontSize: 9,
+                padding: "3px 8px",
+                borderRadius: 10,
+                fontWeight: 500,
                 cursor: "pointer",
-                fontFamily: "inherit",
-                display: "flex",
+                whiteSpace: "nowrap",
+                display: "inline-flex",
                 alignItems: "center",
-                gap: 4,
-                transition: "0.1s"
-              },
-              onMouseEnter: (e) => {
-                if (!isIn) e.currentTarget.style.background = "rgba(255,255,255,0.04)";
-              },
-              onMouseLeave: (e) => {
-                if (!isIn) e.currentTarget.style.background = "transparent";
+                gap: 3,
+                transition: ".12s",
+                fontFamily: "inherit",
+                border: `1px solid ${isIn ? cls.border : C.br}`,
+                background: isIn ? cls.bg : "transparent",
+                color: isIn ? cls.color : C.t3
               },
               children: [
                 l.icon,
                 " ",
-                isIn ? "\u2713 " : "+ ",
-                l.name
+                isIn ? l.name : `+ ${l.name}`
               ]
             },
             l.id
           );
         })
       ] }),
-      summary && summary.text && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { padding: "12px 24px", borderBottom: `1px solid ${C.br}` }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 10, fontWeight: 600, color: C.t4, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 8 }, children: "Summary" }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { style: { fontSize: 13, color: C.t2, lineHeight: 1.6, fontFamily: FONT.serif }, children: summary.text })
-      ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { padding: "16px 24px", fontSize: 14, fontFamily: FONT.serif, lineHeight: 1.7, color: "#b8bac4" }, children: loading ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { color: C.t4 }, children: "Loading..." }) : fullText ? fullText.split("\n\n").filter(Boolean).map((p, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { style: { marginBottom: 12 }, children: p }, i)) : null })
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { padding: "16px 24px", fontFamily: FONT.serif, fontSize: 14, lineHeight: 1.75, color: "#b8bac4" }, children: loading ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { color: C.t4 }, children: "Loading..." }) : fullText ? fullText.split("\n\n").filter(Boolean).map((p, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { style: { marginBottom: 10 }, children: p }, i)) : null })
     ] });
   }
-  function RightDrawer({ open, playlists, activePlaylistId, playlistItems, playerIdx, focusedId, onClose, onSwitchPlaylist, onSelectDoc, onRemoveItem, onReorder, onAddCurrentDoc }) {
-    const activePlaylist = playlists.find((p) => p.id === activePlaylistId);
-    const [dragFrom, setDragFrom] = (0, import_react.useState)(null);
-    const totalDuration = playlistItems.reduce((sum, item) => {
-      const art = item.article;
-      if (!art) return sum;
-      const rend = art.renditions || {};
-      const r = item.use_summary ? rend.audio_summary : rend.audio;
-      return sum + (r && r.duration ? r.duration : 0);
-    }, 0);
-    const chevronSvg = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1 5 5 9 1' fill='none' stroke='%236b7084' stroke-width='1.5'/%3E%3C/svg%3E")`;
-    return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { "data-testid": "right-drawer", className: open ? "drawer open" : "drawer", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { padding: "10px 12px", borderBottom: `1px solid ${C.br}`, display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-          "select",
-          {
-            "data-testid": "drawer-playlist-select",
-            value: activePlaylistId || "",
-            onChange: (e) => onSwitchPlaylist(e.target.value),
-            style: {
-              background: "transparent",
-              border: "none",
-              color: C.t1,
-              fontSize: 12,
-              fontWeight: 600,
-              fontFamily: "inherit",
-              outline: "none",
-              cursor: "pointer",
-              maxWidth: 140,
-              appearance: "none",
-              WebkitAppearance: "none",
-              paddingRight: 12,
-              backgroundImage: chevronSvg,
-              backgroundRepeat: "no-repeat",
-              backgroundPosition: "right center"
-            },
-            children: playlists.map((p) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("option", { value: p.id, children: [
-              p.icon,
-              " ",
-              p.name
-            ] }, p.id))
-          }
-        ),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: { fontSize: 10, color: C.t4, fontFamily: FONT.mono }, children: [
-          playlistItems.length,
+  function QueuePeekPopover({ items, playlist, playerIdx, onJumpTo, onClose }) {
+    const ref = (0, import_react.useRef)(null);
+    (0, import_react.useEffect)(() => {
+      const handler = (e) => {
+        if (ref.current && !ref.current.contains(e.target)) onClose();
+      };
+      document.addEventListener("click", handler);
+      return () => document.removeEventListener("click", handler);
+    }, [onClose]);
+    if (!playlist) return null;
+    return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { ref, style: {
+      position: "absolute",
+      bottom: "calc(100% + 6px)",
+      right: 14,
+      width: 280,
+      background: C.bg1,
+      border: `1px solid ${C.br}`,
+      borderRadius: 10,
+      boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
+      zIndex: 50,
+      overflow: "hidden",
+      animation: "popIn .15s ease",
+      maxHeight: 320,
+      display: "flex",
+      flexDirection: "column"
+    }, onClick: (e) => e.stopPropagation(), children: [
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { padding: "8px 10px", borderBottom: `1px solid ${C.br}`, display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: { fontSize: 11, fontWeight: 600, color: C.acc }, children: [
+          playlist.icon,
           " ",
-          "\xB7",
-          " ",
-          fmtDur(totalDuration)
+          playlist.name
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { flex: 1 } }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-          "button",
-          {
-            "data-testid": "drawer-close",
-            onClick: onClose,
-            style: {
-              width: 22,
-              height: 22,
-              borderRadius: 5,
-              border: "none",
-              background: "transparent",
-              color: C.t3,
-              fontSize: 13,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              transition: "0.1s"
-            },
-            onMouseEnter: (e) => {
-              e.currentTarget.style.background = C.bg3;
-              e.currentTarget.style.color = C.t2;
-            },
-            onMouseLeave: (e) => {
-              e.currentTarget.style.background = "transparent";
-              e.currentTarget.style.color = C.t3;
-            },
-            children: "\u2715"
-          }
-        )
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: { fontSize: 9, color: C.t4, fontFamily: FONT.mono, marginLeft: "auto" }, children: [
+          items.length,
+          " tracks"
+        ] })
       ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { flex: 1, overflowY: "auto", minHeight: 0 }, children: playlistItems.map((item, idx) => {
-        const art = item.article;
-        if (!art) return null;
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { flex: 1, overflowY: "auto", maxHeight: 240 }, children: items.map((item, i) => {
+        const art = item.article || item;
+        const isNow = i === playerIdx;
         const rend = art.renditions || {};
-        const rendition = item.use_summary ? rend.audio_summary : rend.audio;
-        const dur = rendition && rendition.duration ? fmtDur(rendition.duration) : "--:--";
-        const isP = playerIdx === idx;
+        const r = item.use_summary ? rend.audio_summary : rend.audio;
         return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
           "div",
           {
-            "data-drag-item": idx,
-            draggable: true,
-            onDragStart: (e) => {
-              setDragFrom(idx);
-              e.dataTransfer.effectAllowed = "move";
-              e.currentTarget.style.opacity = "0.3";
-            },
-            onDragOver: (e) => {
-              e.preventDefault();
-              e.currentTarget.parentNode.querySelectorAll("[data-drag-item]").forEach((el) => el.style.borderTop = "");
-              e.currentTarget.style.borderTop = `2px solid ${C.acc}`;
-            },
-            onDragEnd: (e) => {
-              e.currentTarget.style.opacity = "1";
-              e.currentTarget.parentNode.querySelectorAll("[data-drag-item]").forEach((el) => {
-                el.style.borderTop = "";
-                el.style.opacity = "1";
-              });
-            },
-            onDrop: (e) => {
-              e.preventDefault();
-              e.currentTarget.parentNode.querySelectorAll("[data-drag-item]").forEach((el) => {
-                el.style.borderTop = "";
-                el.style.opacity = "1";
-              });
-              if (dragFrom != null && dragFrom !== idx) {
-                onReorder(dragFrom, idx);
-              }
-              setDragFrom(null);
-            },
-            onClick: () => onSelectDoc(item.doc_id || art.id),
-            style: {
-              padding: "6px 10px",
-              display: "flex",
-              gap: 6,
-              alignItems: "center",
-              borderBottom: `1px solid ${C.br2}`,
-              transition: "background 0.06s",
-              cursor: "pointer",
-              fontSize: 11,
-              background: isP ? "rgba(108,140,255,0.05)" : "transparent"
-            },
+            onClick: () => onJumpTo(i),
+            style: { padding: "5px 10px", display: "flex", gap: 6, alignItems: "center", fontSize: 10, borderBottom: `1px solid ${C.br2}`, transition: "background .06s", cursor: "pointer", background: isNow ? "rgba(108,140,255,0.05)" : "transparent" },
             onMouseEnter: (e) => {
-              if (!isP) e.currentTarget.style.background = C.bg3;
+              if (!isNow) e.currentTarget.style.background = C.bg3;
             },
             onMouseLeave: (e) => {
-              if (!isP) e.currentTarget.style.background = isP ? "rgba(108,140,255,0.05)" : "transparent";
+              if (!isNow) e.currentTarget.style.background = isNow ? "rgba(108,140,255,0.05)" : "transparent";
             },
             children: [
-              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { width: 16, fontSize: 10, color: isP ? C.acc : C.t4, textAlign: "center", fontFamily: FONT.mono, flexShrink: 0 }, children: isP ? "\u25B6" : idx + 1 }),
-              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { cursor: "grab", color: C.t4, fontSize: 11, flexShrink: 0 }, children: "\u2807" }),
-              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: isP ? C.t1 : C.t2, fontWeight: isP ? 500 : 400 }, children: art.title }),
-              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 9, color: C.t4, fontFamily: FONT.mono, flexShrink: 0 }, children: dur }),
-              /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-                "span",
-                {
-                  style: { opacity: 0, fontSize: 12, color: C.red, cursor: "pointer", flexShrink: 0, width: 14, textAlign: "center" },
-                  className: "dwi-rm-hover",
-                  onClick: (e) => {
-                    e.stopPropagation();
-                    onRemoveItem(item.doc_id || art.id);
-                  },
-                  children: "\xD7"
-                }
-              )
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { width: 16, fontSize: 9, color: isNow ? C.acc : C.t4, textAlign: "center", fontFamily: FONT.mono, flexShrink: 0 }, children: isNow ? "\u25B6" : i + 1 }),
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: isNow ? C.t1 : C.t2, fontWeight: isNow ? 600 : 400 }, children: art.title }),
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 8, color: C.t4, fontFamily: FONT.mono, flexShrink: 0 }, children: fmtDur(r?.duration) })
             ]
           },
           item.doc_id || art.id
         );
-      }) }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { padding: "8px 10px", borderTop: `1px solid ${C.br}`, display: "flex", gap: 6, flexShrink: 0 }, children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-        "button",
-        {
-          onClick: onAddCurrentDoc,
-          style: {
-            flex: 1,
-            justifyContent: "center",
-            padding: "3px 8px",
-            borderRadius: 6,
-            border: `1px solid ${C.br}`,
-            background: "rgba(255,255,255,0.03)",
-            color: C.t3,
-            fontSize: 10,
-            fontWeight: 600,
-            fontFamily: "inherit",
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            gap: 4,
-            transition: "0.1s",
-            whiteSpace: "nowrap"
-          },
-          onMouseEnter: (e) => {
-            e.currentTarget.style.background = "rgba(255,255,255,0.06)";
-            e.currentTarget.style.color = C.t2;
-          },
-          onMouseLeave: (e) => {
-            e.currentTarget.style.background = "rgba(255,255,255,0.03)";
-            e.currentTarget.style.color = C.t3;
-          },
-          children: "+ Add current doc"
-        }
-      ) })
+      }) })
     ] });
   }
-  var bbSkipStyle = {
-    width: 26,
-    height: 26,
-    borderRadius: "50%",
-    border: "none",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontSize: 10,
-    transition: "0.1s",
-    background: "transparent",
-    color: C.t3,
-    cursor: "pointer"
-  };
-  var bbPlayStyle = {
-    width: 26,
-    height: 26,
-    borderRadius: "50%",
-    border: "none",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontSize: 10,
-    transition: "0.1s",
-    background: C.acc,
-    color: C.bg0,
-    cursor: "pointer"
-  };
-  function BottomBar({ article, playlist, isPlaying, currentTime, duration, playerIdx, drawerOpen, onTogglePlay, onPrev, onNext, onSeek, onToggleDrawer, onGoToPlaylist }) {
-    const queueToggle = /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+  function SpeedPopover({ speed, onSetSpeed, onClose }) {
+    const ref = (0, import_react.useRef)(null);
+    (0, import_react.useEffect)(() => {
+      const handler = (e) => {
+        if (ref.current && !ref.current.contains(e.target)) onClose();
+      };
+      document.addEventListener("click", handler);
+      return () => document.removeEventListener("click", handler);
+    }, [onClose]);
+    return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { ref, onClick: (e) => e.stopPropagation(), style: {
+      position: "absolute",
+      bottom: "calc(100% + 6px)",
+      right: 0,
+      background: C.bg1,
+      border: `1px solid ${C.br}`,
+      borderRadius: 8,
+      padding: 4,
+      display: "flex",
+      flexDirection: "column",
+      gap: 1,
+      zIndex: 50,
+      minWidth: 52,
+      boxShadow: "0 4px 16px rgba(0,0,0,0.4)",
+      animation: "popIn .12s ease"
+    }, children: SPEEDS.map((s) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
       "button",
       {
-        "data-testid": "queue-toggle",
-        onClick: onToggleDrawer,
-        title: "Queue",
+        onClick: () => onSetSpeed(s),
         style: {
-          width: 30,
+          padding: "4px 8px",
+          borderRadius: 5,
+          fontSize: 10,
+          fontWeight: speed === s ? 700 : 500,
+          fontFamily: FONT.mono,
+          color: speed === s ? C.acc : C.t3,
+          background: speed === s ? C.abg : "none",
+          border: "none",
+          cursor: "pointer",
+          textAlign: "center",
+          width: "100%",
+          transition: ".08s"
+        },
+        onMouseEnter: (e) => {
+          if (speed !== s) {
+            e.currentTarget.style.background = C.bg3;
+            e.currentTarget.style.color = C.t1;
+          }
+        },
+        onMouseLeave: (e) => {
+          if (speed !== s) {
+            e.currentTarget.style.background = "none";
+            e.currentTarget.style.color = C.t3;
+          }
+        },
+        children: fmtSpeed(s)
+      },
+      s
+    )) });
+  }
+  function BottomBar({ article, playlist, isPlaying, currentTime, duration, playerIdx, playerItems, speed, speedOpen, queuePeek, onTogglePlay, onPrev, onNext, onSeek, onToggleQueuePeek, onToggleSpeedPop, onSetSpeed, onGoToPlaylist }) {
+    const isNon1 = speed !== 1;
+    if (!playlist) {
+      return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { "data-testid": "bottom-bar", style: { height: 48, flexShrink: 0, borderTop: `1px solid ${C.br}`, background: C.bg1, display: "flex", alignItems: "center", padding: "0 14px", gap: 10 }, children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: { fontSize: 11, color: C.t4, flex: 1 }, children: [
+        "\u266B",
+        " No playlist selected"
+      ] }) });
+    }
+    const trackTitle = article ? article.title : "Select a track";
+    const trackNum = (playerIdx || 0) + 1;
+    const trackTotal = playlist.item_count || playerItems.length || "?";
+    const skipStyle = { width: 26, height: 26, borderRadius: "50%", border: "none", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, background: "transparent", color: C.t3, cursor: "pointer", transition: ".1s" };
+    const playStyle = { ...skipStyle, background: C.acc, color: C.bg0 };
+    return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { "data-testid": "bottom-bar", style: { height: 48, flexShrink: 0, borderTop: `1px solid ${C.br}`, background: C.bg1, display: "flex", alignItems: "center", padding: "0 14px", gap: 10, position: "relative" }, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", gap: 4 }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { "data-testid": "player-prev", onClick: onPrev, style: skipStyle, onMouseEnter: (e) => e.currentTarget.style.color = C.t2, onMouseLeave: (e) => e.currentTarget.style.color = C.t3, children: "\u23EE" }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { "data-testid": "player-play", onClick: onTogglePlay, style: playStyle, onMouseEnter: (e) => e.currentTarget.style.background = C.acc2, onMouseLeave: (e) => e.currentTarget.style.background = C.acc, children: isPlaying ? "\u25AE\u25AE" : "\u25B6" }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { "data-testid": "player-next", onClick: onNext, style: skipStyle, onMouseEnter: (e) => e.currentTarget.style.color = C.t2, onMouseLeave: (e) => e.currentTarget.style.color = C.t3, children: "\u23ED" })
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { flex: 1, minWidth: 0 }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 11, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, children: trackTitle }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { fontSize: 9, color: C.t3, display: "flex", gap: 6, alignItems: "center" }, children: [
+          playlist && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: { color: C.acc, cursor: "pointer" }, onClick: onGoToPlaylist, children: [
+            playlist.icon,
+            " ",
+            playlist.name
+          ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { children: [
+            "\xB7",
+            " ",
+            trackNum,
+            "/",
+            trackTotal
+          ] })
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { "data-testid": "player-progress", onClick: onSeek, style: { width: "100%", height: 3, background: C.br, borderRadius: 2, cursor: "pointer", marginTop: 2, overflow: "hidden" }, children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { height: "100%", background: C.acc, borderRadius: 2, width: duration > 0 ? `${currentTime / duration * 100}%` : "0%", transition: "width .3s" } }) })
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 10, color: C.t4, fontFamily: FONT.mono, whiteSpace: "nowrap" }, children: isNon1 ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { color: C.t5, textDecoration: "line-through", marginRight: 3 }, children: fmtDur(duration) }),
+        fmtDur(duration ? Math.round(duration / speed) : 0)
+      ] }) : `${fmtDur(currentTime)} / ${fmtDur(duration)}` }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { position: "relative" }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: (e) => {
+          e.stopPropagation();
+          onToggleSpeedPop();
+        }, style: { padding: "2px 6px", borderRadius: 4, border: `1px solid ${isNon1 ? C.abr : C.br}`, background: isNon1 ? C.abg : C.bg3, color: isNon1 ? C.acc : C.t2, fontSize: 10, fontWeight: 600, fontFamily: FONT.mono, cursor: "pointer", minWidth: 34, textAlign: "center" }, children: fmtSpeed(speed) }),
+        speedOpen && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SpeedPopover, { speed, onSetSpeed, onClose: onToggleSpeedPop })
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { position: "relative" }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { "data-testid": "queue-toggle", onClick: (e) => {
+          e.stopPropagation();
+          onToggleQueuePeek();
+        }, style: {
+          width: 28,
           height: 26,
           borderRadius: 6,
-          border: `1px solid ${drawerOpen ? "rgba(108,140,255,0.3)" : C.br}`,
-          background: drawerOpen ? C.abg : "transparent",
-          color: drawerOpen ? C.acc : C.t3,
+          border: `1px solid ${queuePeek ? C.abr : C.br}`,
+          background: queuePeek ? C.abg : "transparent",
+          color: queuePeek ? C.acc : C.t3,
           fontSize: 11,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          transition: "0.1s",
+          transition: ".1s",
           cursor: "pointer"
-        },
-        onMouseEnter: (e) => {
-          if (!drawerOpen) {
-            e.currentTarget.style.background = C.abg;
-            e.currentTarget.style.color = C.acc;
-            e.currentTarget.style.borderColor = "rgba(108,140,255,0.3)";
-          }
-        },
-        onMouseLeave: (e) => {
-          if (!drawerOpen) {
-            e.currentTarget.style.background = "transparent";
-            e.currentTarget.style.color = C.t3;
-            e.currentTarget.style.borderColor = C.br;
-          }
-        },
-        children: "\u2261"
-      }
-    );
-    if (!playlist) {
-      return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { "data-testid": "bottom-bar", style: {
-        height: 50,
-        flexShrink: 0,
-        borderTop: `1px solid ${C.br}`,
-        background: C.bg1,
-        display: "flex",
-        alignItems: "center",
-        padding: "0 14px",
-        gap: 10
-      }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: { fontSize: 11, color: C.t4, flex: 1 }, children: [
-          "\u266B",
-          " No playlist selected"
-        ] }),
-        queueToggle
-      ] });
-    }
-    const trackTitle = article ? article.title : "Select a track";
-    return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { "data-testid": "bottom-bar", style: {
-      height: 50,
-      flexShrink: 0,
-      borderTop: `1px solid ${C.br}`,
-      background: C.bg1,
-      display: "flex",
-      alignItems: "center",
-      padding: "0 14px",
-      gap: 10
-    }, children: [
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 5 }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-          "button",
-          {
-            "data-testid": "player-prev",
-            onClick: onPrev,
-            style: bbSkipStyle,
-            onMouseEnter: (e) => e.currentTarget.style.color = C.t2,
-            onMouseLeave: (e) => e.currentTarget.style.color = C.t3,
-            children: "\u23EE"
-          }
-        ),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-          "button",
-          {
-            "data-testid": "player-play",
-            onClick: onTogglePlay,
-            style: bbPlayStyle,
-            onMouseEnter: (e) => e.currentTarget.style.background = "#8aa4ff",
-            onMouseLeave: (e) => e.currentTarget.style.background = C.acc,
-            children: isPlaying ? "\u25AE\u25AE" : "\u25B6"
-          }
-        ),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-          "button",
-          {
-            "data-testid": "player-next",
-            onClick: onNext,
-            style: bbSkipStyle,
-            onMouseEnter: (e) => e.currentTarget.style.color = C.t2,
-            onMouseLeave: (e) => e.currentTarget.style.color = C.t3,
-            children: "\u23ED"
-          }
-        )
-      ] }),
-      isPlaying && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "flex-end", gap: 2, height: 14, flexShrink: 0, marginRight: 2 }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { width: 3, background: C.acc, borderRadius: 1, animation: "bar1 0.7s ease-in-out infinite" } }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { width: 3, background: C.acc, borderRadius: 1, animation: "bar2 0.6s ease-in-out infinite 0.1s" } }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { width: 3, background: C.acc, borderRadius: 1, animation: "bar3 0.8s ease-in-out infinite 0.2s" } }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { width: 3, background: C.acc, borderRadius: 1, animation: "bar4 0.65s ease-in-out infinite 0.15s" } })
-      ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 1 }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 11, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, children: trackTitle }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { fontSize: 9, color: C.t3, display: "flex", alignItems: "center", gap: 6 }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
-            "span",
-            {
-              style: { color: C.acc, cursor: "pointer" },
-              onClick: onGoToPlaylist,
-              onMouseEnter: (e) => e.currentTarget.style.textDecoration = "underline",
-              onMouseLeave: (e) => e.currentTarget.style.textDecoration = "none",
-              children: [
-                playlist.icon,
-                " ",
-                playlist.name
-              ]
-            }
-          ),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { children: [
-            "\xB7",
-            " ",
-            (playerIdx || 0) + 1,
-            "/",
-            playlist.item_count || "?"
-          ] })
-        ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { "data-testid": "player-progress", onClick: onSeek, style: { width: "100%", height: 3, background: C.br, borderRadius: 2, cursor: "pointer", marginTop: 2 }, children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { height: "100%", background: C.acc, borderRadius: 2, width: duration > 0 ? `${currentTime / duration * 100}%` : "0%", transition: "width 0.3s" } }) })
-      ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: { fontSize: 10, color: C.t4, fontFamily: FONT.mono, whiteSpace: "nowrap" }, children: [
-        fmtDur(currentTime),
-        " / ",
-        fmtDur(duration)
-      ] }),
-      queueToggle
+        }, children: "\u2261" }),
+        queuePeek && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(QueuePeekPopover, { items: playerItems, playlist, playerIdx, onJumpTo: (idx) => {
+          onToggleQueuePeek();
+        }, onClose: onToggleQueuePeek })
+      ] })
     ] });
   }
-  var hoverCSS = `
-.doc-row-hover:hover .aud-icon-wrap .hover-play-overlay { display:flex !important; }
-.doc-row-hover:hover .dacts-btn { opacity:1; }
-.plrm-hover { transition: opacity 0.1s; }
-div:hover > .plrm-hover { opacity:1 !important; }
-.dwi-rm-hover { transition: opacity 0.1s; }
-div:hover > .dwi-rm-hover { opacity:1 !important; }
-`;
+  function CreateListModal({ onClose, onCreate, presetType }) {
+    const [name, setName] = (0, import_react.useState)("");
+    const [type, setType] = (0, import_react.useState)(presetType || "collection");
+    const [icon, setIcon] = (0, import_react.useState)("\u{1F4CC}");
+    const inputRef = (0, import_react.useRef)(null);
+    (0, import_react.useEffect)(() => {
+      inputRef.current?.focus();
+    }, []);
+    return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center" }, onClick: onClose, children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { background: C.bg1, border: `1px solid ${C.br}`, borderRadius: 12, width: 380, padding: 20, animation: "popIn .15s ease" }, onClick: (e) => e.stopPropagation(), children: [
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", { style: { fontSize: 14, fontWeight: 700, marginBottom: 14 }, children: "Create new list" }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("label", { style: { fontSize: 10, fontWeight: 600, color: C.t3, textTransform: "uppercase", letterSpacing: 0.5, display: "block", marginBottom: 4 }, children: "Type" }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 6, marginBottom: 14 }, children: [["collection", "\u25CE", "Collection", "Unordered group"], ["playlist", "\u266B", "Playlist", "Ordered, playable"], ["todo", "\u2610", "Action", "Due dates, done"]].map(([t, ic, lb, desc]) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { onClick: () => setType(t), style: { padding: "10px 8px", borderRadius: 8, border: `1px solid ${type === t ? C.acc : C.br}`, background: type === t ? C.abg : C.bg3, cursor: "pointer", textAlign: "center", transition: ".12s" }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 18, marginBottom: 3 }, children: ic }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 9, fontWeight: 600, color: C.t2 }, children: lb }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 8, color: C.t4, marginTop: 1 }, children: desc })
+      ] }, t)) }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("label", { style: { fontSize: 10, fontWeight: 600, color: C.t3, textTransform: "uppercase", letterSpacing: 0.5, display: "block", marginBottom: 4 }, children: "Name" }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", { ref: inputRef, type: "text", value: name, onChange: (e) => setName(e.target.value), placeholder: "e.g. Weekend Deep Dives", style: { width: "100%", padding: "7px 10px", borderRadius: 6, border: `1px solid ${C.br}`, background: C.bg3, color: C.t1, fontSize: 12, fontFamily: "inherit", outline: "none", marginBottom: 14 }, onFocus: (e) => e.target.style.borderColor = C.acc, onBlur: (e) => e.target.style.borderColor = C.br }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("label", { style: { fontSize: 10, fontWeight: 600, color: C.t3, textTransform: "uppercase", letterSpacing: 0.5, display: "block", marginBottom: 4 }, children: "Icon" }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 18 }, children: EMOJIS.map((ic) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { onClick: () => setIcon(ic), style: { width: 30, height: 30, borderRadius: 6, border: `1px solid ${icon === ic ? C.acc : C.br}`, background: icon === ic ? C.abg : C.bg3, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, transition: ".1s" }, children: ic }, ic)) }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", gap: 8, justifyContent: "flex-end" }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: onClose, style: { padding: "3px 8px", borderRadius: 5, border: `1px solid ${C.br}`, background: "transparent", color: C.t3, fontSize: 9, fontWeight: 600, fontFamily: "inherit", cursor: "pointer" }, children: "Cancel" }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: () => {
+          if (name.trim()) onCreate({ name: name.trim(), type, icon });
+        }, style: { padding: "5px 16px", borderRadius: 5, border: `1px solid ${C.acc}`, background: C.acc, color: C.bg0, fontSize: 10, fontWeight: 600, fontFamily: "inherit", cursor: "pointer" }, children: "Create" })
+      ] })
+    ] }) });
+  }
+  function ToastContainer({ toasts, onUndo, onDismiss }) {
+    if (!toasts.length) return null;
+    const t = toasts[toasts.length - 1];
+    return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { position: "fixed", bottom: 60, left: "50%", transform: "translateX(-50%)", zIndex: 200, pointerEvents: "auto" }, children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { padding: "6px 10px 6px 14px", borderRadius: 8, background: C.bg4, border: `1px solid ${C.br3}`, fontSize: 11, fontWeight: 500, display: "flex", alignItems: "center", gap: 8, animation: "toastIn .2s ease", whiteSpace: "nowrap" }, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: t.message }),
+      t.undoFn && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: () => onUndo(t.id), style: { padding: "2px 8px", borderRadius: 4, border: `1px solid ${C.abr}`, background: C.abg, color: C.acc, fontSize: 10, fontWeight: 600, cursor: "pointer", flexShrink: 0, marginLeft: "auto", fontFamily: "inherit" }, children: "Undo" })
+    ] }) });
+  }
   function ReadcastApp() {
     const [articles, setArticles] = (0, import_react.useState)([]);
     const [lists, setLists] = (0, import_react.useState)([]);
     const [voices, setVoices] = (0, import_react.useState)([]);
-    const [activeListId, setActiveListId] = (0, import_react.useState)(null);
     const [listItems, setListItems] = (0, import_react.useState)([]);
     const [focusedId, setFocusedId] = (0, import_react.useState)(null);
     const [search, setSearch] = (0, import_react.useState)("");
-    const [showCreateList, setShowCreateList] = (0, import_react.useState)(false);
-    const [navCollapsed, setNavCollapsed] = (0, import_react.useState)(false);
-    const [sections, setSections] = (0, import_react.useState)({ kb: true, action: true, lists: true });
-    const [drawerOpen, setDrawerOpen] = (0, import_react.useState)(false);
-    const [drawerPlaylistId, setDrawerPlaylistId] = (0, import_react.useState)(null);
-    const [drawerItems, setDrawerItems] = (0, import_react.useState)([]);
+    const [railType, setRailType] = (0, import_react.useState)("all");
+    const [activeList, setActiveList] = (0, import_react.useState)(null);
+    const [editing, setEditing] = (0, import_react.useState)(false);
     const [playerPlaylistId, setPlayerPlaylistId] = (0, import_react.useState)(null);
     const [playerIdx, setPlayerIdx] = (0, import_react.useState)(0);
+    const [playerItems, setPlayerItems] = (0, import_react.useState)([]);
     const [audioState, setAudioState] = (0, import_react.useState)({ isPlaying: false, currentTime: 0, duration: 0 });
     const audioRef = (0, import_react.useRef)(null);
-    const [atpPopover, setAtpPopover] = (0, import_react.useState)(null);
-    const [playlistPicker, setPlaylistPicker] = (0, import_react.useState)(null);
-    const activeList = (0, import_react.useMemo)(() => lists.find((l) => l.id === activeListId) || null, [lists, activeListId]);
+    const [speed, setSpeed] = (0, import_react.useState)(1);
+    const [speedOpen, setSpeedOpen] = (0, import_react.useState)(false);
+    const [queuePeek, setQueuePeek] = (0, import_react.useState)(false);
+    const [showCreateList, setShowCreateList] = (0, import_react.useState)(false);
+    const [createListPresetType, setCreateListPresetType] = (0, import_react.useState)(null);
+    const [toasts, setToasts] = (0, import_react.useState)([]);
+    const activeListObj = (0, import_react.useMemo)(() => lists.find((l) => l.id === activeList) || null, [lists, activeList]);
     const focusedArticle = (0, import_react.useMemo)(() => {
       if (!focusedId) return null;
       const fromItems = listItems.find((i) => i.doc_id === focusedId || i.article && i.article.id === focusedId);
@@ -26570,8 +25662,23 @@ div:hover > .dwi-rm-hover { opacity:1 !important; }
       return articles.find((a) => a.id === focusedId) || null;
     }, [focusedId, articles, listItems]);
     const playerPlaylist = (0, import_react.useMemo)(() => lists.find((l) => l.id === playerPlaylistId) || null, [lists, playerPlaylistId]);
-    const allPlaylists = (0, import_react.useMemo)(() => lists.filter((l) => l.type === "playlist"), [lists]);
-    const effectiveDrawerPlaylistId = drawerPlaylistId || playerPlaylistId;
+    const nowPlayingArticle = (0, import_react.useMemo)(() => {
+      if (!playerPlaylistId || !playerItems.length) return null;
+      const item = playerItems[playerIdx];
+      return item?.article || null;
+    }, [playerPlaylistId, playerIdx, playerItems]);
+    const addToast = (0, import_react.useCallback)((message, undoFn = null) => {
+      const id = Date.now();
+      setToasts((prev) => [...prev, { id, message, undoFn }]);
+      setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 3500);
+    }, []);
+    const handleUndo = (0, import_react.useCallback)((toastId) => {
+      setToasts((prev) => {
+        const t = prev.find((x) => x.id === toastId);
+        if (t?.undoFn) t.undoFn();
+        return prev.filter((x) => x.id !== toastId);
+      });
+    }, []);
     const refreshArticles = (0, import_react.useCallback)(async (q = "") => {
       try {
         const suffix = q.trim() ? `?q=${encodeURIComponent(q.trim())}` : "";
@@ -26598,14 +25705,14 @@ div:hover > .dwi-rm-hover { opacity:1 !important; }
       } catch {
       }
     }, []);
-    const refreshDrawerItems = (0, import_react.useCallback)(async (listId) => {
+    const refreshPlayerItems = (0, import_react.useCallback)(async (listId) => {
       if (!listId) {
-        setDrawerItems([]);
+        setPlayerItems([]);
         return;
       }
       try {
         const data = await apiGet(`/api/lists/${listId}/items`);
-        setDrawerItems(data.items || []);
+        setPlayerItems(data.items || []);
       } catch {
       }
     }, []);
@@ -26618,46 +25725,34 @@ div:hover > .dwi-rm-hover { opacity:1 !important; }
     }, []);
     const refreshAll = (0, import_react.useCallback)(async () => {
       await Promise.all([refreshArticles(search), refreshLists()]);
-      if (activeListId) await refreshListItems(activeListId);
-      if (effectiveDrawerPlaylistId) await refreshDrawerItems(effectiveDrawerPlaylistId);
-    }, [refreshArticles, refreshLists, refreshListItems, refreshDrawerItems, activeListId, effectiveDrawerPlaylistId, search]);
+      if (activeList) await refreshListItems(activeList);
+      if (playerPlaylistId) await refreshPlayerItems(playerPlaylistId);
+    }, [refreshArticles, refreshLists, refreshListItems, refreshPlayerItems, activeList, playerPlaylistId, search]);
     (0, import_react.useEffect)(() => {
       refreshArticles();
+      refreshLists();
       refreshVoices();
-      refreshLists().then(() => {
-      });
     }, []);
     (0, import_react.useEffect)(() => {
       if (playerPlaylistId) return;
       const firstPlaylist = lists.find((l) => l.type === "playlist");
       if (firstPlaylist) {
         setPlayerPlaylistId(firstPlaylist.id);
-        setDrawerPlaylistId(firstPlaylist.id);
-        refreshDrawerItems(firstPlaylist.id);
+        refreshPlayerItems(firstPlaylist.id);
       }
     }, [lists]);
     (0, import_react.useEffect)(() => {
-      refreshListItems(activeListId);
-    }, [activeListId, refreshListItems]);
+      refreshListItems(activeList);
+    }, [activeList, refreshListItems]);
     (0, import_react.useEffect)(() => {
-      if (effectiveDrawerPlaylistId) refreshDrawerItems(effectiveDrawerPlaylistId);
-    }, [effectiveDrawerPlaylistId, refreshDrawerItems]);
+      if (playerPlaylistId) refreshPlayerItems(playerPlaylistId);
+    }, [playerPlaylistId, refreshPlayerItems]);
     (0, import_react.useEffect)(() => {
       const timeout = setTimeout(() => refreshArticles(search), 200);
       return () => clearTimeout(timeout);
     }, [search, refreshArticles]);
-    const hasActiveWork = articles.some((a) => {
-      const rend = a.renditions || {};
-      const audio = rend.audio;
-      return audio && (audio.state === "queued" || audio.state === "generating");
-    });
     (0, import_react.useEffect)(() => {
-      if (!hasActiveWork) return;
-      const interval = setInterval(() => refreshAll(), 2e3);
-      return () => clearInterval(interval);
-    }, [hasActiveWork, refreshAll]);
-    (0, import_react.useEffect)(() => {
-      if (!focusedId && articles.length > 0) setFocusedId(articles[0].id);
+      if (articles.length > 0 && !focusedId) setFocusedId(articles[0].id);
     }, [articles, focusedId]);
     (0, import_react.useEffect)(() => {
       const audio = audioRef.current;
@@ -26684,237 +25779,209 @@ div:hover > .dwi-rm-hover { opacity:1 !important; }
       };
     }, []);
     (0, import_react.useEffect)(() => {
-      if (!playerPlaylistId || !drawerItems.length) return;
-      const item = drawerItems[playerIdx];
+      if (!playerPlaylistId || !playerItems.length) return;
+      const item = playerItems[playerIdx];
       if (!item?.article) return;
       const rend = item.article.renditions || {};
       const rendition = item.use_summary ? rend.audio_summary : rend.audio;
       if (rendition && rendition.state === "ready" && item.article.audio_url) {
         const audio = audioRef.current;
         if (audio && !audio.src.endsWith(item.article.audio_url)) {
+          const shouldResume = wasPlayingRef.current;
           audio.src = item.article.audio_url;
           audio.load();
+          if (shouldResume) {
+            const onCanPlay = () => {
+              audio.play().catch(() => {
+              });
+              audio.removeEventListener("canplay", onCanPlay);
+            };
+            audio.addEventListener("canplay", onCanPlay);
+          }
+          wasPlayingRef.current = false;
         }
       }
-    }, [playerPlaylistId, playerIdx, drawerItems]);
-    const handleSelectList = async (id) => {
-      setActiveListId(id);
+    }, [playerPlaylistId, playerIdx, playerItems]);
+    (0, import_react.useEffect)(() => {
+      if (audioRef.current) audioRef.current.playbackRate = speed;
+    }, [speed]);
+    const handleNavType = (typeKey) => {
+      setRailType(typeKey);
+      setEditing(false);
       setSearch("");
-      const list = lists.find((l) => l.id === id);
+      if (typeKey === "all") {
+        setActiveList(null);
+        return;
+      }
+      const matching = listsOfType(lists, typeKey);
+      setActiveList(matching.length === 1 ? matching[0].id : null);
+    };
+    const handleSelectList = (listId, navToType) => {
+      if (navToType) {
+        handleNavType(navToType);
+        return;
+      }
+      setActiveList(listId);
+      setEditing(false);
+      const list = lists.find((l) => l.id === listId);
       if (list && list.type === "playlist") {
-        setPlayerPlaylistId(id);
+        setPlayerPlaylistId(listId);
         setPlayerIdx(0);
-        await refreshDrawerItems(id);
+        refreshPlayerItems(listId);
+      }
+    };
+    const handleBackToChooser = () => {
+      setActiveList(null);
+      setEditing(false);
+    };
+    const handleSelectDoc = (docId) => setFocusedId(docId);
+    const handlePlayerToggle = () => {
+      const audio = audioRef.current;
+      if (!audio) return;
+      if (audio.paused) audio.play().catch(() => {
+      });
+      else audio.pause();
+    };
+    const wasPlayingRef = (0, import_react.useRef)(false);
+    const handlePlayerPrev = () => {
+      wasPlayingRef.current = !audioRef.current?.paused;
+      setPlayerIdx((i) => Math.max(i - 1, 0));
+      setAudioState((s) => ({ ...s, currentTime: 0 }));
+    };
+    const handlePlayerNext = () => {
+      wasPlayingRef.current = !audioRef.current?.paused;
+      setPlayerIdx((i) => Math.min(i + 1, (playerItems.length || 1) - 1));
+      setAudioState((s) => ({ ...s, currentTime: 0 }));
+    };
+    const handlePlayerSeek = (e) => {
+      const audio = audioRef.current;
+      if (!audio || !audio.duration) return;
+      const rect = e.currentTarget.getBoundingClientRect();
+      audio.currentTime = (e.clientX - rect.left) / rect.width * audio.duration;
+    };
+    const handleCycleSpeed = () => {
+      setSpeed((s) => SPEEDS[(SPEEDS.indexOf(s) + 1) % SPEEDS.length]);
+    };
+    const handleToggleListMembership = async (docId, listId, isIn) => {
+      try {
+        if (isIn) {
+          await apiDelete(`/api/lists/${listId}/items/${docId}`);
+          const l = lists.find((x) => x.id === listId);
+          addToast(`Removed from ${l?.name || "list"}`, async () => {
+            await apiJson(`/api/lists/${listId}/items`, "POST", { doc_id: docId });
+            await refreshAll();
+          });
+        } else {
+          await apiJson(`/api/lists/${listId}/items`, "POST", { doc_id: docId });
+          const l = lists.find((x) => x.id === listId);
+          addToast(`Added to ${l?.name || "list"}`);
+        }
+        await refreshAll();
+      } catch {
+      }
+    };
+    const handleToggleDone = async (item) => {
+      if (!activeList) return;
+      try {
+        await apiJson(`/api/lists/${activeList}/items/${item.doc_id}`, "PUT", { done: !item.done });
+        addToast(item.done ? "Marked as not done" : "Marked as done");
+        await refreshAll();
+      } catch {
+      }
+    };
+    const handleRemoveFromList = async (docId, listId) => {
+      try {
+        await apiDelete(`/api/lists/${listId}/items/${docId}`);
+        const l = lists.find((x) => x.id === listId);
+        addToast(`Removed from ${l?.name || "list"}`, async () => {
+          await apiJson(`/api/lists/${listId}/items`, "POST", { doc_id: docId });
+          await refreshAll();
+        });
+        await refreshAll();
+      } catch {
+      }
+    };
+    const handlePlayNow = async (docId) => {
+      if (playerPlaylistId) {
+        const idx = playerItems.findIndex((i) => (i.doc_id || i.article?.id) === docId);
+        if (idx >= 0) {
+          setPlayerIdx(idx);
+          setAudioState((s) => ({ ...s, currentTime: 0 }));
+        }
+        setTimeout(() => {
+          audioRef.current?.play().catch(() => {
+          });
+        }, 100);
+      }
+    };
+    const handleLoadPlaylist = async (listId) => {
+      setPlayerPlaylistId(listId);
+      setPlayerIdx(0);
+      await refreshPlayerItems(listId);
+      setTimeout(() => {
+        audioRef.current?.play().catch(() => {
+        });
+      }, 200);
+    };
+    const handleBatchNarrate = async (listId) => {
+      try {
+        if (listId) {
+          await apiJson(`/api/lists/${listId}/batch-narrate`, "POST", {});
+        } else {
+          for (const a of articles) {
+            const r = (a.renditions || {}).audio;
+            if (!r || r.state !== "ready") {
+              await apiJson(`/api/docs/${a.id}/renditions/audio`, "POST", {});
+            }
+          }
+        }
+        addToast("Narration queued");
+        await refreshAll();
+      } catch {
       }
     };
     const handleCreateList = async (payload) => {
       try {
         const data = await apiJson("/api/lists", "POST", payload);
         await refreshLists();
-        if (data?.list?.id) setActiveListId(data.list.id);
-      } catch {
-      }
-    };
-    const handleSelectDoc = (docId) => setFocusedId(docId);
-    const handleToggleDone = async (item) => {
-      if (!activeListId) return;
-      try {
-        await apiJson(`/api/lists/${activeListId}/items/${item.doc_id}`, "PUT", { done: !item.done });
-        await refreshListItems(activeListId);
-        await refreshLists();
-      } catch {
-      }
-    };
-    const handleToggleListMembership = async (docId, listId, isIn) => {
-      try {
-        if (isIn) {
-          await apiDelete(`/api/lists/${listId}/items/${docId}`);
-        } else {
-          await apiJson(`/api/lists/${listId}/items`, "POST", { doc_id: docId });
+        if (data?.list?.id) {
+          const t = TYPES.find((x) => x.listType === payload.type);
+          if (t) setRailType(t.key);
+          setActiveList(data.list.id);
         }
-        await refreshAll();
+        setShowCreateList(false);
+        addToast(`Created "${payload.name}"`);
       } catch {
       }
     };
-    const handleBatchNarrate = async () => {
-      if (!activeListId) return;
+    const handleDeleteList = async () => {
+      if (!activeList) return;
+      const l = lists.find((x) => x.id === activeList);
+      if (!l || !confirm(`Delete "${l.name}"?`)) return;
       try {
-        await apiJson(`/api/lists/${activeListId}/batch-narrate`, "POST", {});
+        await apiDelete(`/api/lists/${activeList}`);
+        setActiveList(null);
+        setEditing(false);
         await refreshAll();
+        addToast(`Deleted "${l.name}"`);
       } catch {
       }
-    };
-    const handlePlayerToggle = async () => {
-      const audio = audioRef.current;
-      if (!audio) return;
-      if (audio.paused) {
-        try {
-          await audio.play();
-        } catch {
-        }
-      } else {
-        audio.pause();
-      }
-    };
-    const handlePlayerSeek = (e) => {
-      const audio = audioRef.current;
-      if (!audio) return;
-      const rect = e.currentTarget.getBoundingClientRect();
-      const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-      if (audio.duration) audio.currentTime = pct * audio.duration;
-    };
-    const handlePlayerPrev = () => {
-      setPlayerIdx((i) => Math.max(0, i - 1));
-      setAudioState((s) => ({ ...s, currentTime: 0 }));
-    };
-    const handlePlayerNext = () => {
-      setPlayerIdx((i) => {
-        const max = (drawerItems.length || 1) - 1;
-        return Math.min(i + 1, max);
-      });
-      setAudioState((s) => ({ ...s, currentTime: 0 }));
-    };
-    const handlePlayNow = async (docId) => {
-      if (playerPlaylistId) {
-        const idx = drawerItems.findIndex((i) => (i.doc_id || i.article?.id) === docId);
-        if (idx >= 0) {
-          setPlayerIdx(idx);
-          setAudioState((s) => ({ ...s, currentTime: 0 }));
-        } else {
-          try {
-            await apiJson(`/api/lists/${playerPlaylistId}/items`, "POST", { doc_id: docId });
-            await refreshDrawerItems(playerPlaylistId);
-            await refreshAll();
-            setPlayerIdx(playerIdx + 1);
-            setAudioState((s) => ({ ...s, currentTime: 0 }));
-          } catch {
-          }
-        }
-        setTimeout(() => {
-          audioRef.current?.play().catch(() => {
-          });
-        }, 100);
-      } else {
-        const firstPlaylist = allPlaylists[0];
-        if (firstPlaylist) {
-          setPlayerPlaylistId(firstPlaylist.id);
-          setDrawerPlaylistId(firstPlaylist.id);
-          try {
-            await apiJson(`/api/lists/${firstPlaylist.id}/items`, "POST", { doc_id: docId });
-            await refreshDrawerItems(firstPlaylist.id);
-            await refreshAll();
-          } catch {
-          }
-        }
-      }
-    };
-    const handleAddToQueue = async (docId) => {
-      if (!playerPlaylistId) {
-        const firstPlaylist = allPlaylists[0];
-        if (!firstPlaylist) return;
-        setPlayerPlaylistId(firstPlaylist.id);
-        setDrawerPlaylistId(firstPlaylist.id);
-        setDrawerOpen(true);
-        try {
-          await apiJson(`/api/lists/${firstPlaylist.id}/items`, "POST", { doc_id: docId });
-          await refreshDrawerItems(firstPlaylist.id);
-          await refreshAll();
-        } catch {
-        }
-        return;
-      }
-      const already = drawerItems.some((i) => (i.doc_id || i.article?.id) === docId);
-      if (already) return;
-      try {
-        await apiJson(`/api/lists/${playerPlaylistId}/items`, "POST", { doc_id: docId });
-        await refreshDrawerItems(playerPlaylistId);
-        await refreshAll();
-      } catch {
-      }
-    };
-    const handleLoadPlaylist = async (listId) => {
-      setPlayerPlaylistId(listId);
-      setDrawerPlaylistId(listId);
-      setPlayerIdx(0);
-      setAudioState((s) => ({ ...s, currentTime: 0 }));
-      await refreshDrawerItems(listId);
-      setDrawerOpen(true);
-      setTimeout(() => {
-        audioRef.current?.play().catch(() => {
-        });
-      }, 200);
-    };
-    const handleDrawerSwitchPlaylist = async (listId) => {
-      setDrawerPlaylistId(listId);
-      setPlayerPlaylistId(listId);
-      setPlayerIdx(0);
-      setAudioState((s) => ({ ...s, currentTime: 0 }));
-      await refreshDrawerItems(listId);
-    };
-    const handleDrawerRemoveItem = async (docId) => {
-      if (!effectiveDrawerPlaylistId) return;
-      try {
-        await apiDelete(`/api/lists/${effectiveDrawerPlaylistId}/items/${docId}`);
-        await refreshDrawerItems(effectiveDrawerPlaylistId);
-        await refreshAll();
-      } catch {
-      }
-    };
-    const handleDrawerReorder = async (fromIdx, toIdx) => {
-      if (!effectiveDrawerPlaylistId) return;
-      const newItems = [...drawerItems];
-      const [moved] = newItems.splice(fromIdx, 1);
-      newItems.splice(toIdx > fromIdx ? toIdx - 1 : toIdx, 0, moved);
-      setDrawerItems(newItems);
-      if (fromIdx === playerIdx) {
-        setPlayerIdx(toIdx > fromIdx ? toIdx - 1 : toIdx);
-      } else if (fromIdx < playerIdx && toIdx > playerIdx) {
-        setPlayerIdx((p) => p - 1);
-      } else if (fromIdx > playerIdx && toIdx <= playerIdx) {
-        setPlayerIdx((p) => p + 1);
-      }
-      try {
-        const ids = newItems.map((i) => i.doc_id || i.article?.id);
-        await apiJson(`/api/lists/${effectiveDrawerPlaylistId}/items/reorder`, "PUT", { ids });
-      } catch {
-      }
-    };
-    const handleAddCurrentDocToDrawer = async () => {
-      if (!focusedId || !effectiveDrawerPlaylistId) return;
-      const already = drawerItems.some((i) => (i.doc_id || i.article?.id) === focusedId);
-      if (already) return;
-      try {
-        await apiJson(`/api/lists/${effectiveDrawerPlaylistId}/items`, "POST", { doc_id: focusedId });
-        await refreshDrawerItems(effectiveDrawerPlaylistId);
-        await refreshAll();
-      } catch {
-      }
-    };
-    const handleShowATP = (e, docId) => {
-      setAtpPopover({ docId, x: e.clientX, y: e.clientY });
-    };
-    const handleShowPlaylistPicker = (e, docId) => {
-      setPlaylistPicker({ docId, x: e.clientX, y: e.clientY });
     };
     const handleGoToPlaylist = () => {
       if (playerPlaylistId) {
-        setActiveListId(playerPlaylistId);
-        setSearch("");
+        const pl = lists.find((l) => l.id === playerPlaylistId);
+        if (pl) {
+          const t = TYPES.find((x) => x.listType === pl.type);
+          if (t) setRailType(t.key);
+          setActiveList(playerPlaylistId);
+        }
       }
     };
-    const handleToggleSection = (key) => {
-      setSections((s) => ({ ...s, [key]: !s[key] }));
-    };
-    const nowPlayingArticle = (0, import_react.useMemo)(() => {
-      if (!playerPlaylistId || !drawerItems.length) return null;
-      const item = drawerItems[playerIdx];
-      return item?.article || null;
-    }, [playerPlaylistId, playerIdx, drawerItems]);
     (0, import_react.useEffect)(() => {
       const handler = (e) => {
         if (isTypingTarget(e.target)) return;
-        const currentItems = activeListId ? listItems : articles;
-        const ids = activeListId ? currentItems.map((i) => i.doc_id || i.article && i.article.id) : currentItems.map((a) => a.id);
+        const currentItems = activeList ? listItems : articles;
+        const ids = activeList ? currentItems.map((i) => i.doc_id || i.article && i.article.id) : currentItems.map((a) => a.id);
         const curIdx = ids.indexOf(focusedId);
         if (e.key === "ArrowDown" || e.key === "j") {
           e.preventDefault();
@@ -26931,14 +25998,6 @@ div:hover > .dwi-rm-hover { opacity:1 !important; }
           document.querySelector("input[placeholder]")?.focus();
         }
         if (e.key === "Escape") {
-          if (atpPopover) {
-            setAtpPopover(null);
-            return;
-          }
-          if (playlistPicker) {
-            setPlaylistPicker(null);
-            return;
-          }
           if (search) setSearch("");
           if (showCreateList) setShowCreateList(false);
         }
@@ -26946,84 +26005,37 @@ div:hover > .dwi-rm-hover { opacity:1 !important; }
           e.preventDefault();
           handlePlayerToggle();
         }
-        if (e.key === "n" && focusedId) {
-          apiJson(`/api/docs/${focusedId}/renditions/audio`, "POST", {}).then(() => refreshAll()).catch(() => {
-          });
-        }
-        if (e.key === "e" && activeList?.type === "todo") {
-          const item = listItems.find((i) => i.doc_id === focusedId);
-          if (item) handleToggleDone(item);
-        }
-        if (e.key === "[") {
-          setNavCollapsed((c) => !c);
-        }
         if (e.key === "]") {
-          setDrawerOpen((d) => !d);
-        }
-        const num = parseInt(e.key);
-        if (num >= 1 && num <= 9) {
-          const allListIds = [null, ...lists.map((l) => l.id)];
-          if (num <= allListIds.length) handleSelectList(allListIds[num - 1]);
+          setQueuePeek((q) => !q);
+          setSpeedOpen(false);
         }
       };
       document.addEventListener("keydown", handler);
       return () => document.removeEventListener("keydown", handler);
-    }, [focusedId, activeListId, listItems, articles, lists, search, showCreateList, activeList, atpPopover, playlistPicker, playerPlaylistId]);
-    const atpArticle = (0, import_react.useMemo)(() => {
-      if (!atpPopover) return null;
-      const fromItems = listItems.find((i) => i.doc_id === atpPopover.docId || i.article && i.article.id === atpPopover.docId);
-      if (fromItems?.article) return fromItems.article;
-      return articles.find((a) => a.id === atpPopover.docId) || null;
-    }, [atpPopover, articles, listItems]);
-    const pickerArticle = (0, import_react.useMemo)(() => {
-      if (!playlistPicker) return null;
-      const fromItems = listItems.find((i) => i.doc_id === playlistPicker.docId || i.article && i.article.id === playlistPicker.docId);
-      if (fromItems?.article) return fromItems.article;
-      return articles.find((a) => a.id === playlistPicker.docId) || null;
-    }, [playlistPicker, articles, listItems]);
+    }, [focusedId, activeList, listItems, articles, search, showCreateList, playerPlaylistId]);
     return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
       /* @__PURE__ */ (0, import_jsx_runtime.jsx)("style", { children: globalCSS }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("style", { children: hoverCSS }),
       /* @__PURE__ */ (0, import_jsx_runtime.jsx)("audio", { "data-testid": "audio-element", ref: audioRef, preload: "metadata" }),
       /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { id: "app", style: { display: "flex", flex: 1, overflow: "hidden" }, children: [
-        navCollapsed && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-          NavRail,
-          {
-            lists,
-            activeListId,
-            onSelectList: handleSelectList,
-            onExpandNav: () => setNavCollapsed(false)
-          }
-        ),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-          NavSidebar,
-          {
-            lists,
-            activeListId,
-            totalCount: articles.length,
-            onSelectList: handleSelectList,
-            onCreateList: () => setShowCreateList(true),
-            collapsed: navCollapsed,
-            onToggleCollapse: () => setNavCollapsed(true),
-            playerPlaylistId,
-            isPlaying: audioState.isPlaying,
-            sections,
-            onToggleSection: handleToggleSection
-          }
-        ),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(NavRail, { railType, onNavType: handleNavType, lists }),
         /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
           CenterPanel,
           {
+            railType,
             activeList,
+            lists,
             articles,
             listItems,
             focusedId,
-            onSelectDoc: handleSelectDoc,
             search,
+            onSelectDoc: handleSelectDoc,
             onSearchChange: setSearch,
-            onPlayNow: handlePlayNow,
-            onAddToQueue: handleAddToQueue,
-            onShowATP: handleShowATP,
+            onSelectList: handleSelectList,
+            onBackToChooser: handleBackToChooser,
+            onCreateList: (presetType) => {
+              setCreateListPresetType(presetType);
+              setShowCreateList(true);
+            },
             playerPlaylistId,
             playerIdx,
             isPlaying: audioState.isPlaying,
@@ -27036,7 +26048,17 @@ div:hover > .dwi-rm-hover { opacity:1 !important; }
             onBatchNarrate: handleBatchNarrate,
             onLoadPlaylist: handleLoadPlaylist,
             onToggleDone: handleToggleDone,
-            onToggleDrawer: () => setDrawerOpen((d) => !d)
+            onPlayNow: handlePlayNow,
+            onAddToQueue: () => {
+            },
+            editing,
+            onToggleEditing: () => setEditing((e) => !e),
+            onRenameList: () => {
+            },
+            onDeleteList: handleDeleteList,
+            speed,
+            onCycleSpeed: handleCycleSpeed,
+            onRemoveFromList: handleRemoveFromList
           }
         ),
         /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
@@ -27048,30 +26070,11 @@ div:hover > .dwi-rm-hover { opacity:1 !important; }
             onRefresh: refreshAll,
             onToggleListMembership: handleToggleListMembership,
             onPlayNow: handlePlayNow,
-            onAddToQueue: handleAddToQueue,
-            onShowPlaylistPicker: handleShowPlaylistPicker,
             playerPlaylistId
-          }
-        ),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-          RightDrawer,
-          {
-            open: drawerOpen && allPlaylists.length > 0,
-            playlists: allPlaylists,
-            activePlaylistId: effectiveDrawerPlaylistId,
-            playlistItems: drawerItems,
-            playerIdx,
-            focusedId,
-            onClose: () => setDrawerOpen(false),
-            onSwitchPlaylist: handleDrawerSwitchPlaylist,
-            onSelectDoc: handleSelectDoc,
-            onRemoveItem: handleDrawerRemoveItem,
-            onReorder: handleDrawerReorder,
-            onAddCurrentDoc: handleAddCurrentDocToDrawer
           }
         )
       ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { id: "bbar-container", style: { flexShrink: 0 }, children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
         BottomBar,
         {
           article: nowPlayingArticle,
@@ -27080,49 +26083,31 @@ div:hover > .dwi-rm-hover { opacity:1 !important; }
           currentTime: audioState.currentTime,
           duration: audioState.duration,
           playerIdx,
-          drawerOpen,
+          playerItems,
+          speed,
+          speedOpen,
+          queuePeek,
           onTogglePlay: handlePlayerToggle,
           onPrev: handlePlayerPrev,
           onNext: handlePlayerNext,
           onSeek: handlePlayerSeek,
-          onToggleDrawer: () => setDrawerOpen((d) => !d),
+          onToggleQueuePeek: () => {
+            setQueuePeek((q) => !q);
+            setSpeedOpen(false);
+          },
+          onToggleSpeedPop: () => {
+            setSpeedOpen((s) => !s);
+            setQueuePeek(false);
+          },
+          onSetSpeed: (s) => {
+            setSpeed(s);
+            setSpeedOpen(false);
+          },
           onGoToPlaylist: handleGoToPlaylist
         }
-      ) }),
-      showCreateList && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CreateListModal, { onClose: () => setShowCreateList(false), onCreate: handleCreateList }),
-      atpPopover && atpArticle && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-        AddToListPopover,
-        {
-          docId: atpPopover.docId,
-          x: atpPopover.x,
-          y: atpPopover.y,
-          lists,
-          docTitle: atpArticle.title,
-          articleMemberships: atpArticle.list_memberships,
-          onToggle: handleToggleListMembership,
-          onClose: () => setAtpPopover(null),
-          onCreateList: () => {
-            setAtpPopover(null);
-            setShowCreateList(true);
-          }
-        }
       ),
-      playlistPicker && pickerArticle && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-        PlaylistPickerPopover,
-        {
-          docId: playlistPicker.docId,
-          x: playlistPicker.x,
-          y: playlistPicker.y,
-          lists,
-          articleMemberships: pickerArticle.list_memberships,
-          onToggle: handleToggleListMembership,
-          onClose: () => setPlaylistPicker(null),
-          onCreateList: () => {
-            setPlaylistPicker(null);
-            setShowCreateList(true);
-          }
-        }
-      )
+      showCreateList && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CreateListModal, { onClose: () => setShowCreateList(false), onCreate: handleCreateList, presetType: createListPresetType }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ToastContainer, { toasts, onUndo: handleUndo, onDismiss: (id) => setToasts((prev) => prev.filter((t) => t.id !== id)) })
     ] });
   }
   document.addEventListener("wheel", (e) => {

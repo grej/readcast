@@ -1,95 +1,86 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 
-// ─── Design tokens (mapped from prototype :root vars) ──────
+// ─── Design tokens ──────────────────────────────────────────
 const C = {
-  bg0: "#08090d",
-  bg1: "#0c0d12",
-  bg2: "#13151d",
-  bg3: "#181b26",
-  bg4: "#1a1d27",
-  br: "#222538",
-  br2: "#181a28",
-  t1: "#e4e5ea",
-  t2: "#a0a4b8",
-  t3: "#6b7084",
-  t4: "#4a4d60",
-  acc: "#6c8cff",
-  abg: "rgba(108,140,255,0.1)",
-  grn: "#4ade80",
-  gbg: "rgba(74,222,128,0.12)",
-  red: "#f87171",
-  rbg: "rgba(248,113,113,0.12)",
-  amb: "#ef9f27",
-  ambg: "rgba(239,159,39,0.12)",
-  pur: "#a855f7",
-  pbg: "rgba(168,85,247,0.12)",
-  teal: "#2dd4bf",
-  tbg: "rgba(45,212,191,0.12)",
+  bg0: "#08090d", bg1: "#0c0d12", bg2: "#13151d", bg3: "#181b26", bg4: "#1e2130",
+  br: "#222538", br2: "#181a28", br3: "#2a2d42",
+  t1: "#e4e5ea", t2: "#a0a4b8", t3: "#6b7084", t4: "#4a4d60", t5: "#363849",
+  acc: "#6c8cff", acc2: "#5474e8", abg: "rgba(108,140,255,0.1)", abr: "rgba(108,140,255,0.25)",
+  grn: "#4ade80", gbg: "rgba(74,222,128,0.1)",
+  red: "#f87171", rbg: "rgba(248,113,113,0.1)",
+  amb: "#ef9f27", ambg: "rgba(239,159,39,0.1)",
+  pur: "#a78bfa", pbg: "rgba(167,139,250,0.1)",
+  teal: "#2dd4bf", tbg: "rgba(45,212,191,0.1)",
+  rose: "#fb7185", rosebg: "rgba(251,113,133,0.1)",
+  sky: "#38bdf8", skybg: "rgba(56,189,248,0.1)",
 };
-
 const FONT = {
-  sans: "'DM Sans', 'Avenir Next', system-ui, sans-serif",
+  sans: "'DM Sans', system-ui, sans-serif",
   serif: "'Source Serif 4', Georgia, serif",
-  mono: "'JetBrains Mono', 'SF Mono', monospace",
+  mono: "'JetBrains Mono', monospace",
 };
 
-const TAG_CLS = {
-  "ai-tools": [C.acc, C.abg],
-  "ai-research": [C.teal, C.tbg],
-  email: [C.grn, C.gbg],
-  geopolitics: [C.red, C.rbg],
-  "mil-tech": [C.amb, C.ambg],
-  reading: [C.pur, C.pbg],
-  defense: [C.red, C.rbg],
+// Type definitions — stable rail items
+const TYPES = [
+  { key: "all", icon: "\u2299", label: "All Items" },
+  { key: "action", icon: "\u2610", label: "Action Items", listType: "todo" },
+  { key: "collection", icon: "\u25ce", label: "Collections", listType: "collection" },
+  { key: "playlist", icon: "\u266b", label: "Playlists", listType: "playlist" },
+];
+
+const SPEEDS = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0];
+const EMOJIS = ["\ud83d\udccc","\ud83d\udcda","\ud83c\udfaf","\ud83d\udd2c","\ud83d\udca1","\ud83c\udfd7","\ud83d\udcca","\ud83c\udfa8","\ud83e\uddea","\ud83d\uddfa","\u270f\ufe0f","\ud83d\udd16","\ud83c\udf93","\ud83d\udce1","\ud83d\udee0","\u2709","\ud83e\udde0","\ud83c\udf0d","\ud83c\udfa7","\u26a1","\ud83d\udcd6","\ud83d\udd2e"];
+
+const COLOR_CLASSES = {
+  "on-amb": { border: "rgba(239,159,39,0.3)", color: C.amb, bg: C.ambg },
+  "on-pur": { border: "rgba(167,139,250,0.25)", color: C.pur, bg: C.pbg },
+  "on-red": { border: "rgba(248,113,113,0.25)", color: C.red, bg: C.rbg },
+  "on-teal": { border: "rgba(45,212,191,0.25)", color: C.teal, bg: C.tbg },
+  "on-acc": { border: C.abr, color: C.acc, bg: C.abg },
+  "on-sky": { border: "rgba(56,189,248,0.25)", color: C.sky, bg: C.skybg },
+  "on-rose": { border: "rgba(251,113,133,0.25)", color: C.rose, bg: C.rosebg },
+  "on-grn": { border: "rgba(74,222,128,0.25)", color: C.grn, bg: C.gbg },
 };
 
-const TYPE_BADGE = { collection: "\u25ce", todo: "\u2610", playlist: "\u266b" };
-const DEFAULT_COLORS = {
-  collection: [C.pur, C.pbg],
-  todo: [C.amb, C.ambg],
-  playlist: [C.acc, C.abg],
-};
-const EMOJIS = ["\ud83d\udcda","\ud83e\udde0","\u2709","\ud83c\udf0d","\u26a1","\ud83c\udfa7","\ud83d\udcdd","\ud83d\udd2c","\ud83d\udcbc","\ud83c\udfaf","\ud83c\udfd7","\ud83c\udf93","\u2694","\ud83d\udee1","\ud83d\udcca","\ud83e\uddea"];
-
-// ─── Global CSS (injected once) ────────────────────────────
+// ─── Global CSS ─────────────────────────────────────────────
 const globalCSS = `
-@keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.4;} }
-@keyframes fadeIn { from{opacity:0;transform:translateY(-3px);} to{opacity:1;transform:translateY(0);} }
-@keyframes flashAcc { 0%{background:rgba(108,140,255,0.18);} 100%{background:transparent;} }
-@keyframes bar1 { 0%,100%{height:3px} 50%{height:11px} }
-@keyframes bar2 { 0%,100%{height:9px} 50%{height:3px} }
-@keyframes bar3 { 0%,100%{height:5px} 50%{height:13px} }
-@keyframes bar4 { 0%,100%{height:12px} 50%{height:5px} }
-*{box-sizing:border-box;margin:0;padding:0;}
-body{background:${C.bg0};color:${C.t1};font-family:${FONT.sans};height:100vh;display:flex;flex-direction:column;overflow:hidden;}
-#root{flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden;}
-::selection{background:rgba(108,140,255,0.3);}
-::-webkit-scrollbar{width:5px;}
-::-webkit-scrollbar-track{background:transparent;}
-::-webkit-scrollbar-thumb{background:${C.br};border-radius:3px;}
-input::placeholder{color:${C.t3};}
-button{font-family:inherit;cursor:pointer;}
-.flash{animation:flashAcc 0.4s ease;}
-[data-testid="detail-panel"]{overflow-y:scroll !important;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;}
-.drawer{width:0;overflow:hidden;transition:width .2s ease;flex-shrink:0;display:flex;flex-direction:column;background:${C.bg1};border-left:1px solid ${C.br};}
-.drawer.open{width:280px;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(-3px)}to{opacity:1;transform:none}}
+@keyframes flashAcc{0%{background:rgba(108,140,255,0.18)}100%{background:transparent}}
+@keyframes b1{0%,100%{height:3px}50%{height:10px}}
+@keyframes b2{0%,100%{height:8px}50%{height:3px}}
+@keyframes b3{0%,100%{height:5px}50%{height:12px}}
+@keyframes popIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+@keyframes toastIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:${C.bg0};color:${C.t1};font-family:${FONT.sans};overflow:hidden;-webkit-font-smoothing:antialiased}
+#root{display:flex;flex-direction:column;height:100%;overflow:hidden}
+button{font-family:inherit;cursor:pointer;border:none;background:none}
+input,select{font-family:inherit}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:${C.br};border-radius:2px}
+::selection{background:rgba(108,140,255,0.3)}
+.eq{display:flex;align-items:flex-end;gap:1px;height:14px}
+.eq span{width:2px;background:${C.acc};border-radius:1px}
+.eq span:nth-child(1){animation:b1 .8s infinite}
+.eq span:nth-child(2){animation:b2 .7s infinite}
+.eq span:nth-child(3){animation:b3 .9s infinite}
 `;
 
-// ─── Utilities ─────────────────────────────────────────────
+// ─── Utilities ──────────────────────────────────────────────
 function fmtDur(seconds) {
-  if (!seconds && seconds !== 0) return "--:--";
+  if (!seconds && seconds !== 0) return "\u2014";
   const whole = Math.max(0, Math.floor(seconds));
-  const m = Math.floor(whole / 60);
-  const s = whole % 60;
+  const m = Math.floor(whole / 60), s = whole % 60;
   return `${m}:${String(s).padStart(2, "0")}`;
 }
+function fmtSpeed(s) { return s === 1 ? "1\u00d7" : s + "\u00d7"; }
 
 function sourceLabel(article) {
   const raw = article.source || article.publication || article.source_url || article.source_file || "";
   if (!raw) return "Pasted";
   try {
-    if (raw.startsWith("http://") || raw.startsWith("https://")) {
+    if (raw.startsWith("http")) {
       const host = new URL(raw).hostname.replace(/^www\./, "");
       const parts = host.split(".");
       if (parts.length >= 2) {
@@ -99,7 +90,6 @@ function sourceLabel(article) {
         if (host.includes("substack")) return "Substack";
         return domain.charAt(0).toUpperCase() + domain.slice(1);
       }
-      return host;
     }
   } catch {}
   if (raw.startsWith("plugin:")) return raw;
@@ -110,945 +100,456 @@ function sourceLabel(article) {
 function timeAgo(iso) {
   if (!iso) return "";
   try {
-    const d = new Date(iso);
-    const now = new Date();
-    const diffMs = now - d;
-    const diffMin = Math.floor(diffMs / 60000);
+    const d = new Date(iso), now = new Date(), diffMin = Math.floor((now - d) / 60000);
     if (diffMin < 60) return `${diffMin}m`;
     const diffH = Math.floor(diffMin / 60);
     if (diffH < 24) return `${diffH}h`;
-    const diffD = Math.floor(diffH / 24);
-    return `${diffD}d`;
+    return `${Math.floor(diffH / 24)}d`;
   } catch { return ""; }
-}
-
-function tagColor(tag) {
-  return TAG_CLS[tag] || [C.acc, C.abg];
 }
 
 function isTypingTarget(target) {
   if (!(target instanceof HTMLElement)) return false;
-  const tag = target.tagName;
-  return target.isContentEditable || tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
+  return target.isContentEditable || target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT";
 }
 
-function voiceLabel(name) {
-  const parts = String(name || "").split("_");
-  const displayName = parts[1] ? parts[1][0].toUpperCase() + parts[1].slice(1) : name;
-  const accent = String(name || "").startsWith("b") ? "GB" : "US";
-  const gender = String(name || "").charAt(1) === "f" ? "\u2640" : "\u2642";
-  return `${displayName} ${gender} \u00b7 ${accent}`;
+function listsOfType(lists, typeKey) {
+  const t = TYPES.find(x => x.key === typeKey);
+  if (!t || !t.listType) return [];
+  return lists.filter(l => l.type === t.listType);
 }
 
-// ─── API helpers ───────────────────────────────────────────
-async function apiGet(path) {
-  const response = await fetch(path);
-  if (!response.ok) {
-    let detail = `Request failed (${response.status})`;
-    try { const data = await response.json(); detail = data.detail || detail; } catch {}
-    throw new Error(detail);
-  }
-  return response.json();
-}
-
-async function apiJson(path, method, body) {
-  const response = await fetch(path, {
-    method,
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  if (!response.ok) {
-    let detail = `Request failed (${response.status})`;
-    try { const data = await response.json(); detail = data.detail || detail; } catch {}
-    throw new Error(detail);
-  }
-  if (response.status === 204) return null;
-  return response.json();
-}
-
-async function apiDelete(path) {
-  const response = await fetch(path, { method: "DELETE" });
-  if (!response.ok && response.status !== 204) {
-    let detail = `Request failed (${response.status})`;
-    try { const data = await response.json(); detail = data.detail || detail; } catch {}
-    throw new Error(detail);
-  }
-  return null;
-}
-
-// ═══════════════════════════════════════════════════════════════
-// ADD-TO-LIST POPOVER (portal rendered)
-// ═══════════════════════════════════════════════════════════════
-function AddToListPopover({ docId, x, y, lists, docTitle, articleMemberships, onToggle, onClose, onCreateList }) {
-  const ref = useRef(null);
-  useEffect(() => {
-    const handler = (e) => {
-      if (ref.current && !ref.current.contains(e.target)) onClose();
-    };
-    setTimeout(() => document.addEventListener("click", handler), 10);
-    return () => document.removeEventListener("click", handler);
-  }, [onClose]);
-
-  const memberIds = new Set((articleMemberships || []).map(m => m.id));
-
-  return (
-    <div ref={ref} style={{
-      position: "fixed", zIndex: 200, background: C.bg4, border: `1px solid ${C.br}`,
-      borderRadius: 8, padding: 4, minWidth: 190, boxShadow: "0 4px 20px rgba(0,0,0,0.5)",
-      left: Math.min(x, window.innerWidth - 200), top: Math.min(y, window.innerHeight - 200),
-    }}>
-      <div style={{ padding: "4px 10px", fontSize: 10, color: C.t4, pointerEvents: "none" }}>
-        Add "{(docTitle || "").substring(0, 30)}{(docTitle || "").length > 30 ? "..." : ""}" to:
-      </div>
-      <div style={{ height: 1, background: C.br, margin: "3px 0" }} />
-      {lists.map(l => {
-        const inL = memberIds.has(l.id);
-        return (
-          <div key={l.id} onClick={(e) => { e.stopPropagation(); onToggle(docId, l.id, inL); onClose(); }}
-            style={{
-              padding: "6px 10px", borderRadius: 5, fontSize: 11, color: C.t2,
-              cursor: "pointer", display: "flex", alignItems: "center", gap: 7,
-              transition: "background 0.06s",
-            }}
-            onMouseEnter={e => e.currentTarget.style.background = C.bg3}
-            onMouseLeave={e => e.currentTarget.style.background = "transparent"}
-          >
-            <span style={{ fontSize: 13, width: 18, textAlign: "center", color: l.color }}>{l.icon}</span>
-            <span>{l.name}</span>
-            {inL && <span style={{ marginLeft: "auto", color: C.grn, fontSize: 11 }}>{"\u2713"}</span>}
-          </div>
-        );
-      })}
-      <div style={{ height: 1, background: C.br, margin: "3px 0" }} />
-      <div onClick={onCreateList}
-        style={{ padding: "6px 10px", borderRadius: 5, fontSize: 11, color: C.t4, cursor: "pointer", display: "flex", alignItems: "center", gap: 7, transition: "background 0.06s" }}
-        onMouseEnter={e => e.currentTarget.style.background = C.bg3}
-        onMouseLeave={e => e.currentTarget.style.background = "transparent"}
-      >
-        <span style={{ fontSize: 13, width: 18, textAlign: "center" }}>+</span>
-        <span>New list</span>
-      </div>
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════════
-// PLAYLIST PICKER POPOVER (for split button in detail rbar)
-// ═══════════════════════════════════════════════════════════════
-function PlaylistPickerPopover({ docId, x, y, lists, articleMemberships, onToggle, onClose, onCreateList }) {
-  const ref = useRef(null);
-  useEffect(() => {
-    const handler = (e) => {
-      if (ref.current && !ref.current.contains(e.target)) onClose();
-    };
-    setTimeout(() => document.addEventListener("click", handler), 10);
-    return () => document.removeEventListener("click", handler);
-  }, [onClose]);
-
-  const playlists = lists.filter(l => l.type === "playlist");
-  const memberIds = new Set((articleMemberships || []).map(m => m.id));
-
-  return (
-    <div ref={ref} style={{
-      position: "fixed", zIndex: 200, background: C.bg4, border: `1px solid ${C.br}`,
-      borderRadius: 8, padding: 4, minWidth: 190, boxShadow: "0 4px 20px rgba(0,0,0,0.5)",
-      left: Math.min(x, window.innerWidth - 210), top: Math.min(y, window.innerHeight - 200),
-    }}>
-      <div style={{ padding: "4px 10px", fontSize: 10, color: C.t4, pointerEvents: "none" }}>Add to playlist:</div>
-      <div style={{ height: 1, background: C.br, margin: "3px 0" }} />
-      {playlists.map(l => {
-        const inL = memberIds.has(l.id);
-        return (
-          <div key={l.id} onClick={(e) => { e.stopPropagation(); onToggle(docId, l.id, inL); onClose(); }}
-            style={{
-              padding: "6px 10px", borderRadius: 5, fontSize: 11, color: C.t2,
-              cursor: "pointer", display: "flex", alignItems: "center", gap: 7, transition: "background 0.06s",
-            }}
-            onMouseEnter={e => e.currentTarget.style.background = C.bg3}
-            onMouseLeave={e => e.currentTarget.style.background = "transparent"}
-          >
-            <span style={{ fontSize: 13, width: 18, textAlign: "center", color: l.color }}>{l.icon}</span>
-            <span>{l.name}</span>
-            {inL && <span style={{ marginLeft: "auto", color: C.grn, fontSize: 11 }}>{"\u2713"}</span>}
-          </div>
-        );
-      })}
-      <div style={{ height: 1, background: C.br, margin: "3px 0" }} />
-      <div onClick={onCreateList}
-        style={{ padding: "6px 10px", borderRadius: 5, fontSize: 11, color: C.t4, cursor: "pointer", display: "flex", alignItems: "center", gap: 7, transition: "background 0.06s" }}
-        onMouseEnter={e => e.currentTarget.style.background = C.bg3}
-        onMouseLeave={e => e.currentTarget.style.background = "transparent"}
-      >
-        <span style={{ fontSize: 13, width: 18, textAlign: "center" }}>+</span>
-        <span>New playlist</span>
-      </div>
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════════
-// CREATE LIST MODAL
-// ═══════════════════════════════════════════════════════════════
-function CreateListModal({ onClose, onCreate }) {
-  const [name, setName] = useState("");
-  const [type, setType] = useState("collection");
-  const [icon, setIcon] = useState("\ud83d\udcda");
-  const nameRef = useRef(null);
-
-  useEffect(() => { nameRef.current?.focus(); }, []);
-
-  const handleCreate = () => {
-    if (!name.trim()) return;
-    const [color, bg] = DEFAULT_COLORS[type] || DEFAULT_COLORS.collection;
-    onCreate({ name: name.trim(), type, icon, color, bg });
-    onClose();
-  };
-
-  const inputStyle = { width: "100%", padding: "8px 10px", borderRadius: 6, border: `1px solid ${C.br}`, background: C.bg1, color: C.t1, fontSize: 13, fontFamily: "inherit", outline: "none", marginBottom: 8 };
-  const selectStyle = { ...inputStyle, fontSize: 12, padding: "7px 10px" };
-  const btnStyle = { padding: "5px 12px", borderRadius: 6, border: `1px solid ${C.br}`, background: "rgba(255,255,255,0.03)", color: C.t3, fontSize: 11, fontWeight: 600, fontFamily: "inherit", cursor: "pointer", display: "flex", alignItems: "center", gap: 5, transition: "0.1s", whiteSpace: "nowrap" };
-
-  return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 500, display: "flex", alignItems: "flex-start", justifyContent: "center", paddingTop: 100 }} onClick={onClose}>
-      <div onClick={e => e.stopPropagation()} style={{ background: C.bg2, border: `1px solid ${C.br}`, borderRadius: 12, width: 360, overflow: "hidden", animation: "fadeIn 0.15s ease" }}>
-        <div style={{ padding: "14px 18px", borderBottom: `1px solid ${C.br}`, fontSize: 14, fontWeight: 600, display: "flex", alignItems: "center", gap: 8 }}>Create new list</div>
-        <div style={{ padding: "14px 18px" }}>
-          <label style={{ fontSize: 12, color: C.t2, display: "block", marginBottom: 4 }}>Name</label>
-          <input ref={nameRef} type="text" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Study Psychology" style={inputStyle}
-            onFocus={e => e.target.style.borderColor = C.acc} onBlur={e => e.target.style.borderColor = C.br}
-            onKeyDown={e => { if (e.key === "Enter") handleCreate(); }} />
-          <label style={{ fontSize: 12, color: C.t2, display: "block", marginBottom: 4 }}>Type</label>
-          <select value={type} onChange={e => setType(e.target.value)} style={selectStyle}>
-            <option value="collection">Collection — curated topic group</option>
-            <option value="todo">Todo — action items with due dates</option>
-            <option value="playlist">Playlist — audio narration queue</option>
-          </select>
-          <label style={{ fontSize: 12, color: C.t2, display: "block", marginBottom: 4 }}>Icon</label>
-          <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 8 }}>
-            {EMOJIS.map(e => (
-              <button key={e} onClick={() => setIcon(e)} style={{ width: 30, height: 30, borderRadius: 6, border: `1px solid ${icon === e ? C.acc : C.br}`, background: icon === e ? C.abg : C.bg1, fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "0.1s", fontFamily: "inherit" }}>{e}</button>
-            ))}
-          </div>
-        </div>
-        <div style={{ padding: "10px 18px", borderTop: `1px solid ${C.br}`, display: "flex", justifyContent: "flex-end", gap: 6 }}>
-          <button onClick={onClose} style={btnStyle}>Cancel</button>
-          <button onClick={handleCreate} style={{ ...btnStyle, background: C.acc, color: C.bg0, borderColor: C.acc }}>Create</button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════════
-// NAV SIDEBAR (collapsible, with sections)
-// ═══════════════════════════════════════════════════════════════
-function NavSidebar({ lists, activeListId, totalCount, onSelectList, onCreateList, collapsed, onToggleCollapse, playerPlaylistId, isPlaying, sections, onToggleSection }) {
-  const todoLists = lists.filter(l => l.type === "todo");
-  const otherLists = lists.filter(l => l.type === "collection" || l.type === "playlist");
-
-  return (
-    <div data-testid="nav-sidebar" style={{
-      width: collapsed ? 0 : 210, flexShrink: 0,
-      borderRight: collapsed ? "none" : `1px solid ${C.br}`,
-      display: "flex", flexDirection: "column", background: C.bg0,
-      userSelect: "none", overflowY: "auto", overflowX: "hidden",
-      transition: "width 0.2s ease",
-    }}>
-      {/* Header */}
-      <div style={{ padding: "12px 14px 8px", display: "flex", alignItems: "center", gap: 8 }}>
-        <span style={{ width: 8, height: 8, borderRadius: "50%", background: C.grn }} />
-        <span style={{ fontSize: 13, fontWeight: 700 }}>Local Knowledge</span>
-        <button data-testid="nav-collapse" onClick={onToggleCollapse} title="Collapse sidebar"
-          style={{
-            marginLeft: "auto", width: 28, height: 28, borderRadius: 6,
-            border: `1px solid ${C.br}`, background: C.bg1, color: C.t3,
-            fontSize: 11, display: "flex", alignItems: "center", justifyContent: "center",
-            cursor: "pointer", transition: "0.1s", flexShrink: 0,
-          }}
-          onMouseEnter={e => { e.currentTarget.style.background = C.bg3; e.currentTarget.style.color = C.t2; }}
-          onMouseLeave={e => { e.currentTarget.style.background = C.bg1; e.currentTarget.style.color = C.t3; }}
-        >{"\u25c2"}</button>
-      </div>
-
-      {/* Knowledge base section */}
-      <NavSection label="Knowledge base" sectionKey="kb" open={sections.kb !== false} onToggle={() => onToggleSection("kb")}>
-        <NavItem id={null} icon={"\u2299"} label="All items" count={totalCount}
-          isActive={activeListId === null} onSelect={onSelectList} />
-      </NavSection>
-
-      <div style={{ height: 1, background: C.br2, margin: "3px 12px" }} />
-
-      {/* Action items section */}
-      {todoLists.length > 0 && (
-        <>
-          <NavSection label="Action items" sectionKey="action" open={sections.action !== false} onToggle={() => onToggleSection("action")}>
-            {todoLists.map(l => {
-              const undone = l.item_count != null ? l.item_count : 0;
-              return (
-                <NavItem key={l.id} id={l.id} icon={l.icon} label={l.name}
-                  typeBadge={TYPE_BADGE[l.type]} listColor={l.color} listBg={l.bg}
-                  count={undone} isActive={activeListId === l.id}
-                  onSelect={onSelectList} />
-              );
-            })}
-          </NavSection>
-          <div style={{ height: 1, background: C.br2, margin: "3px 12px" }} />
-        </>
-      )}
-
-      {/* Lists section (collections + playlists) */}
-      <NavSection label="Lists" sectionKey="lists" open={sections.lists !== false} onToggle={() => onToggleSection("lists")}>
-        {otherLists.map(l => {
-          const isPlayingThis = playerPlaylistId === l.id && isPlaying;
-          return (
-            <NavItem key={l.id} id={l.id} icon={l.icon} label={l.name}
-              typeBadge={TYPE_BADGE[l.type]} listColor={l.color} listBg={l.bg}
-              count={l.item_count} isActive={activeListId === l.id}
-              isPlayingDot={isPlayingThis} onSelect={onSelectList} />
-          );
-        })}
-      </NavSection>
-
-      {/* + New list */}
-      <div onClick={onCreateList}
-        style={{ padding: "6px 14px", display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 11, color: C.t4, transition: "0.1s" }}
-        onMouseEnter={e => e.currentTarget.style.color = C.acc}
-        onMouseLeave={e => e.currentTarget.style.color = C.t4}
-      >
-        <span style={{ fontSize: 14, width: 18, textAlign: "center" }}>+</span>
-        New list
-      </div>
-
-      {/* Footer */}
-      <div style={{ marginTop: "auto", padding: "8px 14px", borderTop: `1px solid ${C.br2}`, fontSize: 10, color: C.t4, lineHeight: 1.8 }}>
-        <Kbd>{"\u2191\u2193"}</Kbd> navigate <Kbd>{"\u23ce"}</Kbd> open<br />
-        <Kbd>q</Kbd> queue <Kbd>e</Kbd> done <Kbd>n</Kbd> narrate<br />
-        <Kbd>[</Kbd> toggle sidebar
-      </div>
-    </div>
-  );
-}
-
-function Kbd({ children }) {
-  return <kbd style={{ fontFamily: FONT.mono, fontSize: 9, padding: "1px 4px", borderRadius: 3, background: C.bg2, border: `1px solid ${C.br}`, color: C.t3 }}>{children}</kbd>;
-}
-
-function NavSection({ label, open, onToggle, children }) {
-  return (
-    <div>
-      <div onClick={onToggle}
-        style={{
-          padding: "5px 14px", display: "flex", alignItems: "center", gap: 6,
-          cursor: "pointer", fontSize: 10, fontWeight: 600, color: C.t4,
-          textTransform: "uppercase", letterSpacing: 0.7, userSelect: "none", transition: "color 0.1s",
-        }}
-        onMouseEnter={e => e.currentTarget.style.color = C.t3}
-        onMouseLeave={e => e.currentTarget.style.color = C.t4}
-      >
-        <span style={{ fontSize: 8, transition: "transform 0.15s", width: 12, textAlign: "center", transform: open ? "none" : "rotate(-90deg)" }}>{"\u25bc"}</span>
-        {label}
-      </div>
-      <div style={{ overflow: "hidden", transition: "max-height 0.2s ease", maxHeight: open ? 600 : 0 }}>
-        {children}
-      </div>
-    </div>
-  );
-}
-
-function NavItem({ id, icon, label, typeBadge, listColor, listBg, count, isActive, isPlayingDot, onSelect }) {
-  return (
-    <div data-testid={id ? `nav-item-${id}` : "nav-item-all"} onClick={() => onSelect(id)}
-      style={{
-        padding: "6px 14px", display: "flex", alignItems: "center", gap: 8,
-        cursor: "pointer", fontSize: 12, color: isActive ? (listColor || C.t1) : C.t2,
-        transition: "background 0.06s",
-        borderLeft: `2px solid ${isActive ? C.acc : "transparent"}`,
-        background: isActive ? C.bg4 : "transparent",
-        fontWeight: isActive ? 600 : 400,
-      }}
-      onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = C.bg2; }}
-      onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = isActive ? C.bg4 : "transparent"; }}
-    >
-      <span style={{ fontSize: 14, width: 18, textAlign: "center", flexShrink: 0 }}>{icon}</span>
-      <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>
-      {isPlayingDot && <span style={{ width: 6, height: 6, borderRadius: "50%", background: C.acc, flexShrink: 0, animation: "pulse 1.5s infinite" }} />}
-      {typeBadge && (
-        <span style={{ fontSize: 8, padding: "1px 4px", borderRadius: 3, background: listBg || C.abg, color: listColor || C.acc }}>{typeBadge}</span>
-      )}
-      {count != null && <span style={{ fontSize: 10, color: C.t4, fontFamily: FONT.mono }}>{count}</span>}
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════════
-// NAV RAIL (shown when nav is collapsed)
-// ═══════════════════════════════════════════════════════════════
-function NavRail({ lists, activeListId, onSelectList, onExpandNav }) {
-  return (
-    <div data-testid="nav-rail" style={{
-      width: 36, flexShrink: 0, borderRight: `1px solid ${C.br}`,
-      background: C.bg0, display: "flex", flexDirection: "column",
-      alignItems: "center", paddingTop: 10, gap: 4,
-    }}>
-      <button onClick={onExpandNav} title="Expand sidebar"
-        style={{
-          width: 28, height: 28, borderRadius: 6, border: "none",
-          background: "transparent", color: C.t3, fontSize: 13,
-          display: "flex", alignItems: "center", justifyContent: "center",
-          cursor: "pointer", transition: "0.1s",
-        }}
-        onMouseEnter={e => { e.currentTarget.style.background = C.bg2; e.currentTarget.style.color = C.t2; }}
-        onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = C.t3; }}
-      >{"\u2630"}</button>
-      <div style={{ height: 1, width: 20, background: C.br2, margin: "4px 0" }} />
-      <RailBtn icon={"\u2299"} isActive={activeListId === null} color={C.acc} bg={C.abg}
-        onClick={() => onSelectList(null)} title="All items" />
-      {lists.map(l => (
-        <RailBtn key={l.id} icon={l.icon} isActive={activeListId === l.id}
-          color={l.color} bg={l.bg} onClick={() => onSelectList(l.id)} title={l.name} />
-      ))}
-    </div>
-  );
-}
-
-function RailBtn({ icon, isActive, color, bg, onClick, title }) {
-  return (
-    <button onClick={onClick} title={title}
-      style={{
-        width: 28, height: 28, borderRadius: 6, border: "none",
-        background: isActive ? bg : "transparent",
-        color: isActive ? color : C.t3,
-        fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center",
-        cursor: "pointer", transition: "0.1s",
-      }}
-      onMouseEnter={e => { if (!isActive) { e.currentTarget.style.background = C.bg2; e.currentTarget.style.color = C.t2; } }}
-      onMouseLeave={e => { if (!isActive) { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = C.t3; } }}
-    >{icon}</button>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════════
-// CENTER PANEL
-// ═══════════════════════════════════════════════════════════════
-function CenterPanel({
-  activeList, articles, listItems, focusedId, onSelectDoc, search, onSearchChange,
-  onPlayNow, onAddToQueue, onShowATP, playerPlaylistId, playerIdx, isPlaying,
-  audioCurrentTime, audioDuration, onPlayerToggle, onPlayerSeek, onPlayerPrev, onPlayerNext,
-  onBatchNarrate, onLoadPlaylist, onToggleDone, onToggleDrawer,
-}) {
-  const isAll = !activeList;
-  const listType = isAll ? "all" : activeList.type;
-  const isPlaylistView = listType === "playlist";
-
-  // For playlist hero
-  const totalDuration = isPlaylistView ? listItems.reduce((sum, item) => {
-    const art = item.article;
-    if (!art) return sum;
+function totalDurSecs(items) {
+  return items.reduce((sum, item) => {
+    const art = item.article || item;
     const rend = art.renditions || {};
     const r = item.use_summary ? rend.audio_summary : rend.audio;
     return sum + (r && r.duration ? r.duration : 0);
-  }, 0) : 0;
+  }, 0);
+}
 
-  const missingNarration = isPlaylistView ? listItems.filter(item => {
-    const art = item.article;
-    if (!art) return true;
-    const rend = art.renditions || {};
-    const r = item.use_summary ? rend.audio_summary : rend.audio;
-    return !r || r.state !== "ready";
-  }).length : 0;
+function listColorClass(list) {
+  // Map list color to a pill color class name
+  if (!list) return null;
+  const c = list.color || "";
+  if (c.includes("amb") || c.includes("ef9f")) return "on-amb";
+  if (c.includes("pur") || c.includes("a855") || c.includes("a78b")) return "on-pur";
+  if (c.includes("red") || c.includes("f871")) return "on-red";
+  if (c.includes("teal") || c.includes("2dd4")) return "on-teal";
+  if (c.includes("sky") || c.includes("38bd")) return "on-sky";
+  if (c.includes("rose") || c.includes("fb71")) return "on-rose";
+  if (c.includes("4ade") || c.includes("grn")) return "on-grn";
+  return "on-acc";
+}
 
-  // Currently playing state for playlist hero
-  const isActivePlaylist = isPlaylistView && activeList && playerPlaylistId === activeList.id;
-  const nowPlayingItem = isActivePlaylist && playerIdx != null && listItems[playerIdx] ? listItems[playerIdx] : null;
-  const nowPlayingArticle = nowPlayingItem?.article || null;
+// ─── API helpers ────────────────────────────────────────────
+async function apiGet(path) {
+  const r = await fetch(path);
+  if (!r.ok) { let d = `Request failed (${r.status})`; try { d = (await r.json()).detail || d; } catch {} throw new Error(d); }
+  return r.json();
+}
+async function apiJson(path, method, body) {
+  const r = await fetch(path, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  if (!r.ok) { let d = `Request failed (${r.status})`; try { d = (await r.json()).detail || d; } catch {} throw new Error(d); }
+  return r.status === 204 ? null : r.json();
+}
+async function apiDelete(path) {
+  const r = await fetch(path, { method: "DELETE" });
+  if (!r.ok && r.status !== 204) { let d = `Request failed (${r.status})`; try { d = (await r.json()).detail || d; } catch {} throw new Error(d); }
+  return null;
+}
 
-  // Get the current playlist (for inQueue checks)
-  // Playlist = whichever playlist is loaded in the player
-  const currentPlaylistItems = useMemo(() => {
-    // We need to know which items are in the player's playlist queue for inQ checks
-    // This is provided via the parent, so we check from listItems if activeList is the player's playlist
-    return [];
-  }, []);
-
-  // Sort todos: undone first (by due date), then done
-  const sortedItems = useMemo(() => {
-    if (listType !== "todo") return listItems;
-    const today = new Date(); today.setHours(0, 0, 0, 0);
-    return [...listItems].sort((a, b) => {
-      if ((a.done ? 1 : 0) !== (b.done ? 1 : 0)) return a.done ? 1 : -1;
-      if (!a.done) {
-        const da = a.due ? new Date(a.due) : null, db = b.due ? new Date(b.due) : null;
-        if (da && !db) return -1;
-        if (!da && db) return 1;
-        if (da && db) return da - db;
-      }
-      return 0;
-    });
-  }, [listItems, listType]);
-
-  const displayItems = listType === "todo" ? sortedItems : listItems;
-
-  // Drag-and-drop state for playlist center view
-  const [dragFrom, setDragFrom] = useState(null);
-
+// ═════════════════════════════════════════════════════════════
+// NAV RAIL — 4 fixed type buttons
+// ═════════════════════════════════════════════════════════════
+function NavRail({ railType, onNavType, lists }) {
+  const hasDueItems = lists.some(l => l.type === "todo" && l.item_count > 0);
   return (
-    <div data-testid="center-panel" style={{ width: 370, flexShrink: 0, borderRight: `1px solid ${C.br}`, display: "flex", flexDirection: "column", background: C.bg1, overflow: "hidden" }}>
-
-      {isPlaylistView ? (
-        <>
-          {/* Playlist Hero */}
-          <div data-testid="playlist-hero" style={{
-            padding: 16, borderBottom: `1px solid ${C.br}`, flexShrink: 0,
-            background: "linear-gradient(180deg, rgba(108,140,255,0.05) 0%, transparent 100%)",
-          }}>
-            <div style={{ display: "flex", gap: 14, alignItems: "center", marginBottom: 14 }}>
-              <div style={{
-                width: 60, height: 60, borderRadius: 12,
-                background: "linear-gradient(135deg, rgba(108,140,255,0.2), rgba(168,85,247,0.15))",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                fontSize: 26, flexShrink: 0,
-              }}>{activeList.icon}</div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 2 }}>{activeList.name}</div>
-                <div style={{ fontSize: 10, color: C.t3 }}>{listItems.length} items {"\u00b7"} {fmtDur(totalDuration)}</div>
-              </div>
-              <button data-testid="play-all-btn" onClick={() => onLoadPlaylist(activeList.id)}
-                style={{
-                  padding: "7px 16px", borderRadius: 6, border: `1px solid ${C.acc}`,
-                  background: C.acc, color: C.bg0, fontSize: 11, fontWeight: 600,
-                  fontFamily: "inherit", cursor: "pointer", display: "flex", alignItems: "center", gap: 4,
-                  transition: "0.1s", whiteSpace: "nowrap",
-                }}
-                onMouseEnter={e => e.currentTarget.style.background = "#8aa4ff"}
-                onMouseLeave={e => e.currentTarget.style.background = C.acc}
-              >{"\u25b6"} Play all</button>
-              <button onClick={onToggleDrawer} title="Queue"
-                style={{
-                  width: 30, height: 26, borderRadius: 6, border: `1px solid ${C.br}`,
-                  background: "transparent", color: C.t3, fontSize: 11,
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  transition: "0.1s", cursor: "pointer", fontFamily: "inherit",
-                }}
-                onMouseEnter={e => { e.currentTarget.style.background = C.abg; e.currentTarget.style.color = C.acc; }}
-                onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = C.t3; }}
-              >{"\u2261"}</button>
-            </div>
-
-            {/* Now playing section in hero */}
-            {isActivePlaylist && nowPlayingArticle && (
-              <>
-                <div style={{ fontSize: 9, color: C.t4, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 }}>Now playing</div>
-                <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 6, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{nowPlayingArticle.title}</div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <button onClick={onPlayerPrev} style={bbSkipStyle}>{"\u23ee"}</button>
-                  <button onClick={onPlayerToggle}
-                    style={{ ...bbPlayStyle, width: 32, height: 32, fontSize: 12 }}
-                  >{isPlaying ? "\u25ae\u25ae" : "\u25b6"}</button>
-                  <button onClick={onPlayerNext} style={bbSkipStyle}>{"\u23ed"}</button>
-                  <div onClick={onPlayerSeek} style={{ flex: 1, height: 4, background: C.br, borderRadius: 2, cursor: "pointer" }}>
-                    <div style={{
-                      height: "100%", background: C.acc, borderRadius: 2,
-                      width: audioDuration > 0 ? `${(audioCurrentTime / audioDuration) * 100}%` : "0%",
-                      transition: "width 0.3s",
-                    }} />
-                  </div>
-                  <span style={{ fontSize: 10, color: C.t4, fontFamily: FONT.mono }}>{fmtDur(audioCurrentTime)} / {fmtDur(audioDuration)}</span>
-                </div>
-              </>
-            )}
-          </div>
-
-          {/* Missing narration banner */}
-          {missingNarration > 0 && (
-            <div data-testid="narration-banner" style={{
-              padding: "7px 12px", display: "flex", alignItems: "center", gap: 6,
-              fontSize: 11, borderBottom: `1px solid ${C.br2}`, flexShrink: 0,
-              background: "rgba(239,159,39,0.04)", color: C.amb,
-            }}>
-              {"\u26a0"} {missingNarration} item{missingNarration > 1 ? "s" : ""} need narration
-              <button onClick={onBatchNarrate}
-                style={{
-                  marginLeft: "auto", padding: "3px 8px", borderRadius: 6,
-                  border: `1px solid rgba(239,159,39,0.3)`, background: "rgba(255,255,255,0.03)",
-                  color: C.amb, fontSize: 10, fontWeight: 600, fontFamily: "inherit",
-                  cursor: "pointer", transition: "0.1s", whiteSpace: "nowrap",
-                }}
-              >Generate all</button>
-            </div>
-          )}
-
-          {/* Tracklist header */}
-          <div style={{ padding: "5px 12px", borderBottom: `1px solid ${C.br2}`, fontSize: 9, color: C.t4, display: "flex", flexShrink: 0 }}>
-            <span>TRACKLIST</span><span style={{ flex: 1 }} /><span>Drag to reorder</span>
-          </div>
-
-          {/* Playlist rows */}
-          <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
-            {displayItems.map((item, idx) => {
-              const art = item.article;
-              if (!art) return null;
-              const rend = art.renditions || {};
-              const rendition = item.use_summary ? rend.audio_summary : rend.audio;
-              const aState = rendition ? (rendition.state === "ready" ? "ready" : rendition.state === "generating" || rendition.state === "queued" ? "gen" : "miss") : "miss";
-              const dur = rendition && rendition.duration ? fmtDur(rendition.duration) : "--:--";
-              const isP = isActivePlaylist && playerIdx === idx;
-              const isSel = focusedId === (item.doc_id || art.id);
-              const tags = art.tags || [];
-
-              return (
-                <div key={item.doc_id || art.id}
-                  data-drag-item={idx}
-                  draggable
-                  onDragStart={e => {
-                    setDragFrom(idx);
-                    e.dataTransfer.effectAllowed = "move";
-                    e.currentTarget.style.opacity = "0.3";
-                  }}
-                  onDragOver={e => {
-                    e.preventDefault();
-                    // Clear all borders first
-                    e.currentTarget.parentNode.querySelectorAll("[data-drag-item]").forEach(el => el.style.borderTop = "");
-                    e.currentTarget.style.borderTop = `2px solid ${C.acc}`;
-                  }}
-                  onDragEnd={e => {
-                    e.currentTarget.style.opacity = "1";
-                    e.currentTarget.parentNode.querySelectorAll("[data-drag-item]").forEach(el => {
-                      el.style.borderTop = "";
-                      el.style.opacity = "1";
-                    });
-                  }}
-                  onDrop={e => {
-                    e.preventDefault();
-                    e.currentTarget.parentNode.querySelectorAll("[data-drag-item]").forEach(el => {
-                      el.style.borderTop = "";
-                      el.style.opacity = "1";
-                    });
-                    if (dragFrom != null && dragFrom !== idx) {
-                      handlePlaylistReorder(dragFrom, idx);
-                    }
-                    setDragFrom(null);
-                  }}
-                  onClick={() => onSelectDoc(item.doc_id || art.id)}
-                  style={{
-                    padding: isSel ? "7px 12px 7px 10px" : "7px 12px",
-                    borderBottom: `1px solid ${C.br2}`, cursor: "pointer",
-                    display: "flex", gap: 7, alignItems: "center", transition: "background 0.06s",
-                    background: isP ? "rgba(108,140,255,0.04)" : isSel ? C.bg4 : "transparent",
-                    borderLeft: isSel ? `2px solid ${C.acc}` : "2px solid transparent",
-                  }}
-                  onMouseEnter={e => { if (!isSel && !isP) e.currentTarget.style.background = C.bg3; }}
-                  onMouseLeave={e => { if (!isSel && !isP) e.currentTarget.style.background = isP ? "rgba(108,140,255,0.04)" : "transparent"; }}
-                >
-                  <span style={{ width: 18, fontSize: 10, color: isP ? C.acc : C.t4, textAlign: "center", fontFamily: FONT.mono, flexShrink: 0 }}>{isP ? "\u25b6" : idx + 1}</span>
-                  <span style={{ cursor: "grab", color: C.t4, fontSize: 12, flexShrink: 0 }}>{"\u2807"}</span>
-                  <span style={{
-                    width: 18, height: 18, borderRadius: 4, display: "flex", alignItems: "center", justifyContent: "center",
-                    fontSize: aState === "miss" ? 8 : 9, flexShrink: 0,
-                    background: aState === "ready" ? C.abg : aState === "gen" ? C.ambg : C.rbg,
-                    color: aState === "ready" ? C.acc : aState === "gen" ? C.amb : C.red,
-                    ...(aState === "gen" ? { animation: "pulse 1.2s infinite" } : {}),
-                  }}>{aState === "ready" ? "\u266b" : aState === "gen" ? "\u25cc" : "\u2715"}</span>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 12, fontWeight: isP ? 600 : 400, lineHeight: 1.4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{art.title}</div>
-                    <div style={{ fontSize: 10, color: C.t3, display: "flex", gap: 4, alignItems: "center", flexWrap: "wrap" }}>
-                      {tags.slice(0, 3).map(t => {
-                        const [tc, tbg] = tagColor(t);
-                        return <span key={t} style={{ fontSize: 8, padding: "1px 5px", borderRadius: 6, background: tbg, color: tc }}>{t}</span>;
-                      })}
-                      <span>{sourceLabel(art)}</span>
-                    </div>
-                  </div>
-                  <span style={{ fontSize: 10, color: C.t4, fontFamily: FONT.mono, flexShrink: 0 }}>{dur}</span>
-                  <span style={{ opacity: 0, fontSize: 13, color: C.red, cursor: "pointer", flexShrink: 0, width: 16, textAlign: "center", transition: "opacity 0.1s" }}
-                    className="plrm-hover"
-                    onClick={e => { e.stopPropagation(); onRemoveFromPlaylist && onRemoveFromPlaylist(item.doc_id || art.id); }}
-                  >{"\u00d7"}</span>
-                </div>
-              );
-            })}
-          </div>
-        </>
-      ) : (
-        <>
-          {/* Normal list/all header */}
-          <div style={{ padding: "8px 12px", borderBottom: `1px solid ${C.br}`, display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-            <span style={{ fontSize: 15, color: isAll ? undefined : activeList?.color }}>{isAll ? "\u2299" : activeList?.icon}</span>
-            <span style={{ fontSize: 13, fontWeight: 600, flex: 1 }}>{isAll ? "All Items" : activeList?.name}</span>
-            <span style={{ fontSize: 9, padding: "2px 6px", borderRadius: 4, fontWeight: 500, background: isAll ? C.abg : (activeList?.bg || C.abg), color: isAll ? C.acc : (activeList?.color || C.acc) }}>
-              {isAll ? articles.length : (activeList?.type === "collection" || activeList?.type === "todo" ? displayItems.length : displayItems.length)}
-            </span>
-            {listType === "collection" && (
-              <button style={{
-                marginLeft: "auto", padding: "3px 8px", borderRadius: 6,
-                border: `1px solid rgba(168,85,247,0.3)`, background: "rgba(255,255,255,0.03)",
-                color: C.pur, fontSize: 10, fontWeight: 600, fontFamily: "inherit",
-                cursor: "pointer", display: "flex", alignItems: "center", gap: 4, transition: "0.1s", whiteSpace: "nowrap",
-              }}>{"\u26a1"} Spock</button>
-            )}
-          </div>
-
-          {/* Search */}
-          <div style={{ padding: "7px 10px", borderBottom: `1px solid ${C.br2}`, flexShrink: 0, position: "relative" }}>
-            <span style={{ position: "absolute", left: 20, top: "50%", transform: "translateY(-50%)", color: C.t3, fontSize: 12, pointerEvents: "none" }}>{"\u2315"}</span>
-            <input data-testid="search-input" value={search} onChange={e => onSearchChange(e.target.value)}
-              placeholder={isAll ? "Search..." : `Search ${activeList?.name || ""}...`}
+    <div data-testid="nav-rail" style={{
+      width: 40, flexShrink: 0, borderRight: `1px solid ${C.br}`,
+      background: C.bg0, display: "flex", flexDirection: "column",
+      alignItems: "center", paddingTop: 10, gap: 2,
+    }}>
+      {TYPES.map((t, i) => {
+        const isOn = railType === t.key;
+        const matching = t.listType ? lists.filter(l => l.type === t.listType) : [];
+        const count = matching.length;
+        return (
+          <React.Fragment key={t.key}>
+            <button data-testid={`rail-${t.key}`} onClick={() => onNavType(t.key)} title={t.label}
               style={{
-                width: "100%", padding: "6px 10px 6px 26px", borderRadius: 6,
-                border: `1px solid ${C.br}`, background: C.bg2, color: C.t1,
-                fontSize: 12, fontFamily: "inherit", outline: "none",
+                width: 30, height: 30, borderRadius: 7, border: "none", position: "relative",
+                background: isOn ? C.abg : "transparent", color: isOn ? C.acc : C.t4,
+                fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center",
+                cursor: "pointer", transition: ".12s", flexShrink: 0,
               }}
-              onFocus={e => e.target.style.borderColor = C.acc}
-              onBlur={e => e.target.style.borderColor = C.br}
-            />
-          </div>
+              onMouseEnter={e => { if (!isOn) { e.currentTarget.style.background = C.bg3; e.currentTarget.style.color = C.t2; } }}
+              onMouseLeave={e => { if (!isOn) { e.currentTarget.style.background = isOn ? C.abg : "transparent"; e.currentTarget.style.color = isOn ? C.acc : C.t4; } }}
+            >
+              {t.icon}
+              {t.key === "action" && hasDueItems && (
+                <span style={{ position: "absolute", top: 3, right: 3, width: 6, height: 6, borderRadius: "50%", background: C.amb }} />
+              )}
+              {count > 1 && (
+                <span style={{ position: "absolute", bottom: 2, right: 1, fontSize: 7, fontWeight: 700, color: isOn ? C.acc : C.t4, fontFamily: FONT.mono }}>{count}</span>
+              )}
+            </button>
+            {i === 0 && <div style={{ width: 20, height: 1, background: C.br2, margin: "4px 0", flexShrink: 0 }} />}
+          </React.Fragment>
+        );
+      })}
+    </div>
+  );
+}
 
-          {/* Todo batch narration banner */}
-          {listType === "todo" && (() => {
-            const missing = displayItems.filter(item => {
-              const art = item.article;
-              if (!art) return false;
-              const rend = art.renditions || {};
-              return !rend.audio || rend.audio.state !== "ready";
-            });
-            if (missing.length === 0) return null;
+// ═════════════════════════════════════════════════════════════
+// CHOOSER VIEW — cards for each list of a type
+// ═════════════════════════════════════════════════════════════
+function ChooserView({ typeInfo, matchingLists, onSelectList, onCreateList, playerPlaylistId, listItemCounts }) {
+  const gradients = {
+    playlist: "linear-gradient(135deg,rgba(108,140,255,0.15),rgba(167,139,250,0.1))",
+    collection: "linear-gradient(135deg,rgba(167,139,250,0.12),rgba(45,212,191,0.08))",
+    todo: "linear-gradient(135deg,rgba(239,159,39,0.12),rgba(248,113,113,0.08))",
+  };
+  return (
+    <>
+      <div style={{ padding: "10px 12px", borderBottom: `1px solid ${C.br}`, display: "flex", alignItems: "center", gap: 8, flexShrink: 0, minHeight: 42 }}>
+        <span style={{ fontSize: 14 }}>{typeInfo.icon}</span>
+        <span style={{ fontSize: 13, fontWeight: 700, flex: 1 }}>{typeInfo.label}</span>
+        <span style={{ fontSize: 10, padding: "2px 6px", borderRadius: 4, fontWeight: 600, background: C.abg, color: C.acc, fontFamily: FONT.mono }}>{matchingLists.length}</span>
+      </div>
+      <div style={{ flex: 1, overflowY: "auto", minHeight: 0, padding: "4px 0" }}>
+        {matchingLists.map(l => {
+          const isActive = l.id === playerPlaylistId;
+          return (
+            <div key={l.id} onClick={() => onSelectList(l.id)}
+              style={{
+                padding: 12, margin: "6px 10px", borderRadius: 10,
+                border: `1px solid ${isActive ? C.acc : C.br}`,
+                background: isActive ? "rgba(108,140,255,0.06)" : C.bg3,
+                cursor: "pointer", display: "flex", gap: 12, alignItems: "center", transition: ".12s",
+              }}
+              onMouseEnter={e => { if (!isActive) { e.currentTarget.style.borderColor = C.t4; e.currentTarget.style.background = C.bg4; } }}
+              onMouseLeave={e => { if (!isActive) { e.currentTarget.style.borderColor = C.br; e.currentTarget.style.background = C.bg3; } }}
+            >
+              <div style={{ width: 44, height: 44, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, flexShrink: 0, background: gradients[l.type] || gradients.collection }}>{l.icon}</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 2 }}>{l.name}</div>
+                <div style={{ fontSize: 10, color: C.t3 }}>{l.item_count || 0} items</div>
+              </div>
+              {isActive && <div className="eq" style={{ flexShrink: 0 }}><span /><span /><span /></div>}
+              <span style={{ color: C.t5, fontSize: 14, flexShrink: 0 }}>{"\u203a"}</span>
+            </div>
+          );
+        })}
+        {/* New list card */}
+        <div onClick={() => onCreateList(typeInfo.listType)}
+          style={{
+            padding: 12, margin: "6px 10px", borderRadius: 10,
+            border: `1px dashed ${C.t5}`, background: "transparent",
+            cursor: "pointer", display: "flex", gap: 12, alignItems: "center", transition: ".12s",
+          }}
+          onMouseEnter={e => { e.currentTarget.style.borderColor = C.t4; e.currentTarget.style.background = C.bg3; }}
+          onMouseLeave={e => { e.currentTarget.style.borderColor = C.t5; e.currentTarget.style.background = "transparent"; }}
+        >
+          <div style={{ width: 44, height: 44, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0, background: C.bg2, color: C.t4 }}>+</div>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: C.t3 }}>New {typeInfo.listType || "list"}</div>
+            <div style={{ fontSize: 10, color: C.t4 }}>Create a new {typeInfo.listType === "playlist" ? "ordered playlist" : typeInfo.listType === "todo" ? "action list" : "collection"}</div>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ═════════════════════════════════════════════════════════════
+// CENTER PANEL
+// ═════════════════════════════════════════════════════════════
+function CenterPanel({
+  railType, activeList, lists, articles, listItems, focusedId, search,
+  onSelectDoc, onSearchChange, onSelectList, onBackToChooser, onCreateList,
+  playerPlaylistId, playerIdx, isPlaying, audioCurrentTime, audioDuration,
+  onPlayerToggle, onPlayerSeek, onPlayerPrev, onPlayerNext,
+  onBatchNarrate, onLoadPlaylist, onToggleDone, onPlayNow, onAddToQueue,
+  editing, onToggleEditing, onRenameList, onDeleteList,
+  speed, onCycleSpeed, onRemoveFromList,
+}) {
+  const typeInfo = TYPES.find(t => t.key === railType);
+  const matching = typeInfo?.listType ? lists.filter(l => l.type === typeInfo.listType) : [];
+  const list = activeList ? lists.find(l => l.id === activeList) : null;
+  const showChooser = railType !== "all" && !activeList;
+  const showBack = list && matching.length > 1;
+
+  // Playlist view
+  if (list && list.type === "playlist") {
+    const docs = listItems;
+    const totalSecs = totalDurSecs(docs);
+    const needsNarr = docs.filter(i => { const r = (i.article?.renditions || {}).audio; return !r || r.state !== "ready"; }).length;
+    const isActivePlaylist = playerPlaylistId === list.id;
+    const isNon1 = speed !== 1;
+
+    return (
+      <div data-testid="center-panel" style={{ width: 350, flexShrink: 0, borderRight: `1px solid ${C.br}`, display: "flex", flexDirection: "column", background: C.bg1, overflow: "hidden" }}>
+        {/* Playlist hero */}
+        <div data-testid="playlist-hero" style={{ padding: "14px 12px 10px", borderBottom: `1px solid ${C.br}`, background: "linear-gradient(180deg,rgba(108,140,255,0.06) 0%,transparent 100%)", flexShrink: 0 }}>
+          {showBack && <div style={{ fontSize: 10, color: C.acc, cursor: "pointer", marginBottom: 6, display: "flex", alignItems: "center", gap: 3 }} onClick={onBackToChooser}>{"\u2039"} All {typeInfo.label}</div>}
+          <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 10 }}>
+            <div style={{ width: 46, height: 46, borderRadius: 9, background: "linear-gradient(135deg,rgba(108,140,255,0.2),rgba(167,139,250,0.15))", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, flexShrink: 0 }}>{list.icon}</div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 1 }}>{list.name}</div>
+              <div style={{ fontSize: 10, color: C.t3 }}>
+                {docs.length} tracks {"\u00b7"} {fmtDur(totalSecs)}
+                {isNon1 && <span style={{ color: C.acc }}> ({fmtDur(Math.round(totalSecs / speed))} at {fmtSpeed(speed)})</span>}
+                {needsNarr > 0 && <span style={{ color: C.amb }}> {"\u00b7"} {needsNarr} unnarrated</span>}
+              </div>
+            </div>
+            <button data-testid="play-all-btn" onClick={() => onLoadPlaylist(list.id)} style={{ padding: "5px 12px", borderRadius: 6, border: `1px solid ${C.acc}`, background: C.acc, color: C.bg0, fontSize: 10, fontWeight: 600, fontFamily: "inherit", cursor: "pointer" }}>{"\u25b6"} Play all</button>
+            <button onClick={onCycleSpeed} style={{ padding: "2px 6px", borderRadius: 4, border: `1px solid ${isNon1 ? C.abr : C.br}`, background: isNon1 ? C.abg : C.bg3, color: isNon1 ? C.acc : C.t2, fontSize: 9, fontWeight: 600, fontFamily: FONT.mono, cursor: "pointer", minWidth: 34, textAlign: "center" }}>{fmtSpeed(speed)}</button>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <button onClick={onToggleEditing} style={{ padding: "3px 8px", borderRadius: 5, border: `1px solid ${editing ? C.acc : C.br}`, background: editing ? C.acc : "transparent", color: editing ? C.bg0 : C.t3, fontSize: 9, fontWeight: 600, fontFamily: "inherit", cursor: "pointer" }}>{editing ? "\u2713 Done" : "\u270e Edit"}</button>
+            {editing && <>
+              <button onClick={onRenameList} style={{ padding: "3px 8px", borderRadius: 5, border: `1px solid ${C.br}`, background: "transparent", color: C.t3, fontSize: 9, fontWeight: 600, fontFamily: "inherit", cursor: "pointer" }}>{"\u270f"} Rename</button>
+              <button onClick={onDeleteList} style={{ padding: "3px 8px", borderRadius: 5, border: `1px solid rgba(248,113,113,0.2)`, background: "transparent", color: C.red, fontSize: 9, fontWeight: 600, fontFamily: "inherit", cursor: "pointer", marginLeft: "auto" }}>{"\ud83d\uddd1"} Delete</button>
+            </>}
+            {!editing && needsNarr > 0 && <button onClick={() => onBatchNarrate(list.id)} style={{ padding: "2px 6px", borderRadius: 5, border: `1px solid ${C.acc}`, background: C.acc, color: C.bg0, fontSize: 8, fontWeight: 600, fontFamily: "inherit", cursor: "pointer" }}>{"\ud83c\udf99"} Generate {needsNarr}</button>}
+          </div>
+        </div>
+        {editing ? (
+          <div style={{ padding: "6px 10px", borderBottom: `1px solid ${C.br}`, background: "rgba(108,140,255,0.04)", display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+            <span style={{ fontSize: 9, fontWeight: 600, color: C.acc, textTransform: "uppercase", letterSpacing: 0.5 }}>Edit mode</span>
+            <span style={{ fontSize: 9, color: C.t4, marginLeft: "auto" }}>Click {"\u00d7"} to remove</span>
+          </div>
+        ) : (
+          <div style={{ padding: "4px 12px", borderBottom: `1px solid ${C.br2}`, fontSize: 8, color: C.t5, textTransform: "uppercase", letterSpacing: 0.5, display: "flex", flexShrink: 0 }}>
+            <span>TRACKLIST</span><span style={{ flex: 1 }} /><span style={{ fontStyle: "italic", textTransform: "none", letterSpacing: 0 }}>drag to reorder</span>
+          </div>
+        )}
+        <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
+          {docs.map((item, idx) => {
+            const art = item.article; if (!art) return null;
+            const rend = art.renditions || {};
+            const r = item.use_summary ? rend.audio_summary : rend.audio;
+            const aState = r ? (r.state === "ready" ? "ready" : "gen") : "miss";
+            const isP = isActivePlaylist && playerIdx === idx;
+            const isSel = focusedId === (item.doc_id || art.id);
             return (
-              <div style={{
-                padding: "7px 12px", display: "flex", alignItems: "center", gap: 6,
-                fontSize: 11, borderBottom: `1px solid ${C.br2}`, flexShrink: 0,
-                background: "rgba(239,159,39,0.04)", color: C.amb,
-              }}>
-                {"\u26a0"} {missing.length} item{missing.length > 1 ? "s" : ""} need narration
+              <div key={item.doc_id || art.id} onClick={() => onSelectDoc(item.doc_id || art.id)}
+                style={{
+                  padding: "7px 12px", borderBottom: `1px solid ${C.br2}`, cursor: "pointer",
+                  display: "flex", gap: 7, alignItems: "center", transition: "background .06s",
+                  background: isP ? "rgba(108,140,255,0.04)" : isSel ? C.bg4 : "transparent",
+                  borderLeft: isSel ? `2px solid ${C.acc}` : "2px solid transparent",
+                }}
+                onMouseEnter={e => { if (!isSel && !isP) e.currentTarget.style.background = C.bg3; }}
+                onMouseLeave={e => { if (!isSel && !isP) e.currentTarget.style.background = isP ? "rgba(108,140,255,0.04)" : "transparent"; }}
+              >
+                <span style={{ width: 18, fontSize: 10, color: isP ? C.acc : C.t4, textAlign: "center", fontFamily: FONT.mono, flexShrink: 0 }}>{isP ? "\u25b6" : idx + 1}</span>
+                <span style={{ cursor: "grab", color: C.t5, fontSize: 12, flexShrink: 0 }}>{"\u2807"}</span>
+                <span style={{ width: 18, height: 18, borderRadius: 4, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8, flexShrink: 0, background: aState === "ready" ? C.abg : aState === "gen" ? C.ambg : C.rbg, color: aState === "ready" ? C.acc : aState === "gen" ? C.amb : C.red }}>{aState === "ready" ? "\u266b" : aState === "gen" ? "\u25cc" : "\u2715"}</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 11, fontWeight: isP || isSel ? 600 : 400, color: isP ? C.t1 : C.t2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{art.title}</div>
+                </div>
+                <span style={{ fontSize: 9, color: C.t4, fontFamily: FONT.mono, flexShrink: 0 }}>{fmtDur(r?.duration)}</span>
+                <span style={{ fontSize: 13, color: C.red, cursor: "pointer", flexShrink: 0, width: 16, textAlign: "center", opacity: editing ? 0.4 : 0, transition: "opacity .1s" }}
+                  onClick={e => { e.stopPropagation(); onRemoveFromList(item.doc_id || art.id, list.id); }}
+                  onMouseEnter={e => { if (editing) e.currentTarget.style.opacity = "1"; }}
+                  onMouseLeave={e => { if (editing) e.currentTarget.style.opacity = "0.4"; }}
+                >{"\u00d7"}</span>
               </div>
             );
-          })()}
-
-          {/* Doc list */}
-          <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
-            {isAll && articles.map(a => (
-              <DocRow key={a.id} article={a} isFocused={focusedId === a.id} showListBadges={true}
-                onSelect={onSelectDoc} onPlayNow={onPlayNow} onAddToQueue={onAddToQueue} onShowATP={onShowATP}
-                playerPlaylistId={playerPlaylistId} />
-            ))}
-            {listType === "collection" && displayItems.map(item => {
-              const art = item.article;
-              if (!art) return null;
-              return <DocRow key={art.id} article={art} isFocused={focusedId === art.id} showListBadges={false}
-                onSelect={onSelectDoc} onPlayNow={onPlayNow} onAddToQueue={onAddToQueue} onShowATP={onShowATP}
-                playerPlaylistId={playerPlaylistId} />;
-            })}
-            {listType === "todo" && displayItems.map(item => {
-              const art = item.article;
-              if (!art) return null;
-              return <TodoRow key={item.doc_id} item={item} article={art} isFocused={focusedId === item.doc_id}
-                onSelect={onSelectDoc} onToggleDone={onToggleDone} />;
-            })}
-            {((isAll && articles.length === 0) || (!isAll && displayItems.length === 0)) && (
-              <div style={{ padding: 32, textAlign: "center", fontSize: 12, color: C.t4 }}>No items.</div>
-            )}
-          </div>
-        </>
-      )}
-    </div>
-  );
-
-  function handlePlaylistReorder(from, to) {
-    // This is a UI signal; actual reorder is handled by parent via API
-    // For now we don't have a direct prop - the parent needs to handle this
-    // We'll call onPlaylistReorder if available
-  }
-}
-
-// ═══════════════════════════════════════════════════════════════
-// DOC ROW (for All Items / Collection views)
-// ═══════════════════════════════════════════════════════════════
-function DocRow({ article, isFocused, showListBadges, onSelect, onPlayNow, onAddToQueue, onShowATP, playerPlaylistId }) {
-  const rend = article.renditions || {};
-  const audio = rend.audio;
-  const audioReady = audio && audio.state === "ready";
-  const memberships = article.list_memberships || [];
-  const tags = article.tags || [];
-
-  // Check if this doc is in the player's playlist queue
-  const inQueue = memberships.some(m => m.id === playerPlaylistId);
-
-  return (
-    <div data-testid={`doc-row-${article.id}`} onClick={() => onSelect(article.id)}
-      className="doc-row-hover"
-      style={{
-        padding: isFocused ? "8px 10px 8px 8px" : "8px 10px",
-        borderBottom: `1px solid ${C.br2}`, cursor: "pointer",
-        display: "flex", gap: 7, alignItems: "flex-start", transition: "background 0.06s",
-        background: isFocused ? C.bg4 : "transparent",
-        borderLeft: isFocused ? `2px solid ${C.acc}` : "2px solid transparent",
-        paddingLeft: isFocused ? 8 : 10,
-      }}
-      onMouseEnter={e => { if (!isFocused) e.currentTarget.style.background = C.bg3; }}
-      onMouseLeave={e => { if (!isFocused) e.currentTarget.style.background = isFocused ? C.bg4 : "transparent"; }}
-    >
-      {/* Audio icon 26x26 */}
-      <AudioIcon audio={audio} articleId={article.id} onPlayNow={onPlayNow} />
-
-      {/* Content */}
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 12, fontWeight: 500, lineHeight: 1.4, marginBottom: 2 }}>{article.title}</div>
-        <div style={{ fontSize: 10, color: C.t3, display: "flex", gap: 4, alignItems: "center", flexWrap: "wrap" }}>
-          {tags.slice(0, 3).map(t => {
-            const [tc, tbg] = tagColor(t);
-            return <span key={t} style={{ fontSize: 8, padding: "1px 5px", borderRadius: 6, background: tbg, color: tc }}>{t}</span>;
           })}
-          <span>{sourceLabel(article)} {"\u00b7"} {timeAgo(article.ingested_at)}</span>
+          {docs.length === 0 && <div style={{ padding: 24, textAlign: "center", color: C.t4, fontSize: 11 }}>Empty playlist. Browse All Items and use the list pills to add tracks.</div>}
         </div>
-        {showListBadges && memberships.length > 0 && (
-          <div style={{ display: "flex", gap: 3, flexWrap: "wrap", marginTop: 2 }}>
-            {memberships.map(m => (
-              <span key={m.id} style={{ fontSize: 7, padding: "1px 5px", borderRadius: 4, fontWeight: 600, letterSpacing: 0.3, textTransform: "uppercase", background: m.bg || "rgba(107,112,132,0.12)", color: m.color || C.t3 }}>{m.icon} {m.name}</span>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Right gutter actions */}
-      <div style={{ display: "flex", gap: 2, flexShrink: 0, flexDirection: "column", alignItems: "center", marginTop: 1 }}>
-        {audioReady && (
-          <GutterAction icon={"\u25b6"} tip="Play now" onClick={e => { e.stopPropagation(); onPlayNow(article.id); }} />
-        )}
-        {audioReady && (
-          <GutterAction icon={inQueue ? "\u2611" : "\u2295"} tip={inQueue ? "In queue" : "Add to queue"} isInQueue={inQueue}
-            onClick={e => { e.stopPropagation(); onAddToQueue(article.id); }} />
-        )}
-        <GutterAction icon={"\u2630"} tip="Add to list" onClick={e => { e.stopPropagation(); onShowATP(e, article.id); }} />
-      </div>
-    </div>
-  );
-}
-
-// ─── Audio Icon (26x26, hover-to-play overlay) ─────────────
-function AudioIcon({ audio, articleId, onPlayNow }) {
-  const audioReady = audio && audio.state === "ready";
-  const isGen = audio && (audio.state === "generating" || audio.state === "queued");
-
-  const baseStyle = {
-    width: 26, height: 26, borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center",
-    fontSize: 10, flexShrink: 0, marginTop: 1, background: "transparent", color: C.t4,
-    border: "none", position: "relative", transition: "0.12s", cursor: audioReady ? "pointer" : "default",
-  };
-
-  if (audioReady) {
-    return (
-      <div className="aud-icon-wrap"
-        style={{ ...baseStyle, color: C.acc, background: C.abg }}
-        title={audio.duration ? fmtDur(audio.duration) : ""}
-        onClick={e => { e.stopPropagation(); onPlayNow(articleId); }}
-      >
-        {"\u266b"}
-        <div className="hover-play-overlay" style={{
-          position: "absolute", inset: 0, borderRadius: 6,
-          background: C.acc, color: C.bg0,
-          display: "none", alignItems: "center", justifyContent: "center",
-          fontSize: 10, fontWeight: 700,
-        }}>{"\u25b6"}</div>
       </div>
     );
   }
-  if (isGen) {
-    return <div style={{ ...baseStyle, color: C.amb, animation: "pulse 1.2s infinite" }}>{"\u25cc"}</div>;
-  }
-  return <div style={baseStyle}>{"\u266a"}</div>;
-}
 
-// ─── Gutter Action Button ──────────────────────────────────
-function GutterAction({ icon, tip, isInQueue, onClick }) {
-  const [hovered, setHovered] = useState(false);
+  // Action list view
+  if (list && list.type === "todo") {
+    const docs = [...listItems].sort((a, b) => {
+      if (a.due && b.due) return a.due < b.due ? -1 : 1;
+      return a.due ? -1 : 1;
+    });
+    return (
+      <div data-testid="center-panel" style={{ width: 350, flexShrink: 0, borderRight: `1px solid ${C.br}`, display: "flex", flexDirection: "column", background: C.bg1, overflow: "hidden" }}>
+        <div style={{ padding: "10px 12px", borderBottom: `1px solid ${C.br}`, display: "flex", alignItems: "center", gap: 8, flexShrink: 0, minHeight: 42, background: "rgba(239,159,39,0.03)" }}>
+          {showBack && <span style={{ fontSize: 10, color: C.acc, cursor: "pointer", marginRight: 4 }} onClick={onBackToChooser}>{"\u2039"}</span>}
+          <span style={{ fontSize: 14 }}>{list.icon}</span>
+          <span style={{ fontSize: 13, fontWeight: 700, flex: 1 }}>{list.name}</span>
+          <span style={{ fontSize: 10, padding: "2px 6px", borderRadius: 4, fontWeight: 600, background: C.ambg, color: C.amb, fontFamily: FONT.mono }}>{docs.length}</span>
+          <button onClick={onToggleEditing} style={{ padding: "3px 8px", borderRadius: 5, border: `1px solid ${editing ? C.acc : C.br}`, background: editing ? C.acc : "transparent", color: editing ? C.bg0 : C.t3, fontSize: 9, fontWeight: 600, fontFamily: "inherit", cursor: "pointer" }}>{editing ? "\u2713 Done" : "\u270e Edit"}</button>
+        </div>
+        {editing && (
+          <div style={{ padding: "6px 10px", borderBottom: `1px solid ${C.br}`, background: "rgba(108,140,255,0.04)", display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+            <span style={{ fontSize: 9, fontWeight: 600, color: C.acc, textTransform: "uppercase", letterSpacing: 0.5 }}>Edit mode</span>
+            <button onClick={onRenameList} style={{ padding: "3px 8px", borderRadius: 5, border: `1px solid ${C.br}`, background: "transparent", color: C.t3, fontSize: 9, fontWeight: 600, fontFamily: "inherit", cursor: "pointer" }}>{"\u270f"} Rename</button>
+            <button onClick={onDeleteList} style={{ padding: "3px 8px", borderRadius: 5, border: `1px solid rgba(248,113,113,0.2)`, background: "transparent", color: C.red, fontSize: 9, fontWeight: 600, fontFamily: "inherit", cursor: "pointer", marginLeft: "auto" }}>{"\ud83d\uddd1"} Delete</button>
+          </div>
+        )}
+        <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
+          {docs.map(item => {
+            const art = item.article; if (!art) return null;
+            const isSel = focusedId === (item.doc_id || art.id);
+            return (
+              <div key={item.doc_id || art.id} onClick={() => onSelectDoc(item.doc_id || art.id)}
+                style={{ padding: "7px 10px", borderBottom: `1px solid ${C.br2}`, cursor: "pointer", display: "flex", gap: 7, alignItems: "center", transition: "background .06s", background: isSel ? C.bg4 : "transparent", borderLeft: isSel ? `2px solid ${C.acc}` : "2px solid transparent" }}
+                onMouseEnter={e => { if (!isSel) e.currentTarget.style.background = C.bg3; }}
+                onMouseLeave={e => { if (!isSel) e.currentTarget.style.background = "transparent"; }}
+              >
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 11, fontWeight: isSel ? 600 : 500, lineHeight: 1.4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{art.title}</div>
+                  <div style={{ fontSize: 9, color: C.t3, marginTop: 1 }}>{sourceLabel(art)} {"\u00b7"} {timeAgo(art.ingested_at)}{item.due ? <> {"\u00b7"} <span style={{ color: C.amb, fontWeight: 500 }}>due {item.due}</span></> : ""}</div>
+                </div>
+                <button onClick={e => { e.stopPropagation(); onToggleDone(item); }} style={{ padding: "2px 5px", borderRadius: 5, border: `1px solid ${C.br}`, background: "transparent", color: C.t3, fontSize: 8, fontWeight: 600, fontFamily: "inherit", cursor: "pointer", flexShrink: 0 }}>{"\u2713"} Done</button>
+              </div>
+            );
+          })}
+          {docs.length === 0 && <div style={{ padding: 24, textAlign: "center", color: C.t4, fontSize: 11 }}>All done! {"\ud83c\udf89"}</div>}
+        </div>
+      </div>
+    );
+  }
+
+  // Collection view
+  if (list && list.type === "collection") {
+    const docs = listItems;
+    const needsNarr = docs.filter(i => { const r = (i.article?.renditions || {}).audio; return !r || r.state !== "ready"; }).length;
+    return (
+      <div data-testid="center-panel" style={{ width: 350, flexShrink: 0, borderRight: `1px solid ${C.br}`, display: "flex", flexDirection: "column", background: C.bg1, overflow: "hidden" }}>
+        <div style={{ padding: "10px 12px", borderBottom: `1px solid ${C.br}`, display: "flex", alignItems: "center", gap: 8, flexShrink: 0, minHeight: 42 }}>
+          {showBack && <span style={{ fontSize: 10, color: C.acc, cursor: "pointer", marginRight: 4 }} onClick={onBackToChooser}>{"\u2039"}</span>}
+          <span style={{ fontSize: 14 }}>{list.icon}</span>
+          <span style={{ fontSize: 13, fontWeight: 700, flex: 1 }}>{list.name}</span>
+          <span style={{ fontSize: 10, padding: "2px 6px", borderRadius: 4, fontWeight: 600, background: list.bg || C.pbg, color: list.color || C.pur, fontFamily: FONT.mono }}>{docs.length}</span>
+          <button onClick={onToggleEditing} style={{ padding: "3px 8px", borderRadius: 5, border: `1px solid ${editing ? C.acc : C.br}`, background: editing ? C.acc : "transparent", color: editing ? C.bg0 : C.t3, fontSize: 9, fontWeight: 600, fontFamily: "inherit", cursor: "pointer" }}>{editing ? "\u2713 Done" : "\u270e Edit"}</button>
+        </div>
+        {editing && (
+          <div style={{ padding: "6px 10px", borderBottom: `1px solid ${C.br}`, background: "rgba(108,140,255,0.04)", display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+            <span style={{ fontSize: 9, fontWeight: 600, color: C.acc, textTransform: "uppercase", letterSpacing: 0.5 }}>Edit mode</span>
+            <button onClick={onRenameList} style={{ padding: "3px 8px", borderRadius: 5, border: `1px solid ${C.br}`, background: "transparent", color: C.t3, fontSize: 9, fontWeight: 600, fontFamily: "inherit", cursor: "pointer" }}>{"\u270f"} Rename</button>
+            <button onClick={onDeleteList} style={{ padding: "3px 8px", borderRadius: 5, border: `1px solid rgba(248,113,113,0.2)`, background: "transparent", color: C.red, fontSize: 9, fontWeight: 600, fontFamily: "inherit", cursor: "pointer", marginLeft: "auto" }}>{"\ud83d\uddd1"} Delete</button>
+          </div>
+        )}
+        {!editing && needsNarr > 0 && (
+          <div style={{ padding: "5px 12px", borderBottom: `1px solid ${C.br2}`, display: "flex", alignItems: "center", gap: 6, fontSize: 10, color: C.amb, flexShrink: 0, background: "rgba(239,159,39,0.03)" }}>
+            {"\ud83c\udf99"} {needsNarr} need narration
+            <button onClick={() => onBatchNarrate(list.id)} style={{ padding: "2px 6px", borderRadius: 5, border: `1px solid ${C.acc}`, background: C.acc, color: C.bg0, fontSize: 8, fontWeight: 600, fontFamily: "inherit", cursor: "pointer", marginLeft: "auto" }}>Generate all</button>
+          </div>
+        )}
+        <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
+          {docs.map(item => {
+            const art = item.article; if (!art) return null;
+            return <DocRow key={art.id} article={art} isFocused={focusedId === art.id} onSelect={onSelectDoc} onPlayNow={onPlayNow} showRemove={editing} onRemove={() => onRemoveFromList(art.id, list.id)} />;
+          })}
+          {docs.length === 0 && <div style={{ padding: 24, textAlign: "center", color: C.t4, fontSize: 11 }}>Empty. Use list pills on any doc to add items.</div>}
+        </div>
+      </div>
+    );
+  }
+
+  // Chooser view
+  if (showChooser) {
+    return (
+      <div data-testid="center-panel" style={{ width: 350, flexShrink: 0, borderRight: `1px solid ${C.br}`, display: "flex", flexDirection: "column", background: C.bg1, overflow: "hidden" }}>
+        <ChooserView typeInfo={typeInfo} matchingLists={matching} onSelectList={onSelectList} onCreateList={onCreateList} playerPlaylistId={playerPlaylistId} />
+      </div>
+    );
+  }
+
+  // All Items view (default)
+  const dueCount = articles.filter(a => {
+    const mems = a.list_memberships || [];
+    return mems.some(m => { const l = lists.find(ll => ll.id === m.id); return l && l.type === "todo"; });
+  }).length;
+  const narrCount = articles.filter(a => { const r = (a.renditions || {}).audio; return !r || r.state !== "ready"; }).length;
+
+  let filtered = articles;
+  if (search) {
+    const q = search.toLowerCase();
+    filtered = articles.filter(a => (a.title || "").toLowerCase().includes(q) || sourceLabel(a).toLowerCase().includes(q));
+  }
+
   return (
-    <button onClick={onClick}
-      onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
-      style={{
-        width: 24, height: 20, borderRadius: 4, border: "none", fontSize: 9,
-        display: "flex", alignItems: "center", justifyContent: "center", transition: "0.1s",
-        background: isInQueue ? C.abg : hovered ? "rgba(255,255,255,0.06)" : "transparent",
-        color: isInQueue ? C.acc : hovered ? C.t2 : C.t4,
-        position: "relative",
-      }}
-    >
-      {hovered && (
-        <span style={{
-          display: "block", position: "absolute", right: 28, top: "50%", transform: "translateY(-50%)",
-          background: C.bg4, border: `1px solid ${C.br}`, borderRadius: 5,
-          padding: "3px 8px", fontSize: 9, color: C.t2, whiteSpace: "nowrap", zIndex: 10, pointerEvents: "none",
-        }}>{tip}</span>
-      )}
-      {icon}
-    </button>
+    <div data-testid="center-panel" style={{ width: 350, flexShrink: 0, borderRight: `1px solid ${C.br}`, display: "flex", flexDirection: "column", background: C.bg1, overflow: "hidden" }}>
+      <div style={{ padding: "10px 12px", borderBottom: `1px solid ${C.br}`, display: "flex", alignItems: "center", gap: 8, flexShrink: 0, minHeight: 42 }}>
+        <span style={{ fontSize: 14 }}>{"\u2299"}</span>
+        <span style={{ fontSize: 13, fontWeight: 700, flex: 1 }}>All Items</span>
+        <span style={{ fontSize: 10, padding: "2px 6px", borderRadius: 4, fontWeight: 600, background: C.abg, color: C.acc, fontFamily: FONT.mono }}>{articles.length}</span>
+      </div>
+      {/* Orientation chips */}
+      <div style={{ padding: "8px 12px", borderBottom: `1px solid ${C.br}`, display: "flex", gap: 8, alignItems: "center", flexShrink: 0, flexWrap: "wrap" }}>
+        {dueCount > 0 && <div onClick={() => onSelectList(null, "action")} style={{ padding: "3px 8px", borderRadius: 5, fontSize: 9, fontWeight: 600, background: C.ambg, color: C.amb, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>{"\u2709"} {dueCount} due</div>}
+        {narrCount > 0 && <div style={{ padding: "3px 8px", borderRadius: 5, fontSize: 9, fontWeight: 600, background: "rgba(108,140,255,0.08)", color: C.acc, display: "flex", alignItems: "center", gap: 4 }}>{"\ud83c\udf99"} {narrCount} unnarrated <button onClick={() => onBatchNarrate(null)} style={{ padding: "1px 5px", borderRadius: 3, border: `1px solid ${C.acc}`, background: C.acc, color: C.bg0, fontSize: 7, fontWeight: 600, fontFamily: "inherit", cursor: "pointer", marginLeft: 2 }}>Gen all</button></div>}
+      </div>
+      {/* Search */}
+      <div style={{ padding: "6px 10px", borderBottom: `1px solid ${C.br2}`, flexShrink: 0, position: "relative" }}>
+        <span style={{ position: "absolute", left: 18, top: "50%", transform: "translateY(-50%)", fontSize: 10, color: C.t5, pointerEvents: "none" }}>{"\u2315"}</span>
+        <input data-testid="search-input" value={search} onChange={e => onSearchChange(e.target.value)}
+          placeholder="Search documents..." style={{ width: "100%", padding: "5px 8px 5px 26px", borderRadius: 6, border: `1px solid ${C.br}`, background: C.bg3, color: C.t1, fontSize: 11, fontFamily: "inherit", outline: "none" }}
+          onFocus={e => e.target.style.borderColor = C.acc} onBlur={e => e.target.style.borderColor = C.br}
+        />
+      </div>
+      <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
+        {filtered.map(a => <DocRow key={a.id} article={a} isFocused={focusedId === a.id} onSelect={onSelectDoc} onPlayNow={onPlayNow} lists={lists} />)}
+        {filtered.length === 0 && <div style={{ padding: 24, textAlign: "center", color: C.t4, fontSize: 11 }}>No results</div>}
+      </div>
+    </div>
   );
 }
 
-// ═══════════════════════════════════════════════════════════════
-// TODO ROW
-// ═══════════════════════════════════════════════════════════════
-function TodoRow({ item, article, isFocused, onSelect, onToggleDone }) {
-  if (!article) return null;
+// ═════════════════════════════════════════════════════════════
+// DOC ROW
+// ═════════════════════════════════════════════════════════════
+function DocRow({ article, isFocused, onSelect, onPlayNow, lists, showRemove, onRemove }) {
   const rend = article.renditions || {};
-  const audioReady = rend.audio && rend.audio.state === "ready";
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  let dueClass = "none", dueText = "no date";
-  if (item.due) {
-    const dd = new Date(item.due);
-    const diff = Math.ceil((dd - today) / (1000 * 60 * 60 * 24));
-    if (item.done) { dueClass = "ok"; dueText = item.due.slice(5); }
-    else if (diff < 0) { dueClass = "overdue"; dueText = `overdue ${Math.abs(diff)}d`; }
-    else if (diff <= 3) { dueClass = "soon"; dueText = `due in ${diff}d`; }
-    else { dueClass = "ok"; dueText = item.due.slice(5); }
-  }
-  if (item.ai_suggested_due && !item.done && item.due) { dueClass = "ai"; dueText += " \u2728"; }
-
-  const dueColors = {
-    overdue: { background: C.rbg, color: C.red },
-    soon: { background: C.ambg, color: C.amb },
-    ok: { background: C.gbg, color: C.grn },
-    ai: { border: `1px dashed ${C.amb}`, background: "transparent", color: C.amb, fontSize: 9 },
-    none: { color: C.t4, fontStyle: "italic", fontFamily: "inherit", fontSize: 10 },
-  };
+  const audio = rend.audio;
+  const audioReady = audio && audio.state === "ready";
+  const tags = article.tags || [];
+  const memberships = article.list_memberships || [];
 
   return (
-    <div onClick={() => onSelect(article.id)}
+    <div data-testid={`doc-row-${article.id}`} onClick={() => onSelect(article.id)}
       style={{
-        padding: isFocused ? "8px 12px 8px 10px" : "8px 12px",
-        borderBottom: `1px solid ${C.br2}`, cursor: "pointer",
-        display: "flex", gap: 9, alignItems: "center", transition: "background 0.06s",
+        padding: "7px 10px", borderBottom: `1px solid ${C.br2}`, cursor: "pointer",
+        display: "flex", gap: 7, alignItems: "flex-start", transition: "background .06s",
         background: isFocused ? C.bg4 : "transparent",
         borderLeft: isFocused ? `2px solid ${C.acc}` : "2px solid transparent",
       }}
       onMouseEnter={e => { if (!isFocused) e.currentTarget.style.background = C.bg3; }}
       onMouseLeave={e => { if (!isFocused) e.currentTarget.style.background = isFocused ? C.bg4 : "transparent"; }}
     >
-      <button onClick={e => { e.stopPropagation(); onToggleDone(item); }}
-        style={{
-          width: 18, height: 18, borderRadius: "50%", border: `1.5px solid ${item.done ? C.grn : "#444"}`,
-          display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, cursor: "pointer",
-          transition: "0.12s", flexShrink: 0, background: item.done ? C.gbg : "none",
-          color: item.done ? C.grn : "transparent", fontFamily: "inherit",
-        }}
-      >{item.done ? "\u2713" : ""}</button>
-      <span style={{ fontSize: 12, flex: 1, lineHeight: 1.3, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textDecoration: item.done ? "line-through" : "none", opacity: item.done ? 0.35 : 1 }}>{article.title}</span>
-      <span style={{ fontSize: 10, color: audioReady ? C.acc : C.t4, flexShrink: 0 }}>{"\u266b"}</span>
-      <span style={{ fontSize: 10, padding: "2px 7px", borderRadius: 5, fontFamily: FONT.mono, flexShrink: 0, fontWeight: 500, ...dueColors[dueClass] }}>{dueText}</span>
+      <div style={{ width: 20, height: 20, borderRadius: 5, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8, flexShrink: 0, marginTop: 1, background: audioReady ? C.abg : C.bg3, color: audioReady ? C.acc : C.t4 }}>{audioReady ? "\u266b" : "\u266a"}</div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 11, fontWeight: isFocused ? 600 : 500, lineHeight: 1.4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{article.title}</div>
+        <div style={{ fontSize: 9, color: C.t3, marginTop: 1 }}>
+          {sourceLabel(article)} {"\u00b7"} {timeAgo(article.ingested_at)}
+          {audio?.duration ? <> {"\u00b7"} <span style={{ fontFamily: FONT.mono }}>{fmtDur(audio.duration)}</span></> : ""}
+        </div>
+        {memberships.length > 0 && (
+          <div style={{ display: "flex", gap: 2, flexWrap: "wrap", marginTop: 2 }}>
+            {memberships.map(m => <span key={m.id} style={{ fontSize: 7.5, padding: "2px 5px", borderRadius: 3, fontWeight: 600, letterSpacing: 0.3, textTransform: "uppercase", background: m.bg || C.abg, color: m.color || C.acc }}>{m.icon}</span>)}
+          </div>
+        )}
+      </div>
+      {showRemove && (
+        <button style={{ fontSize: 13, color: C.red, cursor: "pointer", background: "none", border: "none", padding: 2, flexShrink: 0 }} onClick={e => { e.stopPropagation(); onRemove(); }}>{"\u00d7"}</button>
+      )}
     </div>
   );
 }
 
-// ═══════════════════════════════════════════════════════════════
+// ═════════════════════════════════════════════════════════════
 // DETAIL PANEL
-// ═══════════════════════════════════════════════════════════════
-function DetailPanel({ article, lists, voices, onRefresh, onToggleListMembership, onPlayNow, onAddToQueue, onShowPlaylistPicker, playerPlaylistId }) {
+// ═════════════════════════════════════════════════════════════
+function DetailPanel({ article, lists, onRefresh, onToggleListMembership, onPlayNow, playerPlaylistId }) {
   const [fullText, setFullText] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!article) return;
-    setLoading(true);
-    setFullText(null);
+    setLoading(true); setFullText(null);
     apiGet(`/api/articles/${article.id}/text`)
       .then(data => setFullText(data.text || ""))
       .catch(() => setFullText("(Could not load text)"))
@@ -1057,480 +558,360 @@ function DetailPanel({ article, lists, voices, onRefresh, onToggleListMembership
 
   if (!article) return (
     <div data-testid="detail-panel" style={{ flex: 1, background: C.bg2, display: "flex", alignItems: "center", justifyContent: "center", minWidth: 0, minHeight: 0 }}>
-      <span style={{ fontSize: 12, color: C.t4 }}>Select an article to view details</span>
+      <div style={{ textAlign: "center" }}><div style={{ fontSize: 28, marginBottom: 8 }}>{"\ud83d\udcc4"}</div><div style={{ fontSize: 12, color: C.t4 }}>Select a document</div></div>
     </div>
   );
 
   const rend = article.renditions || {};
   const audio = rend.audio;
-  const summary = rend.summary;
-  const tags = article.tags || [];
+  const audioReady = audio && audio.state === "ready";
+  const audioGen = audio && (audio.state === "generating" || audio.state === "queued");
   const memberships = article.list_memberships || [];
   const membershipIds = new Set(memberships.map(m => m.id));
 
-  const audioReady = audio && audio.state === "ready";
-  const audioGen = audio && (audio.state === "generating" || audio.state === "queued");
-  const inQueue = memberships.some(m => m.id === playerPlaylistId);
+  // Play context
+  const inPlaylists = lists.filter(l => l.type === "playlist" && membershipIds.has(l.id));
+  let playLabel = "\u25b6 Play";
+  if (inPlaylists.length === 1) playLabel = `\u25b6 Play in ${inPlaylists[0].name}`;
 
   const handleGenerateRendition = async (type) => {
-    try {
-      await apiJson(`/api/docs/${article.id}/renditions/${type}`, "POST", {});
-      if (onRefresh) onRefresh();
-    } catch {}
-  };
-
-  const handleRemoveRendition = async (type) => {
-    try {
-      await apiDelete(`/api/docs/${article.id}/renditions/${type}`);
-      if (onRefresh) onRefresh();
-    } catch {}
+    try { await apiJson(`/api/docs/${article.id}/renditions/${type}`, "POST", {}); if (onRefresh) onRefresh(); } catch {}
   };
 
   return (
     <div data-testid="detail-panel" style={{ flex: 1, overflowY: "scroll", WebkitOverflowScrolling: "touch", overscrollBehavior: "contain", background: C.bg2, minWidth: 0, minHeight: 0 }}>
-      {/* Header: tags + list badges, title, meta */}
-      <div style={{ padding: "20px 24px 12px", borderBottom: `1px solid ${C.br}` }}>
-        {(tags.length > 0 || memberships.length > 0) && (
-          <div style={{ display: "flex", gap: 5, marginBottom: 8, flexWrap: "wrap" }}>
-            {tags.map(t => {
-              const [tc, tbg] = tagColor(t);
-              return <span key={t} style={{ fontSize: 8, padding: "1px 5px", borderRadius: 6, background: tbg, color: tc }}>{t}</span>;
-            })}
-            {memberships.map(m => (
-              <span key={m.id} style={{ fontSize: 7, padding: "1px 5px", borderRadius: 4, fontWeight: 600, letterSpacing: 0.3, textTransform: "uppercase", background: m.bg || C.pbg, color: m.color || C.pur }}>{m.icon} {m.name}</span>
-            ))}
-          </div>
-        )}
-        <div style={{ fontSize: 18, fontWeight: 700, fontFamily: FONT.serif, lineHeight: 1.35, marginBottom: 6 }}>{article.title}</div>
-        <div style={{ fontSize: 11, color: C.t3, display: "flex", gap: 6, flexWrap: "wrap" }}>
-          <span>{sourceLabel(article)}</span>
-          <span>{"\u00b7"}</span>
-          <span>{timeAgo(article.ingested_at)}</span>
-          {audio && audio.duration && <><span>{"\u00b7"}</span><span>{fmtDur(audio.duration)}</span></>}
+      {/* Header */}
+      <div style={{ padding: "20px 24px 14px", borderBottom: `1px solid ${C.br}` }}>
+        <div style={{ fontFamily: FONT.serif, fontSize: 17, fontWeight: 700, lineHeight: 1.35, marginBottom: 4 }}>{article.title}</div>
+        <div style={{ fontSize: 10, color: C.t3, display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+          <span>{sourceLabel(article)}</span><span>{"\u00b7"}</span><span>{timeAgo(article.ingested_at)}</span>
+          {audio?.duration && <><span>{"\u00b7"}</span><span style={{ fontFamily: FONT.mono }}>{fmtDur(audio.duration)}</span></>}
         </div>
       </div>
-
-      {/* Rendition bar */}
-      <div style={{ padding: "10px 24px", borderBottom: `1px solid ${C.br}`, display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-        {/* Audio state badge */}
-        <span style={{
-          fontSize: 10, padding: "3px 8px", borderRadius: 5, fontWeight: 500,
-          display: "flex", alignItems: "center", gap: 5,
-          background: audioReady ? C.abg : audioGen ? C.ambg : C.bg1,
-          color: audioReady ? C.acc : audioGen ? C.amb : C.t4,
-        }}>
-          {"\u266b"} {audioReady ? `Audio \u00b7 ${fmtDur(audio.duration)}` : audioGen ? "Generating..." : "No audio"}
-        </span>
-
-        {audioReady ? (
-          <>
-            {/* Play button */}
-            <button onClick={() => onPlayNow(article.id)} title="Play now"
-              style={{
-                background: C.acc, color: C.bg0, borderColor: C.acc,
-                borderRadius: "50%", width: 28, height: 28,
-                display: "flex", alignItems: "center", justifyContent: "center",
-                padding: 0, fontSize: 11, border: "none", flexShrink: 0, cursor: "pointer", transition: "0.1s",
-              }}
-              onMouseEnter={e => e.currentTarget.style.background = "#8aa4ff"}
-              onMouseLeave={e => e.currentTarget.style.background = C.acc}
-            >{"\u25b6"}</button>
-
-            {/* Split button: Queue + Playlist picker */}
-            <div style={{ display: "flex", border: `1px solid ${C.br}`, borderRadius: 6, overflow: "hidden" }}>
-              <button onClick={() => onAddToQueue(article.id)}
-                style={{
-                  padding: "3px 10px", borderRadius: 0, border: "none",
-                  background: "rgba(255,255,255,0.03)", color: C.t3,
-                  fontSize: 10, fontWeight: 600, fontFamily: "inherit", cursor: "pointer",
-                  display: "flex", alignItems: "center", gap: 4, transition: "0.1s", whiteSpace: "nowrap",
-                }}
-                onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,255,255,0.06)"; e.currentTarget.style.color = C.t2; }}
-                onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.03)"; e.currentTarget.style.color = C.t3; }}
-              >{inQueue ? "\u2713 Queued" : "+ Queue"}</button>
-              <button onClick={e => onShowPlaylistPicker(e, article.id)}
-                style={{
-                  padding: "3px 10px", borderRadius: 0, border: "none",
-                  borderLeft: `1px solid ${C.br}`,
-                  background: "rgba(255,255,255,0.03)", color: C.acc,
-                  fontSize: 10, fontWeight: 600, fontFamily: "inherit", cursor: "pointer",
-                  display: "flex", alignItems: "center", gap: 4, transition: "0.1s", whiteSpace: "nowrap",
-                }}
-                onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,255,255,0.06)"; }}
-                onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.03)"; }}
-              >{"\ud83c\udfa7"} {"\u25be"}</button>
+      {/* Metadata */}
+      {(article.source_url || article.author || article.publication || article.published_date || article.word_count) && (
+        <div style={{ padding: "8px 24px", borderBottom: `1px solid ${C.br2}`, display: "flex", flexDirection: "column", gap: 4 }}>
+          {article.source_url && (
+            <div style={{ fontSize: 10, color: C.t3, display: "flex", alignItems: "center", gap: 4 }}>
+              <span style={{ color: C.t4, flexShrink: 0 }}>Source:</span>
+              <a href={article.source_url} target="_blank" rel="noopener noreferrer"
+                style={{ color: C.acc, textDecoration: "none", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                onMouseEnter={e => e.currentTarget.style.textDecoration = "underline"}
+                onMouseLeave={e => e.currentTarget.style.textDecoration = "none"}
+              >{article.source_url}</a>
             </div>
-          </>
-        ) : (
-          !audioGen && (
-            <button onClick={() => handleGenerateRendition("audio")}
-              style={{
-                padding: "3px 8px", borderRadius: 6, border: `1px solid ${C.acc}`,
-                background: C.acc, color: C.bg0, fontSize: 10, fontWeight: 600,
-                fontFamily: "inherit", cursor: "pointer", transition: "0.1s", whiteSpace: "nowrap",
-              }}
-            >Generate narration</button>
-          )
-        )}
-
-        <span style={{ flex: 1 }} />
-
-        {/* Summary button */}
-        <button onClick={() => summary ? null : handleGenerateRendition("summary")}
-          style={{
-            padding: "3px 8px", borderRadius: 6, border: "none",
-            background: "none", color: C.t4, fontSize: 10, fontWeight: 600,
-            fontFamily: "inherit", cursor: "pointer", display: "flex", alignItems: "center", gap: 4,
-            transition: "0.1s", whiteSpace: "nowrap",
-          }}
-          onMouseEnter={e => { e.currentTarget.style.color = C.t2; }}
-          onMouseLeave={e => { e.currentTarget.style.color = C.t4; }}
-        >{"\ud83d\udcdd"} Summary</button>
-      </div>
-
-      {/* List assignment */}
-      <div style={{ padding: "10px 24px", borderBottom: `1px solid ${C.br}`, display: "flex", gap: 5, flexWrap: "wrap", alignItems: "center" }}>
-        <span style={{ fontSize: 9, color: C.t4, marginRight: 4 }}>Lists:</span>
-        {lists.map(l => {
-          const isIn = membershipIds.has(l.id);
-          return (
-            <button key={l.id}
-              onClick={() => onToggleListMembership(article.id, l.id, isIn)}
-              style={{
-                padding: "4px 9px", borderRadius: 6,
-                border: `1px solid ${isIn ? (l.color || C.br) : C.br}`,
-                background: isIn ? (l.bg || "transparent") : "transparent",
-                color: isIn ? (l.color || C.t3) : C.t3,
-                fontSize: 10, fontWeight: isIn ? 600 : 500, cursor: "pointer", fontFamily: "inherit",
-                display: "flex", alignItems: "center", gap: 4, transition: "0.1s",
-              }}
-              onMouseEnter={e => { if (!isIn) e.currentTarget.style.background = "rgba(255,255,255,0.04)"; }}
-              onMouseLeave={e => { if (!isIn) e.currentTarget.style.background = "transparent"; }}
-            >
-              {l.icon} {isIn ? "\u2713 " : "+ "}{l.name}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Summary text (if available) */}
-      {summary && summary.text && (
-        <div style={{ padding: "12px 24px", borderBottom: `1px solid ${C.br}` }}>
-          <div style={{ fontSize: 10, fontWeight: 600, color: C.t4, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 8 }}>Summary</div>
-          <p style={{ fontSize: 13, color: C.t2, lineHeight: 1.6, fontFamily: FONT.serif }}>{summary.text}</p>
+          )}
+          <div style={{ fontSize: 10, color: C.t3, display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {article.author && <span><span style={{ color: C.t4 }}>By</span> {article.author}</span>}
+            {article.publication && <span><span style={{ color: C.t4 }}>in</span> {article.publication}</span>}
+            {article.published_date && <span><span style={{ color: C.t4 }}>published</span> {article.published_date}</span>}
+            {article.word_count > 0 && <span style={{ fontFamily: FONT.mono }}>{article.word_count.toLocaleString()} words</span>}
+          </div>
         </div>
       )}
-
+      {/* Rendition bar */}
+      <div style={{ padding: "8px 24px", borderBottom: `1px solid ${C.br}`, display: "flex", gap: 5, alignItems: "center", flexWrap: "wrap" }}>
+        {audioReady ? (
+          <>
+            <span style={{ fontSize: 10, padding: "3px 8px", borderRadius: 5, background: C.abg, color: C.acc, fontWeight: 500 }}>{"\u266b"} {fmtDur(audio.duration)}</span>
+            <button onClick={() => onPlayNow(article.id)} style={{ padding: "3px 8px", borderRadius: 5, border: `1px solid ${C.br}`, background: "transparent", color: C.t3, fontSize: 9, fontWeight: 600, fontFamily: "inherit", cursor: "pointer" }}>{playLabel}</button>
+          </>
+        ) : audioGen ? (
+          <span style={{ fontSize: 10, padding: "3px 8px", borderRadius: 5, background: C.ambg, color: C.amb, fontWeight: 500, animation: "pulse 1.2s infinite" }}>{"\u25cc"} Generating...</span>
+        ) : (
+          <>
+            <span style={{ fontSize: 10, padding: "3px 8px", borderRadius: 5, background: C.bg1, color: C.t4 }}>{"\u266a"} No audio</span>
+            <button onClick={() => handleGenerateRendition("audio")} style={{ padding: "3px 8px", borderRadius: 5, border: `1px solid ${C.acc}`, background: C.acc, color: C.bg0, fontSize: 9, fontWeight: 600, fontFamily: "inherit", cursor: "pointer" }}>Generate narration</button>
+          </>
+        )}
+        <span style={{ flex: 1 }} />
+        <button onClick={() => handleGenerateRendition("summary")} style={{ padding: "3px 6px", border: "none", background: "none", color: C.t4, fontSize: 9, cursor: "pointer", fontFamily: "inherit" }}>{"\ud83d\udcdd"} Summary</button>
+      </div>
+      {/* List pills — functional toggles */}
+      <div style={{ padding: "10px 24px", borderBottom: `1px solid ${C.br}`, display: "flex", gap: 5, flexWrap: "wrap", alignItems: "center" }}>
+        <span style={{ fontSize: 9, color: C.t4, marginRight: 2 }}>Lists:</span>
+        {lists.map(l => {
+          const isIn = membershipIds.has(l.id);
+          const cls = COLOR_CLASSES[listColorClass(l)] || COLOR_CLASSES["on-acc"];
+          return (
+            <button key={l.id} onClick={() => onToggleListMembership(article.id, l.id, isIn)}
+              style={{
+                fontSize: 9, padding: "3px 8px", borderRadius: 10, fontWeight: 500, cursor: "pointer", whiteSpace: "nowrap",
+                display: "inline-flex", alignItems: "center", gap: 3, transition: ".12s", fontFamily: "inherit",
+                border: `1px solid ${isIn ? cls.border : C.br}`,
+                background: isIn ? cls.bg : "transparent",
+                color: isIn ? cls.color : C.t3,
+              }}
+            >{l.icon} {isIn ? l.name : `+ ${l.name}`}</button>
+          );
+        })}
+      </div>
       {/* Body text */}
-      <div style={{ padding: "16px 24px", fontSize: 14, fontFamily: FONT.serif, lineHeight: 1.7, color: "#b8bac4" }}>
+      <div style={{ padding: "16px 24px", fontFamily: FONT.serif, fontSize: 14, lineHeight: 1.75, color: "#b8bac4" }}>
         {loading ? <span style={{ color: C.t4 }}>Loading...</span> : (
-          fullText ? fullText.split("\n\n").filter(Boolean).map((p, i) => <p key={i} style={{ marginBottom: 12 }}>{p}</p>) : null
+          fullText ? fullText.split("\n\n").filter(Boolean).map((p, i) => <p key={i} style={{ marginBottom: 10 }}>{p}</p>) : null
         )}
       </div>
     </div>
   );
 }
 
-// ═══════════════════════════════════════════════════════════════
-// RIGHT DRAWER (queue controller)
-// ═══════════════════════════════════════════════════════════════
-function RightDrawer({ open, playlists, activePlaylistId, playlistItems, playerIdx, focusedId, onClose, onSwitchPlaylist, onSelectDoc, onRemoveItem, onReorder, onAddCurrentDoc }) {
-  const activePlaylist = playlists.find(p => p.id === activePlaylistId);
-  const [dragFrom, setDragFrom] = useState(null);
+// ═════════════════════════════════════════════════════════════
+// QUEUE PEEK POPOVER (replaces RightDrawer)
+// ═════════════════════════════════════════════════════════════
+function QueuePeekPopover({ items, playlist, playerIdx, onJumpTo, onClose }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) onClose(); };
+    document.addEventListener("click", handler);
+    return () => document.removeEventListener("click", handler);
+  }, [onClose]);
 
-  // Compute total duration
-  const totalDuration = playlistItems.reduce((sum, item) => {
-    const art = item.article;
-    if (!art) return sum;
-    const rend = art.renditions || {};
-    const r = item.use_summary ? rend.audio_summary : rend.audio;
-    return sum + (r && r.duration ? r.duration : 0);
-  }, 0);
-
-  // Custom dropdown chevron SVG as data URI
-  const chevronSvg = "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1 5 5 9 1' fill='none' stroke='%236b7084' stroke-width='1.5'/%3E%3C/svg%3E\")";
-
+  if (!playlist) return null;
   return (
-    <div data-testid="right-drawer" className={open ? "drawer open" : "drawer"}>
-      {/* Header */}
-      <div style={{ padding: "10px 12px", borderBottom: `1px solid ${C.br}`, display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-        <select data-testid="drawer-playlist-select" value={activePlaylistId || ""}
-          onChange={e => onSwitchPlaylist(e.target.value)}
-          style={{
-            background: "transparent", border: "none", color: C.t1,
-            fontSize: 12, fontWeight: 600, fontFamily: "inherit", outline: "none",
-            cursor: "pointer", maxWidth: 140,
-            appearance: "none", WebkitAppearance: "none",
-            paddingRight: 12, backgroundImage: chevronSvg,
-            backgroundRepeat: "no-repeat", backgroundPosition: "right center",
-          }}
-        >
-          {playlists.map(p => (
-            <option key={p.id} value={p.id}>{p.icon} {p.name}</option>
-          ))}
-        </select>
-        <span style={{ fontSize: 10, color: C.t4, fontFamily: FONT.mono }}>{playlistItems.length} {"\u00b7"} {fmtDur(totalDuration)}</span>
-        <span style={{ flex: 1 }} />
-        <button data-testid="drawer-close" onClick={onClose}
-          style={{
-            width: 22, height: 22, borderRadius: 5, border: "none",
-            background: "transparent", color: C.t3, fontSize: 13,
-            display: "flex", alignItems: "center", justifyContent: "center", transition: "0.1s",
-          }}
-          onMouseEnter={e => { e.currentTarget.style.background = C.bg3; e.currentTarget.style.color = C.t2; }}
-          onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = C.t3; }}
-        >{"\u2715"}</button>
+    <div ref={ref} style={{
+      position: "absolute", bottom: "calc(100% + 6px)", right: 14, width: 280,
+      background: C.bg1, border: `1px solid ${C.br}`, borderRadius: 10,
+      boxShadow: "0 8px 24px rgba(0,0,0,0.5)", zIndex: 50, overflow: "hidden",
+      animation: "popIn .15s ease", maxHeight: 320, display: "flex", flexDirection: "column",
+    }} onClick={e => e.stopPropagation()}>
+      <div style={{ padding: "8px 10px", borderBottom: `1px solid ${C.br}`, display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+        <span style={{ fontSize: 11, fontWeight: 600, color: C.acc }}>{playlist.icon} {playlist.name}</span>
+        <span style={{ fontSize: 9, color: C.t4, fontFamily: FONT.mono, marginLeft: "auto" }}>{items.length} tracks</span>
       </div>
-
-      {/* Track list */}
-      <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
-        {playlistItems.map((item, idx) => {
-          const art = item.article;
-          if (!art) return null;
+      <div style={{ flex: 1, overflowY: "auto", maxHeight: 240 }}>
+        {items.map((item, i) => {
+          const art = item.article || item;
+          const isNow = i === playerIdx;
           const rend = art.renditions || {};
-          const rendition = item.use_summary ? rend.audio_summary : rend.audio;
-          const dur = rendition && rendition.duration ? fmtDur(rendition.duration) : "--:--";
-          const isP = playerIdx === idx;
-
+          const r = item.use_summary ? rend.audio_summary : rend.audio;
           return (
-            <div key={item.doc_id || art.id}
-              data-drag-item={idx}
-              draggable
-              onDragStart={e => {
-                setDragFrom(idx);
-                e.dataTransfer.effectAllowed = "move";
-                e.currentTarget.style.opacity = "0.3";
-              }}
-              onDragOver={e => {
-                e.preventDefault();
-                e.currentTarget.parentNode.querySelectorAll("[data-drag-item]").forEach(el => el.style.borderTop = "");
-                e.currentTarget.style.borderTop = `2px solid ${C.acc}`;
-              }}
-              onDragEnd={e => {
-                e.currentTarget.style.opacity = "1";
-                e.currentTarget.parentNode.querySelectorAll("[data-drag-item]").forEach(el => {
-                  el.style.borderTop = "";
-                  el.style.opacity = "1";
-                });
-              }}
-              onDrop={e => {
-                e.preventDefault();
-                e.currentTarget.parentNode.querySelectorAll("[data-drag-item]").forEach(el => {
-                  el.style.borderTop = "";
-                  el.style.opacity = "1";
-                });
-                if (dragFrom != null && dragFrom !== idx) {
-                  onReorder(dragFrom, idx);
-                }
-                setDragFrom(null);
-              }}
-              onClick={() => onSelectDoc(item.doc_id || art.id)}
-              style={{
-                padding: "6px 10px", display: "flex", gap: 6, alignItems: "center",
-                borderBottom: `1px solid ${C.br2}`, transition: "background 0.06s",
-                cursor: "pointer", fontSize: 11,
-                background: isP ? "rgba(108,140,255,0.05)" : "transparent",
-              }}
-              onMouseEnter={e => { if (!isP) e.currentTarget.style.background = C.bg3; }}
-              onMouseLeave={e => { if (!isP) e.currentTarget.style.background = isP ? "rgba(108,140,255,0.05)" : "transparent"; }}
+            <div key={item.doc_id || art.id} onClick={() => onJumpTo(i)}
+              style={{ padding: "5px 10px", display: "flex", gap: 6, alignItems: "center", fontSize: 10, borderBottom: `1px solid ${C.br2}`, transition: "background .06s", cursor: "pointer", background: isNow ? "rgba(108,140,255,0.05)" : "transparent" }}
+              onMouseEnter={e => { if (!isNow) e.currentTarget.style.background = C.bg3; }}
+              onMouseLeave={e => { if (!isNow) e.currentTarget.style.background = isNow ? "rgba(108,140,255,0.05)" : "transparent"; }}
             >
-              <span style={{ width: 16, fontSize: 10, color: isP ? C.acc : C.t4, textAlign: "center", fontFamily: FONT.mono, flexShrink: 0 }}>{isP ? "\u25b6" : idx + 1}</span>
-              <span style={{ cursor: "grab", color: C.t4, fontSize: 11, flexShrink: 0 }}>{"\u2807"}</span>
-              <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: isP ? C.t1 : C.t2, fontWeight: isP ? 500 : 400 }}>{art.title}</span>
-              <span style={{ fontSize: 9, color: C.t4, fontFamily: FONT.mono, flexShrink: 0 }}>{dur}</span>
-              <span style={{ opacity: 0, fontSize: 12, color: C.red, cursor: "pointer", flexShrink: 0, width: 14, textAlign: "center" }}
-                className="dwi-rm-hover"
-                onClick={e => { e.stopPropagation(); onRemoveItem(item.doc_id || art.id); }}
-              >{"\u00d7"}</span>
+              <span style={{ width: 16, fontSize: 9, color: isNow ? C.acc : C.t4, textAlign: "center", fontFamily: FONT.mono, flexShrink: 0 }}>{isNow ? "\u25b6" : i + 1}</span>
+              <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: isNow ? C.t1 : C.t2, fontWeight: isNow ? 600 : 400 }}>{art.title}</span>
+              <span style={{ fontSize: 8, color: C.t4, fontFamily: FONT.mono, flexShrink: 0 }}>{fmtDur(r?.duration)}</span>
             </div>
           );
         })}
-      </div>
-
-      {/* Footer */}
-      <div style={{ padding: "8px 10px", borderTop: `1px solid ${C.br}`, display: "flex", gap: 6, flexShrink: 0 }}>
-        <button onClick={onAddCurrentDoc}
-          style={{
-            flex: 1, justifyContent: "center",
-            padding: "3px 8px", borderRadius: 6, border: `1px solid ${C.br}`,
-            background: "rgba(255,255,255,0.03)", color: C.t3,
-            fontSize: 10, fontWeight: 600, fontFamily: "inherit", cursor: "pointer",
-            display: "flex", alignItems: "center", gap: 4, transition: "0.1s", whiteSpace: "nowrap",
-          }}
-          onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,255,255,0.06)"; e.currentTarget.style.color = C.t2; }}
-          onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.03)"; e.currentTarget.style.color = C.t3; }}
-        >+ Add current doc</button>
       </div>
     </div>
   );
 }
 
-// ═══════════════════════════════════════════════════════════════
-// BOTTOM BAR
-// ═══════════════════════════════════════════════════════════════
-const bbSkipStyle = {
-  width: 26, height: 26, borderRadius: "50%", border: "none",
-  display: "flex", alignItems: "center", justifyContent: "center",
-  fontSize: 10, transition: "0.1s", background: "transparent", color: C.t3, cursor: "pointer",
-};
+// ═════════════════════════════════════════════════════════════
+// SPEED POPOVER
+// ═════════════════════════════════════════════════════════════
+function SpeedPopover({ speed, onSetSpeed, onClose }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) onClose(); };
+    document.addEventListener("click", handler);
+    return () => document.removeEventListener("click", handler);
+  }, [onClose]);
 
-const bbPlayStyle = {
-  width: 26, height: 26, borderRadius: "50%", border: "none",
-  display: "flex", alignItems: "center", justifyContent: "center",
-  fontSize: 10, transition: "0.1s", background: C.acc, color: C.bg0, cursor: "pointer",
-};
-
-function BottomBar({ article, playlist, isPlaying, currentTime, duration, playerIdx, drawerOpen, onTogglePlay, onPrev, onNext, onSeek, onToggleDrawer, onGoToPlaylist }) {
-  const queueToggle = (
-    <button data-testid="queue-toggle" onClick={onToggleDrawer} title="Queue"
-      style={{
-        width: 30, height: 26, borderRadius: 6,
-        border: `1px solid ${drawerOpen ? "rgba(108,140,255,0.3)" : C.br}`,
-        background: drawerOpen ? C.abg : "transparent",
-        color: drawerOpen ? C.acc : C.t3,
-        fontSize: 11, display: "flex", alignItems: "center", justifyContent: "center",
-        transition: "0.1s", cursor: "pointer",
-      }}
-      onMouseEnter={e => { if (!drawerOpen) { e.currentTarget.style.background = C.abg; e.currentTarget.style.color = C.acc; e.currentTarget.style.borderColor = "rgba(108,140,255,0.3)"; } }}
-      onMouseLeave={e => { if (!drawerOpen) { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = C.t3; e.currentTarget.style.borderColor = C.br; } }}
-    >{"\u2261"}</button>
+  return (
+    <div ref={ref} onClick={e => e.stopPropagation()} style={{
+      position: "absolute", bottom: "calc(100% + 6px)", right: 0,
+      background: C.bg1, border: `1px solid ${C.br}`, borderRadius: 8,
+      padding: 4, display: "flex", flexDirection: "column", gap: 1,
+      zIndex: 50, minWidth: 52, boxShadow: "0 4px 16px rgba(0,0,0,0.4)", animation: "popIn .12s ease",
+    }}>
+      {SPEEDS.map(s => (
+        <button key={s} onClick={() => onSetSpeed(s)} style={{
+          padding: "4px 8px", borderRadius: 5, fontSize: 10, fontWeight: speed === s ? 700 : 500,
+          fontFamily: FONT.mono, color: speed === s ? C.acc : C.t3, background: speed === s ? C.abg : "none",
+          border: "none", cursor: "pointer", textAlign: "center", width: "100%", transition: ".08s",
+        }}
+          onMouseEnter={e => { if (speed !== s) { e.currentTarget.style.background = C.bg3; e.currentTarget.style.color = C.t1; } }}
+          onMouseLeave={e => { if (speed !== s) { e.currentTarget.style.background = "none"; e.currentTarget.style.color = C.t3; } }}
+        >{fmtSpeed(s)}</button>
+      ))}
+    </div>
   );
+}
+
+// ═════════════════════════════════════════════════════════════
+// BOTTOM BAR
+// ═════════════════════════════════════════════════════════════
+function BottomBar({ article, playlist, isPlaying, currentTime, duration, playerIdx, playerItems, speed, speedOpen, queuePeek, onTogglePlay, onPrev, onNext, onSeek, onToggleQueuePeek, onToggleSpeedPop, onSetSpeed, onGoToPlaylist }) {
+  const isNon1 = speed !== 1;
 
   if (!playlist) {
     return (
-      <div data-testid="bottom-bar" style={{
-        height: 50, flexShrink: 0, borderTop: `1px solid ${C.br}`,
-        background: C.bg1, display: "flex", alignItems: "center",
-        padding: "0 14px", gap: 10,
-      }}>
+      <div data-testid="bottom-bar" style={{ height: 48, flexShrink: 0, borderTop: `1px solid ${C.br}`, background: C.bg1, display: "flex", alignItems: "center", padding: "0 14px", gap: 10 }}>
         <span style={{ fontSize: 11, color: C.t4, flex: 1 }}>{"\u266b"} No playlist selected</span>
-        {queueToggle}
       </div>
     );
   }
 
   const trackTitle = article ? article.title : "Select a track";
+  const trackNum = (playerIdx || 0) + 1;
+  const trackTotal = playlist.item_count || playerItems.length || "?";
+  const skipStyle = { width: 26, height: 26, borderRadius: "50%", border: "none", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, background: "transparent", color: C.t3, cursor: "pointer", transition: ".1s" };
+  const playStyle = { ...skipStyle, background: C.acc, color: C.bg0 };
 
   return (
-    <div data-testid="bottom-bar" style={{
-      height: 50, flexShrink: 0, borderTop: `1px solid ${C.br}`,
-      background: C.bg1, display: "flex", alignItems: "center",
-      padding: "0 14px", gap: 10,
-    }}>
+    <div data-testid="bottom-bar" style={{ height: 48, flexShrink: 0, borderTop: `1px solid ${C.br}`, background: C.bg1, display: "flex", alignItems: "center", padding: "0 14px", gap: 10, position: "relative" }}>
       {/* Transport */}
-      <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-        <button data-testid="player-prev" onClick={onPrev} style={bbSkipStyle}
-          onMouseEnter={e => e.currentTarget.style.color = C.t2}
-          onMouseLeave={e => e.currentTarget.style.color = C.t3}
-        >{"\u23ee"}</button>
-        <button data-testid="player-play" onClick={onTogglePlay}
-          style={bbPlayStyle}
-          onMouseEnter={e => e.currentTarget.style.background = "#8aa4ff"}
-          onMouseLeave={e => e.currentTarget.style.background = C.acc}
-        >{isPlaying ? "\u25ae\u25ae" : "\u25b6"}</button>
-        <button data-testid="player-next" onClick={onNext} style={bbSkipStyle}
-          onMouseEnter={e => e.currentTarget.style.color = C.t2}
-          onMouseLeave={e => e.currentTarget.style.color = C.t3}
-        >{"\u23ed"}</button>
+      <div style={{ display: "flex", gap: 4 }}>
+        <button data-testid="player-prev" onClick={onPrev} style={skipStyle} onMouseEnter={e => e.currentTarget.style.color = C.t2} onMouseLeave={e => e.currentTarget.style.color = C.t3}>{"\u23ee"}</button>
+        <button data-testid="player-play" onClick={onTogglePlay} style={playStyle} onMouseEnter={e => e.currentTarget.style.background = C.acc2} onMouseLeave={e => e.currentTarget.style.background = C.acc}>{isPlaying ? "\u25ae\u25ae" : "\u25b6"}</button>
+        <button data-testid="player-next" onClick={onNext} style={skipStyle} onMouseEnter={e => e.currentTarget.style.color = C.t2} onMouseLeave={e => e.currentTarget.style.color = C.t3}>{"\u23ed"}</button>
       </div>
-
-      {/* Playback indicator */}
-      {isPlaying && (
-        <div style={{ display: "flex", alignItems: "flex-end", gap: 2, height: 14, flexShrink: 0, marginRight: 2 }}>
-          <div style={{ width: 3, background: C.acc, borderRadius: 1, animation: "bar1 0.7s ease-in-out infinite" }} />
-          <div style={{ width: 3, background: C.acc, borderRadius: 1, animation: "bar2 0.6s ease-in-out infinite 0.1s" }} />
-          <div style={{ width: 3, background: C.acc, borderRadius: 1, animation: "bar3 0.8s ease-in-out infinite 0.2s" }} />
-          <div style={{ width: 3, background: C.acc, borderRadius: 1, animation: "bar4 0.65s ease-in-out infinite 0.15s" }} />
-        </div>
-      )}
-
       {/* Info */}
-      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 1 }}>
+      <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 11, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{trackTitle}</div>
-        <div style={{ fontSize: 9, color: C.t3, display: "flex", alignItems: "center", gap: 6 }}>
-          <span style={{ color: C.acc, cursor: "pointer" }}
-            onClick={onGoToPlaylist}
-            onMouseEnter={e => e.currentTarget.style.textDecoration = "underline"}
-            onMouseLeave={e => e.currentTarget.style.textDecoration = "none"}
-          >{playlist.icon} {playlist.name}</span>
-          <span>{"\u00b7"} {(playerIdx || 0) + 1}/{playlist.item_count || "?"}</span>
+        <div style={{ fontSize: 9, color: C.t3, display: "flex", gap: 6, alignItems: "center" }}>
+          {playlist && <span style={{ color: C.acc, cursor: "pointer" }} onClick={onGoToPlaylist}>{playlist.icon} {playlist.name}</span>}
+          <span>{"\u00b7"} {trackNum}/{trackTotal}</span>
         </div>
-        <div data-testid="player-progress" onClick={onSeek} style={{ width: "100%", height: 3, background: C.br, borderRadius: 2, cursor: "pointer", marginTop: 2 }}>
-          <div style={{ height: "100%", background: C.acc, borderRadius: 2, width: duration > 0 ? `${(currentTime / duration) * 100}%` : "0%", transition: "width 0.3s" }} />
+        <div data-testid="player-progress" onClick={onSeek} style={{ width: "100%", height: 3, background: C.br, borderRadius: 2, cursor: "pointer", marginTop: 2, overflow: "hidden" }}>
+          <div style={{ height: "100%", background: C.acc, borderRadius: 2, width: duration > 0 ? `${(currentTime / duration) * 100}%` : "0%", transition: "width .3s" }} />
         </div>
       </div>
-
       {/* Time */}
-      <span style={{ fontSize: 10, color: C.t4, fontFamily: FONT.mono, whiteSpace: "nowrap" }}>{fmtDur(currentTime)} / {fmtDur(duration)}</span>
-
-      {/* Queue toggle */}
-      {queueToggle}
+      <span style={{ fontSize: 10, color: C.t4, fontFamily: FONT.mono, whiteSpace: "nowrap" }}>
+        {isNon1 ? <><span style={{ color: C.t5, textDecoration: "line-through", marginRight: 3 }}>{fmtDur(duration)}</span>{fmtDur(duration ? Math.round(duration / speed) : 0)}</> : `${fmtDur(currentTime)} / ${fmtDur(duration)}`}
+      </span>
+      {/* Speed */}
+      <div style={{ position: "relative" }}>
+        <button onClick={e => { e.stopPropagation(); onToggleSpeedPop(); }} style={{ padding: "2px 6px", borderRadius: 4, border: `1px solid ${isNon1 ? C.abr : C.br}`, background: isNon1 ? C.abg : C.bg3, color: isNon1 ? C.acc : C.t2, fontSize: 10, fontWeight: 600, fontFamily: FONT.mono, cursor: "pointer", minWidth: 34, textAlign: "center" }}>{fmtSpeed(speed)}</button>
+        {speedOpen && <SpeedPopover speed={speed} onSetSpeed={onSetSpeed} onClose={onToggleSpeedPop} />}
+      </div>
+      {/* Queue peek */}
+      <div style={{ position: "relative" }}>
+        <button data-testid="queue-toggle" onClick={e => { e.stopPropagation(); onToggleQueuePeek(); }} style={{
+          width: 28, height: 26, borderRadius: 6, border: `1px solid ${queuePeek ? C.abr : C.br}`,
+          background: queuePeek ? C.abg : "transparent", color: queuePeek ? C.acc : C.t3,
+          fontSize: 11, display: "flex", alignItems: "center", justifyContent: "center", transition: ".1s", cursor: "pointer",
+        }}>{"\u2261"}</button>
+        {queuePeek && <QueuePeekPopover items={playerItems} playlist={playlist} playerIdx={playerIdx} onJumpTo={(idx) => { onToggleQueuePeek(); }} onClose={onToggleQueuePeek} />}
+      </div>
     </div>
   );
 }
 
-// ═══════════════════════════════════════════════════════════════
-// HOVER STYLES (injected CSS for pseudo-class effects)
-// ═══════════════════════════════════════════════════════════════
-const hoverCSS = `
-.doc-row-hover:hover .aud-icon-wrap .hover-play-overlay { display:flex !important; }
-.doc-row-hover:hover .dacts-btn { opacity:1; }
-.plrm-hover { transition: opacity 0.1s; }
-div:hover > .plrm-hover { opacity:1 !important; }
-.dwi-rm-hover { transition: opacity 0.1s; }
-div:hover > .dwi-rm-hover { opacity:1 !important; }
-`;
+// ═════════════════════════════════════════════════════════════
+// CREATE LIST MODAL
+// ═════════════════════════════════════════════════════════════
+function CreateListModal({ onClose, onCreate, presetType }) {
+  const [name, setName] = useState("");
+  const [type, setType] = useState(presetType || "collection");
+  const [icon, setIcon] = useState("\ud83d\udccc");
+  const inputRef = useRef(null);
+  useEffect(() => { inputRef.current?.focus(); }, []);
 
-// ═══════════════════════════════════════════════════════════════
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={onClose}>
+      <div style={{ background: C.bg1, border: `1px solid ${C.br}`, borderRadius: 12, width: 380, padding: 20, animation: "popIn .15s ease" }} onClick={e => e.stopPropagation()}>
+        <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 14 }}>Create new list</h3>
+        <label style={{ fontSize: 10, fontWeight: 600, color: C.t3, textTransform: "uppercase", letterSpacing: 0.5, display: "block", marginBottom: 4 }}>Type</label>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 6, marginBottom: 14 }}>
+          {[["collection", "\u25ce", "Collection", "Unordered group"], ["playlist", "\u266b", "Playlist", "Ordered, playable"], ["todo", "\u2610", "Action", "Due dates, done"]].map(([t, ic, lb, desc]) => (
+            <div key={t} onClick={() => setType(t)} style={{ padding: "10px 8px", borderRadius: 8, border: `1px solid ${type === t ? C.acc : C.br}`, background: type === t ? C.abg : C.bg3, cursor: "pointer", textAlign: "center", transition: ".12s" }}>
+              <div style={{ fontSize: 18, marginBottom: 3 }}>{ic}</div>
+              <div style={{ fontSize: 9, fontWeight: 600, color: C.t2 }}>{lb}</div>
+              <div style={{ fontSize: 8, color: C.t4, marginTop: 1 }}>{desc}</div>
+            </div>
+          ))}
+        </div>
+        <label style={{ fontSize: 10, fontWeight: 600, color: C.t3, textTransform: "uppercase", letterSpacing: 0.5, display: "block", marginBottom: 4 }}>Name</label>
+        <input ref={inputRef} type="text" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Weekend Deep Dives" style={{ width: "100%", padding: "7px 10px", borderRadius: 6, border: `1px solid ${C.br}`, background: C.bg3, color: C.t1, fontSize: 12, fontFamily: "inherit", outline: "none", marginBottom: 14 }} onFocus={e => e.target.style.borderColor = C.acc} onBlur={e => e.target.style.borderColor = C.br} />
+        <label style={{ fontSize: 10, fontWeight: 600, color: C.t3, textTransform: "uppercase", letterSpacing: 0.5, display: "block", marginBottom: 4 }}>Icon</label>
+        <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 18 }}>
+          {EMOJIS.map(ic => (
+            <div key={ic} onClick={() => setIcon(ic)} style={{ width: 30, height: 30, borderRadius: 6, border: `1px solid ${icon === ic ? C.acc : C.br}`, background: icon === ic ? C.abg : C.bg3, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, transition: ".1s" }}>{ic}</div>
+          ))}
+        </div>
+        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+          <button onClick={onClose} style={{ padding: "3px 8px", borderRadius: 5, border: `1px solid ${C.br}`, background: "transparent", color: C.t3, fontSize: 9, fontWeight: 600, fontFamily: "inherit", cursor: "pointer" }}>Cancel</button>
+          <button onClick={() => { if (name.trim()) onCreate({ name: name.trim(), type, icon }); }} style={{ padding: "5px 16px", borderRadius: 5, border: `1px solid ${C.acc}`, background: C.acc, color: C.bg0, fontSize: 10, fontWeight: 600, fontFamily: "inherit", cursor: "pointer" }}>Create</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═════════════════════════════════════════════════════════════
+// TOAST
+// ═════════════════════════════════════════════════════════════
+function ToastContainer({ toasts, onUndo, onDismiss }) {
+  if (!toasts.length) return null;
+  const t = toasts[toasts.length - 1];
+  return (
+    <div style={{ position: "fixed", bottom: 60, left: "50%", transform: "translateX(-50%)", zIndex: 200, pointerEvents: "auto" }}>
+      <div style={{ padding: "6px 10px 6px 14px", borderRadius: 8, background: C.bg4, border: `1px solid ${C.br3}`, fontSize: 11, fontWeight: 500, display: "flex", alignItems: "center", gap: 8, animation: "toastIn .2s ease", whiteSpace: "nowrap" }}>
+        <span>{t.message}</span>
+        {t.undoFn && <button onClick={() => onUndo(t.id)} style={{ padding: "2px 8px", borderRadius: 4, border: `1px solid ${C.abr}`, background: C.abg, color: C.acc, fontSize: 10, fontWeight: 600, cursor: "pointer", flexShrink: 0, marginLeft: "auto", fontFamily: "inherit" }}>Undo</button>}
+      </div>
+    </div>
+  );
+}
+
+// ═════════════════════════════════════════════════════════════
 // MAIN APP
-// ═══════════════════════════════════════════════════════════════
+// ═════════════════════════════════════════════════════════════
 function ReadcastApp() {
   // Data
   const [articles, setArticles] = useState([]);
   const [lists, setLists] = useState([]);
   const [voices, setVoices] = useState([]);
-  const [activeListId, setActiveListId] = useState(null);
   const [listItems, setListItems] = useState([]);
   const [focusedId, setFocusedId] = useState(null);
   const [search, setSearch] = useState("");
-  const [showCreateList, setShowCreateList] = useState(false);
 
-  // Nav state
-  const [navCollapsed, setNavCollapsed] = useState(false);
-  const [sections, setSections] = useState({ kb: true, action: true, lists: true });
+  // Navigation — type-based
+  const [railType, setRailType] = useState("all");
+  const [activeList, setActiveList] = useState(null);
+  const [editing, setEditing] = useState(false);
 
-  // Drawer state
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [drawerPlaylistId, setDrawerPlaylistId] = useState(null);
-  const [drawerItems, setDrawerItems] = useState([]);
-
-  // Audio playback
+  // Player
   const [playerPlaylistId, setPlayerPlaylistId] = useState(null);
   const [playerIdx, setPlayerIdx] = useState(0);
+  const [playerItems, setPlayerItems] = useState([]);
   const [audioState, setAudioState] = useState({ isPlaying: false, currentTime: 0, duration: 0 });
   const audioRef = useRef(null);
+  const [speed, setSpeed] = useState(1.0);
+  const [speedOpen, setSpeedOpen] = useState(false);
+  const [queuePeek, setQueuePeek] = useState(false);
 
-  // Popover state
-  const [atpPopover, setAtpPopover] = useState(null); // { docId, x, y }
-  const [playlistPicker, setPlaylistPicker] = useState(null); // { docId, x, y }
+  // Modals & toasts
+  const [showCreateList, setShowCreateList] = useState(false);
+  const [createListPresetType, setCreateListPresetType] = useState(null);
+  const [toasts, setToasts] = useState([]);
 
   // Computed
-  const activeList = useMemo(() => lists.find(l => l.id === activeListId) || null, [lists, activeListId]);
+  const activeListObj = useMemo(() => lists.find(l => l.id === activeList) || null, [lists, activeList]);
   const focusedArticle = useMemo(() => {
     if (!focusedId) return null;
     const fromItems = listItems.find(i => i.doc_id === focusedId || (i.article && i.article.id === focusedId));
     if (fromItems?.article) return fromItems.article;
     return articles.find(a => a.id === focusedId) || null;
   }, [focusedId, articles, listItems]);
-
-  // The playlist currently loaded in the player
   const playerPlaylist = useMemo(() => lists.find(l => l.id === playerPlaylistId) || null, [lists, playerPlaylistId]);
+  const nowPlayingArticle = useMemo(() => {
+    if (!playerPlaylistId || !playerItems.length) return null;
+    const item = playerItems[playerIdx];
+    return item?.article || null;
+  }, [playerPlaylistId, playerIdx, playerItems]);
 
-  // Playlists for drawer
-  const allPlaylists = useMemo(() => lists.filter(l => l.type === "playlist"), [lists]);
-
-  // The effective drawer playlist ID (defaults to player's playlist)
-  const effectiveDrawerPlaylistId = drawerPlaylistId || playerPlaylistId;
+  // ─── Toast helper ──────────────────────────────────────────
+  const addToast = useCallback((message, undoFn = null) => {
+    const id = Date.now();
+    setToasts(prev => [...prev, { id, message, undoFn }]);
+    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3500);
+  }, []);
+  const handleUndo = useCallback((toastId) => {
+    setToasts(prev => {
+      const t = prev.find(x => x.id === toastId);
+      if (t?.undoFn) t.undoFn();
+      return prev.filter(x => x.id !== toastId);
+    });
+  }, []);
 
   // ─── Data fetching ─────────────────────────────────────────
   const refreshArticles = useCallback(async (q = "") => {
@@ -1540,68 +921,44 @@ function ReadcastApp() {
       setArticles(data.articles || []);
     } catch {}
   }, []);
-
   const refreshLists = useCallback(async () => {
-    try {
-      const data = await apiGet("/api/lists");
-      setLists(data.lists || []);
-    } catch {}
+    try { const data = await apiGet("/api/lists"); setLists(data.lists || []); } catch {}
   }, []);
-
   const refreshListItems = useCallback(async (listId) => {
     if (!listId) { setListItems([]); return; }
-    try {
-      const data = await apiGet(`/api/lists/${listId}/items`);
-      setListItems(data.items || []);
-    } catch {}
+    try { const data = await apiGet(`/api/lists/${listId}/items`); setListItems(data.items || []); } catch {}
   }, []);
-
-  const refreshDrawerItems = useCallback(async (listId) => {
-    if (!listId) { setDrawerItems([]); return; }
-    try {
-      const data = await apiGet(`/api/lists/${listId}/items`);
-      setDrawerItems(data.items || []);
-    } catch {}
+  const refreshPlayerItems = useCallback(async (listId) => {
+    if (!listId) { setPlayerItems([]); return; }
+    try { const data = await apiGet(`/api/lists/${listId}/items`); setPlayerItems(data.items || []); } catch {}
   }, []);
-
   const refreshVoices = useCallback(async () => {
-    try {
-      const data = await apiGet("/api/voices");
-      setVoices(data.voices || []);
-    } catch {}
+    try { const data = await apiGet("/api/voices"); setVoices(data.voices || []); } catch {}
   }, []);
-
   const refreshAll = useCallback(async () => {
     await Promise.all([refreshArticles(search), refreshLists()]);
-    if (activeListId) await refreshListItems(activeListId);
-    if (effectiveDrawerPlaylistId) await refreshDrawerItems(effectiveDrawerPlaylistId);
-  }, [refreshArticles, refreshLists, refreshListItems, refreshDrawerItems, activeListId, effectiveDrawerPlaylistId, search]);
+    if (activeList) await refreshListItems(activeList);
+    if (playerPlaylistId) await refreshPlayerItems(playerPlaylistId);
+  }, [refreshArticles, refreshLists, refreshListItems, refreshPlayerItems, activeList, playerPlaylistId, search]);
 
-  // Initial load — auto-load first playlist into player (Spotify model)
-  useEffect(() => {
-    refreshArticles();
-    refreshVoices();
-    refreshLists().then(() => {});
-  }, []);
+  // Initial load
+  useEffect(() => { refreshArticles(); refreshLists(); refreshVoices(); }, []);
 
-  // Once lists load, auto-select first playlist into the player
+  // Auto-load first playlist into player
   useEffect(() => {
-    if (playerPlaylistId) return; // already loaded
+    if (playerPlaylistId) return;
     const firstPlaylist = lists.find(l => l.type === "playlist");
     if (firstPlaylist) {
       setPlayerPlaylistId(firstPlaylist.id);
-      setDrawerPlaylistId(firstPlaylist.id);
-      refreshDrawerItems(firstPlaylist.id);
+      refreshPlayerItems(firstPlaylist.id);
     }
   }, [lists]);
 
   // Reload list items when active list changes
-  useEffect(() => { refreshListItems(activeListId); }, [activeListId, refreshListItems]);
+  useEffect(() => { refreshListItems(activeList); }, [activeList, refreshListItems]);
 
-  // Reload drawer items when drawer playlist changes
-  useEffect(() => {
-    if (effectiveDrawerPlaylistId) refreshDrawerItems(effectiveDrawerPlaylistId);
-  }, [effectiveDrawerPlaylistId, refreshDrawerItems]);
+  // Reload player items when player playlist changes
+  useEffect(() => { if (playerPlaylistId) refreshPlayerItems(playerPlaylistId); }, [playerPlaylistId, refreshPlayerItems]);
 
   // Debounced search
   useEffect(() => {
@@ -1609,478 +966,288 @@ function ReadcastApp() {
     return () => clearTimeout(timeout);
   }, [search, refreshArticles]);
 
-  // Poll while any articles are processing
-  const hasActiveWork = articles.some(a => {
-    const rend = a.renditions || {};
-    const audio = rend.audio;
-    return audio && (audio.state === "queued" || audio.state === "generating");
-  });
-
+  // Auto-focus first article
   useEffect(() => {
-    if (!hasActiveWork) return;
-    const interval = setInterval(() => refreshAll(), 2000);
-    return () => clearInterval(interval);
-  }, [hasActiveWork, refreshAll]);
-
-  // Auto-focus first doc
-  useEffect(() => {
-    if (!focusedId && articles.length > 0) setFocusedId(articles[0].id);
+    if (articles.length > 0 && !focusedId) setFocusedId(articles[0].id);
   }, [articles, focusedId]);
 
-  // ─── Audio ─────────────────────────────────────────────────
+  // Audio event listeners
   useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
+    const audio = audioRef.current; if (!audio) return;
     const onTime = () => setAudioState(s => ({ ...s, currentTime: audio.currentTime }));
     const onMeta = () => setAudioState(s => ({ ...s, duration: audio.duration }));
     const onPlay = () => setAudioState(s => ({ ...s, isPlaying: true }));
     const onPause = () => setAudioState(s => ({ ...s, isPlaying: false }));
-    const onEnded = () => {
-      setAudioState(s => ({ ...s, isPlaying: false }));
-      // Auto-advance to next track
-      handlePlayerNext();
-    };
+    const onEnded = () => { setAudioState(s => ({ ...s, isPlaying: false })); handlePlayerNext(); };
     audio.addEventListener("timeupdate", onTime);
     audio.addEventListener("loadedmetadata", onMeta);
     audio.addEventListener("play", onPlay);
     audio.addEventListener("pause", onPause);
     audio.addEventListener("ended", onEnded);
-    return () => {
-      audio.removeEventListener("timeupdate", onTime);
-      audio.removeEventListener("loadedmetadata", onMeta);
-      audio.removeEventListener("play", onPlay);
-      audio.removeEventListener("pause", onPause);
-      audio.removeEventListener("ended", onEnded);
-    };
+    return () => { audio.removeEventListener("timeupdate", onTime); audio.removeEventListener("loadedmetadata", onMeta); audio.removeEventListener("play", onPlay); audio.removeEventListener("pause", onPause); audio.removeEventListener("ended", onEnded); };
   }, []);
 
-  // Load audio when player playlist or index changes
+  // Load audio when player index changes
   useEffect(() => {
-    if (!playerPlaylistId || !drawerItems.length) return;
-    const item = drawerItems[playerIdx];
-    if (!item?.article) return;
+    if (!playerPlaylistId || !playerItems.length) return;
+    const item = playerItems[playerIdx]; if (!item?.article) return;
     const rend = item.article.renditions || {};
     const rendition = item.use_summary ? rend.audio_summary : rend.audio;
     if (rendition && rendition.state === "ready" && item.article.audio_url) {
       const audio = audioRef.current;
       if (audio && !audio.src.endsWith(item.article.audio_url)) {
+        const shouldResume = wasPlayingRef.current;
         audio.src = item.article.audio_url;
         audio.load();
+        if (shouldResume) {
+          const onCanPlay = () => { audio.play().catch(() => {}); audio.removeEventListener("canplay", onCanPlay); };
+          audio.addEventListener("canplay", onCanPlay);
+        }
+        wasPlayingRef.current = false;
       }
     }
-  }, [playerPlaylistId, playerIdx, drawerItems]);
+  }, [playerPlaylistId, playerIdx, playerItems]);
 
-  // ─── Actions ───────────────────────────────────────────────
-  const handleSelectList = async (id) => {
-    setActiveListId(id);
-    setSearch("");
-    // If selecting a playlist, auto-load it into the player so bottom bar + drawer work
-    const list = lists.find(l => l.id === id);
+  // Apply playback speed
+  useEffect(() => { if (audioRef.current) audioRef.current.playbackRate = speed; }, [speed]);
+
+  // ─── Navigation handlers ───────────────────────────────────
+  const handleNavType = (typeKey) => {
+    setRailType(typeKey); setEditing(false); setSearch("");
+    if (typeKey === "all") { setActiveList(null); return; }
+    const matching = listsOfType(lists, typeKey);
+    setActiveList(matching.length === 1 ? matching[0].id : null);
+  };
+
+  const handleSelectList = (listId, navToType) => {
+    if (navToType) { handleNavType(navToType); return; }
+    setActiveList(listId); setEditing(false);
+    const list = lists.find(l => l.id === listId);
     if (list && list.type === "playlist") {
-      setPlayerPlaylistId(id);
+      setPlayerPlaylistId(listId);
       setPlayerIdx(0);
-      await refreshDrawerItems(id);
+      refreshPlayerItems(listId);
     }
+  };
+
+  const handleBackToChooser = () => { setActiveList(null); setEditing(false); };
+  const handleSelectDoc = (docId) => setFocusedId(docId);
+
+  // ─── Player handlers ──────────────────────────────────────
+  const handlePlayerToggle = () => {
+    const audio = audioRef.current; if (!audio) return;
+    if (audio.paused) audio.play().catch(() => {}); else audio.pause();
+  };
+  const wasPlayingRef = useRef(false);
+  const handlePlayerPrev = () => {
+    wasPlayingRef.current = !audioRef.current?.paused;
+    setPlayerIdx(i => Math.max(i - 1, 0));
+    setAudioState(s => ({ ...s, currentTime: 0 }));
+  };
+  const handlePlayerNext = () => {
+    wasPlayingRef.current = !audioRef.current?.paused;
+    setPlayerIdx(i => Math.min(i + 1, (playerItems.length || 1) - 1));
+    setAudioState(s => ({ ...s, currentTime: 0 }));
+  };
+  const handlePlayerSeek = (e) => {
+    const audio = audioRef.current; if (!audio || !audio.duration) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    audio.currentTime = ((e.clientX - rect.left) / rect.width) * audio.duration;
+  };
+  const handleCycleSpeed = () => { setSpeed(s => SPEEDS[(SPEEDS.indexOf(s) + 1) % SPEEDS.length]); };
+
+  // ─── List/doc handlers ─────────────────────────────────────
+  const handleToggleListMembership = async (docId, listId, isIn) => {
+    try {
+      if (isIn) {
+        await apiDelete(`/api/lists/${listId}/items/${docId}`);
+        const l = lists.find(x => x.id === listId);
+        addToast(`Removed from ${l?.name || "list"}`, async () => {
+          await apiJson(`/api/lists/${listId}/items`, "POST", { doc_id: docId });
+          await refreshAll();
+        });
+      } else {
+        await apiJson(`/api/lists/${listId}/items`, "POST", { doc_id: docId });
+        const l = lists.find(x => x.id === listId);
+        addToast(`Added to ${l?.name || "list"}`);
+      }
+      await refreshAll();
+    } catch {}
+  };
+
+  const handleToggleDone = async (item) => {
+    if (!activeList) return;
+    try {
+      await apiJson(`/api/lists/${activeList}/items/${item.doc_id}`, "PUT", { done: !item.done });
+      addToast(item.done ? "Marked as not done" : "Marked as done");
+      await refreshAll();
+    } catch {}
+  };
+
+  const handleRemoveFromList = async (docId, listId) => {
+    try {
+      await apiDelete(`/api/lists/${listId}/items/${docId}`);
+      const l = lists.find(x => x.id === listId);
+      addToast(`Removed from ${l?.name || "list"}`, async () => {
+        await apiJson(`/api/lists/${listId}/items`, "POST", { doc_id: docId });
+        await refreshAll();
+      });
+      await refreshAll();
+    } catch {}
+  };
+
+  const handlePlayNow = async (docId) => {
+    if (playerPlaylistId) {
+      const idx = playerItems.findIndex(i => (i.doc_id || i.article?.id) === docId);
+      if (idx >= 0) {
+        setPlayerIdx(idx);
+        setAudioState(s => ({ ...s, currentTime: 0 }));
+      }
+      setTimeout(() => { audioRef.current?.play().catch(() => {}); }, 100);
+    }
+  };
+
+  const handleLoadPlaylist = async (listId) => {
+    setPlayerPlaylistId(listId);
+    setPlayerIdx(0);
+    await refreshPlayerItems(listId);
+    setTimeout(() => { audioRef.current?.play().catch(() => {}); }, 200);
+  };
+
+  const handleBatchNarrate = async (listId) => {
+    try {
+      if (listId) {
+        await apiJson(`/api/lists/${listId}/batch-narrate`, "POST", {});
+      } else {
+        // Narrate all unnarrated articles
+        for (const a of articles) {
+          const r = (a.renditions || {}).audio;
+          if (!r || r.state !== "ready") {
+            await apiJson(`/api/docs/${a.id}/renditions/audio`, "POST", {});
+          }
+        }
+      }
+      addToast("Narration queued");
+      await refreshAll();
+    } catch {}
   };
 
   const handleCreateList = async (payload) => {
     try {
       const data = await apiJson("/api/lists", "POST", payload);
       await refreshLists();
-      if (data?.list?.id) setActiveListId(data.list.id);
-    } catch {}
-  };
-
-  const handleSelectDoc = (docId) => setFocusedId(docId);
-
-  const handleToggleDone = async (item) => {
-    if (!activeListId) return;
-    try {
-      await apiJson(`/api/lists/${activeListId}/items/${item.doc_id}`, "PUT", { done: !item.done });
-      await refreshListItems(activeListId);
-      await refreshLists();
-    } catch {}
-  };
-
-  const handleToggleListMembership = async (docId, listId, isIn) => {
-    try {
-      if (isIn) {
-        await apiDelete(`/api/lists/${listId}/items/${docId}`);
-      } else {
-        await apiJson(`/api/lists/${listId}/items`, "POST", { doc_id: docId });
+      if (data?.list?.id) {
+        const t = TYPES.find(x => x.listType === payload.type);
+        if (t) setRailType(t.key);
+        setActiveList(data.list.id);
       }
-      await refreshAll();
+      setShowCreateList(false);
+      addToast(`Created "${payload.name}"`);
     } catch {}
   };
 
-  const handleBatchNarrate = async () => {
-    if (!activeListId) return;
+  const handleDeleteList = async () => {
+    if (!activeList) return;
+    const l = lists.find(x => x.id === activeList);
+    if (!l || !confirm(`Delete "${l.name}"?`)) return;
     try {
-      await apiJson(`/api/lists/${activeListId}/batch-narrate`, "POST", {});
+      await apiDelete(`/api/lists/${activeList}`);
+      setActiveList(null); setEditing(false);
       await refreshAll();
+      addToast(`Deleted "${l.name}"`);
     } catch {}
-  };
-
-  const handlePlayerToggle = async () => {
-    const audio = audioRef.current;
-    if (!audio) return;
-    if (audio.paused) {
-      try { await audio.play(); } catch {}
-    } else {
-      audio.pause();
-    }
-  };
-
-  const handlePlayerSeek = (e) => {
-    const audio = audioRef.current;
-    if (!audio) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-    if (audio.duration) audio.currentTime = pct * audio.duration;
-  };
-
-  const handlePlayerPrev = () => {
-    setPlayerIdx(i => Math.max(0, i - 1));
-    setAudioState(s => ({ ...s, currentTime: 0 }));
-  };
-
-  const handlePlayerNext = () => {
-    setPlayerIdx(i => {
-      const max = (drawerItems.length || 1) - 1;
-      return Math.min(i + 1, max);
-    });
-    setAudioState(s => ({ ...s, currentTime: 0 }));
-  };
-
-  const handlePlayNow = async (docId) => {
-    // If we have a player playlist, add to it and play
-    if (playerPlaylistId) {
-      // Check if already in the playlist
-      const idx = drawerItems.findIndex(i => (i.doc_id || i.article?.id) === docId);
-      if (idx >= 0) {
-        setPlayerIdx(idx);
-        setAudioState(s => ({ ...s, currentTime: 0 }));
-      } else {
-        // Add to playlist after current track, then play
-        try {
-          await apiJson(`/api/lists/${playerPlaylistId}/items`, "POST", { doc_id: docId });
-          await refreshDrawerItems(playerPlaylistId);
-          await refreshAll();
-          setPlayerIdx(playerIdx + 1);
-          setAudioState(s => ({ ...s, currentTime: 0 }));
-        } catch {}
-      }
-      // Start playing
-      setTimeout(() => { audioRef.current?.play().catch(() => {}); }, 100);
-    } else {
-      // No playlist loaded - find first playlist and load it
-      const firstPlaylist = allPlaylists[0];
-      if (firstPlaylist) {
-        setPlayerPlaylistId(firstPlaylist.id);
-        setDrawerPlaylistId(firstPlaylist.id);
-        try {
-          await apiJson(`/api/lists/${firstPlaylist.id}/items`, "POST", { doc_id: docId });
-          await refreshDrawerItems(firstPlaylist.id);
-          await refreshAll();
-        } catch {}
-      }
-    }
-  };
-
-  const handleAddToQueue = async (docId) => {
-    if (!playerPlaylistId) {
-      // Auto-select first playlist
-      const firstPlaylist = allPlaylists[0];
-      if (!firstPlaylist) return;
-      setPlayerPlaylistId(firstPlaylist.id);
-      setDrawerPlaylistId(firstPlaylist.id);
-      setDrawerOpen(true);
-      try {
-        await apiJson(`/api/lists/${firstPlaylist.id}/items`, "POST", { doc_id: docId });
-        await refreshDrawerItems(firstPlaylist.id);
-        await refreshAll();
-      } catch {}
-      return;
-    }
-    // Check if already in queue
-    const already = drawerItems.some(i => (i.doc_id || i.article?.id) === docId);
-    if (already) return;
-    try {
-      await apiJson(`/api/lists/${playerPlaylistId}/items`, "POST", { doc_id: docId });
-      await refreshDrawerItems(playerPlaylistId);
-      await refreshAll();
-    } catch {}
-  };
-
-  const handleLoadPlaylist = async (listId) => {
-    setPlayerPlaylistId(listId);
-    setDrawerPlaylistId(listId);
-    setPlayerIdx(0);
-    setAudioState(s => ({ ...s, currentTime: 0 }));
-    await refreshDrawerItems(listId);
-    setDrawerOpen(true);
-    setTimeout(() => { audioRef.current?.play().catch(() => {}); }, 200);
-  };
-
-  const handleDrawerSwitchPlaylist = async (listId) => {
-    setDrawerPlaylistId(listId);
-    setPlayerPlaylistId(listId);
-    setPlayerIdx(0);
-    setAudioState(s => ({ ...s, currentTime: 0 }));
-    await refreshDrawerItems(listId);
-  };
-
-  const handleDrawerRemoveItem = async (docId) => {
-    if (!effectiveDrawerPlaylistId) return;
-    try {
-      await apiDelete(`/api/lists/${effectiveDrawerPlaylistId}/items/${docId}`);
-      await refreshDrawerItems(effectiveDrawerPlaylistId);
-      await refreshAll();
-    } catch {}
-  };
-
-  const handleDrawerReorder = async (fromIdx, toIdx) => {
-    if (!effectiveDrawerPlaylistId) return;
-    // Optimistic reorder
-    const newItems = [...drawerItems];
-    const [moved] = newItems.splice(fromIdx, 1);
-    newItems.splice(toIdx > fromIdx ? toIdx - 1 : toIdx, 0, moved);
-    setDrawerItems(newItems);
-    // Adjust player index
-    if (fromIdx === playerIdx) {
-      setPlayerIdx(toIdx > fromIdx ? toIdx - 1 : toIdx);
-    } else if (fromIdx < playerIdx && toIdx > playerIdx) {
-      setPlayerIdx(p => p - 1);
-    } else if (fromIdx > playerIdx && toIdx <= playerIdx) {
-      setPlayerIdx(p => p + 1);
-    }
-    // Persist to server
-    try {
-      const ids = newItems.map(i => i.doc_id || i.article?.id);
-      await apiJson(`/api/lists/${effectiveDrawerPlaylistId}/items/reorder`, "PUT", { ids });
-    } catch {}
-  };
-
-  const handleAddCurrentDocToDrawer = async () => {
-    if (!focusedId || !effectiveDrawerPlaylistId) return;
-    const already = drawerItems.some(i => (i.doc_id || i.article?.id) === focusedId);
-    if (already) return;
-    try {
-      await apiJson(`/api/lists/${effectiveDrawerPlaylistId}/items`, "POST", { doc_id: focusedId });
-      await refreshDrawerItems(effectiveDrawerPlaylistId);
-      await refreshAll();
-    } catch {}
-  };
-
-  const handleShowATP = (e, docId) => {
-    setAtpPopover({ docId, x: e.clientX, y: e.clientY });
-  };
-
-  const handleShowPlaylistPicker = (e, docId) => {
-    setPlaylistPicker({ docId, x: e.clientX, y: e.clientY });
   };
 
   const handleGoToPlaylist = () => {
     if (playerPlaylistId) {
-      setActiveListId(playerPlaylistId);
-      setSearch("");
+      const pl = lists.find(l => l.id === playerPlaylistId);
+      if (pl) {
+        const t = TYPES.find(x => x.listType === pl.type);
+        if (t) setRailType(t.key);
+        setActiveList(playerPlaylistId);
+      }
     }
   };
-
-  const handleToggleSection = (key) => {
-    setSections(s => ({ ...s, [key]: !s[key] }));
-  };
-
-  // Now playing article (for bottom bar)
-  const nowPlayingArticle = useMemo(() => {
-    if (!playerPlaylistId || !drawerItems.length) return null;
-    const item = drawerItems[playerIdx];
-    return item?.article || null;
-  }, [playerPlaylistId, playerIdx, drawerItems]);
 
   // ─── Keyboard shortcuts ────────────────────────────────────
   useEffect(() => {
     const handler = (e) => {
       if (isTypingTarget(e.target)) return;
-
-      const currentItems = activeListId ? listItems : articles;
-      const ids = activeListId
-        ? currentItems.map(i => i.doc_id || (i.article && i.article.id))
-        : currentItems.map(a => a.id);
+      const currentItems = activeList ? listItems : articles;
+      const ids = activeList ? currentItems.map(i => i.doc_id || (i.article && i.article.id)) : currentItems.map(a => a.id);
       const curIdx = ids.indexOf(focusedId);
 
-      if (e.key === "ArrowDown" || e.key === "j") {
-        e.preventDefault();
-        const next = Math.min(curIdx + 1, ids.length - 1);
-        if (ids[next]) setFocusedId(ids[next]);
-      }
-      if (e.key === "ArrowUp" || e.key === "k") {
-        e.preventDefault();
-        const prev = Math.max(curIdx - 1, 0);
-        if (ids[prev]) setFocusedId(ids[prev]);
-      }
-      if (e.key === "/") {
-        e.preventDefault();
-        document.querySelector("input[placeholder]")?.focus();
-      }
-      if (e.key === "Escape") {
-        if (atpPopover) { setAtpPopover(null); return; }
-        if (playlistPicker) { setPlaylistPicker(null); return; }
-        if (search) setSearch("");
-        if (showCreateList) setShowCreateList(false);
-      }
-      if (e.key === " " && playerPlaylistId) {
-        e.preventDefault();
-        handlePlayerToggle();
-      }
-      if (e.key === "n" && focusedId) {
-        apiJson(`/api/docs/${focusedId}/renditions/audio`, "POST", {}).then(() => refreshAll()).catch(() => {});
-      }
-      if (e.key === "e" && activeList?.type === "todo") {
-        const item = listItems.find(i => i.doc_id === focusedId);
-        if (item) handleToggleDone(item);
-      }
-      if (e.key === "[") {
-        setNavCollapsed(c => !c);
-      }
-      if (e.key === "]") {
-        setDrawerOpen(d => !d);
-      }
-      // Number keys to switch lists
-      const num = parseInt(e.key);
-      if (num >= 1 && num <= 9) {
-        const allListIds = [null, ...lists.map(l => l.id)];
-        if (num <= allListIds.length) handleSelectList(allListIds[num - 1]);
-      }
+      if (e.key === "ArrowDown" || e.key === "j") { e.preventDefault(); const next = Math.min(curIdx + 1, ids.length - 1); if (ids[next]) setFocusedId(ids[next]); }
+      if (e.key === "ArrowUp" || e.key === "k") { e.preventDefault(); const prev = Math.max(curIdx - 1, 0); if (ids[prev]) setFocusedId(ids[prev]); }
+      if (e.key === "/") { e.preventDefault(); document.querySelector("input[placeholder]")?.focus(); }
+      if (e.key === "Escape") { if (search) setSearch(""); if (showCreateList) setShowCreateList(false); }
+      if (e.key === " " && playerPlaylistId) { e.preventDefault(); handlePlayerToggle(); }
+      if (e.key === "]") { setQueuePeek(q => !q); setSpeedOpen(false); }
     };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [focusedId, activeListId, listItems, articles, lists, search, showCreateList, activeList, atpPopover, playlistPicker, playerPlaylistId]);
+  }, [focusedId, activeList, listItems, articles, search, showCreateList, playerPlaylistId]);
 
-  // Get the focused article's memberships for popovers
-  const atpArticle = useMemo(() => {
-    if (!atpPopover) return null;
-    const fromItems = listItems.find(i => (i.doc_id === atpPopover.docId) || (i.article && i.article.id === atpPopover.docId));
-    if (fromItems?.article) return fromItems.article;
-    return articles.find(a => a.id === atpPopover.docId) || null;
-  }, [atpPopover, articles, listItems]);
-
-  const pickerArticle = useMemo(() => {
-    if (!playlistPicker) return null;
-    const fromItems = listItems.find(i => (i.doc_id === playlistPicker.docId) || (i.article && i.article.id === playlistPicker.docId));
-    if (fromItems?.article) return fromItems.article;
-    return articles.find(a => a.id === playlistPicker.docId) || null;
-  }, [playlistPicker, articles, listItems]);
-
+  // ─── Render ────────────────────────────────────────────────
   return (
     <>
       <style>{globalCSS}</style>
-      <style>{hoverCSS}</style>
       <audio data-testid="audio-element" ref={audioRef} preload="metadata" />
 
-      {/* Main app area: flex row, flex:1 */}
+      {/* Main area */}
       <div id="app" style={{ display: "flex", flex: 1, overflow: "hidden" }}>
-        {/* Nav rail (when collapsed) */}
-        {navCollapsed && (
-          <NavRail lists={lists} activeListId={activeListId}
-            onSelectList={handleSelectList}
-            onExpandNav={() => setNavCollapsed(false)} />
-        )}
+        <NavRail railType={railType} onNavType={handleNavType} lists={lists} />
 
-        {/* Nav sidebar */}
-        <NavSidebar lists={lists} activeListId={activeListId} totalCount={articles.length}
-          onSelectList={handleSelectList} onCreateList={() => setShowCreateList(true)}
-          collapsed={navCollapsed} onToggleCollapse={() => setNavCollapsed(true)}
-          playerPlaylistId={playerPlaylistId} isPlaying={audioState.isPlaying}
-          sections={sections} onToggleSection={handleToggleSection} />
-
-        {/* Center panel */}
         <CenterPanel
-          activeList={activeList} articles={articles} listItems={listItems}
-          focusedId={focusedId} onSelectDoc={handleSelectDoc} search={search} onSearchChange={setSearch}
-          onPlayNow={handlePlayNow} onAddToQueue={handleAddToQueue} onShowATP={handleShowATP}
+          railType={railType} activeList={activeList} lists={lists} articles={articles}
+          listItems={listItems} focusedId={focusedId} search={search}
+          onSelectDoc={handleSelectDoc} onSearchChange={setSearch}
+          onSelectList={handleSelectList} onBackToChooser={handleBackToChooser}
+          onCreateList={(presetType) => { setCreateListPresetType(presetType); setShowCreateList(true); }}
           playerPlaylistId={playerPlaylistId} playerIdx={playerIdx}
           isPlaying={audioState.isPlaying}
           audioCurrentTime={audioState.currentTime} audioDuration={audioState.duration}
           onPlayerToggle={handlePlayerToggle} onPlayerSeek={handlePlayerSeek}
           onPlayerPrev={handlePlayerPrev} onPlayerNext={handlePlayerNext}
           onBatchNarrate={handleBatchNarrate} onLoadPlaylist={handleLoadPlaylist}
-          onToggleDone={handleToggleDone} onToggleDrawer={() => setDrawerOpen(d => !d)}
+          onToggleDone={handleToggleDone} onPlayNow={handlePlayNow} onAddToQueue={() => {}}
+          editing={editing} onToggleEditing={() => setEditing(e => !e)}
+          onRenameList={() => {}} onDeleteList={handleDeleteList}
+          speed={speed} onCycleSpeed={handleCycleSpeed}
+          onRemoveFromList={handleRemoveFromList}
         />
 
-        {/* Detail panel */}
         <DetailPanel
           article={focusedArticle} lists={lists} voices={voices}
           onRefresh={refreshAll} onToggleListMembership={handleToggleListMembership}
-          onPlayNow={handlePlayNow} onAddToQueue={handleAddToQueue}
-          onShowPlaylistPicker={handleShowPlaylistPicker}
-          playerPlaylistId={playerPlaylistId}
-        />
-
-        {/* Right drawer — sibling of nav/center/detail so all panels compress */}
-        <RightDrawer
-          open={drawerOpen && allPlaylists.length > 0}
-          playlists={allPlaylists}
-          activePlaylistId={effectiveDrawerPlaylistId}
-          playlistItems={drawerItems}
-          playerIdx={playerIdx}
-          focusedId={focusedId}
-          onClose={() => setDrawerOpen(false)}
-          onSwitchPlaylist={handleDrawerSwitchPlaylist}
-          onSelectDoc={handleSelectDoc}
-          onRemoveItem={handleDrawerRemoveItem}
-          onReorder={handleDrawerReorder}
-          onAddCurrentDoc={handleAddCurrentDocToDrawer}
+          onPlayNow={handlePlayNow} playerPlaylistId={playerPlaylistId}
         />
       </div>
 
-      {/* Bottom bar (outside #app, at viewport bottom) */}
-      <div id="bbar-container" style={{ flexShrink: 0 }}>
-        <BottomBar
-          article={nowPlayingArticle}
-          playlist={playerPlaylist}
-          isPlaying={audioState.isPlaying}
-          currentTime={audioState.currentTime}
-          duration={audioState.duration}
-          playerIdx={playerIdx}
-          drawerOpen={drawerOpen}
-          onTogglePlay={handlePlayerToggle}
-          onPrev={handlePlayerPrev}
-          onNext={handlePlayerNext}
-          onSeek={handlePlayerSeek}
-          onToggleDrawer={() => setDrawerOpen(d => !d)}
-          onGoToPlaylist={handleGoToPlaylist}
-        />
-      </div>
+      {/* Player bar */}
+      <BottomBar
+        article={nowPlayingArticle} playlist={playerPlaylist}
+        isPlaying={audioState.isPlaying} currentTime={audioState.currentTime}
+        duration={audioState.duration} playerIdx={playerIdx} playerItems={playerItems}
+        speed={speed} speedOpen={speedOpen} queuePeek={queuePeek}
+        onTogglePlay={handlePlayerToggle} onPrev={handlePlayerPrev} onNext={handlePlayerNext}
+        onSeek={handlePlayerSeek}
+        onToggleQueuePeek={() => { setQueuePeek(q => !q); setSpeedOpen(false); }}
+        onToggleSpeedPop={() => { setSpeedOpen(s => !s); setQueuePeek(false); }}
+        onSetSpeed={(s) => { setSpeed(s); setSpeedOpen(false); }}
+        onGoToPlaylist={handleGoToPlaylist}
+      />
 
-      {/* Modals / Popovers */}
-      {showCreateList && <CreateListModal onClose={() => setShowCreateList(false)} onCreate={handleCreateList} />}
+      {/* Modals */}
+      {showCreateList && <CreateListModal onClose={() => setShowCreateList(false)} onCreate={handleCreateList} presetType={createListPresetType} />}
 
-      {atpPopover && atpArticle && (
-        <AddToListPopover
-          docId={atpPopover.docId} x={atpPopover.x} y={atpPopover.y}
-          lists={lists} docTitle={atpArticle.title}
-          articleMemberships={atpArticle.list_memberships}
-          onToggle={handleToggleListMembership}
-          onClose={() => setAtpPopover(null)}
-          onCreateList={() => { setAtpPopover(null); setShowCreateList(true); }}
-        />
-      )}
-
-      {playlistPicker && pickerArticle && (
-        <PlaylistPickerPopover
-          docId={playlistPicker.docId} x={playlistPicker.x} y={playlistPicker.y}
-          lists={lists} articleMemberships={pickerArticle.list_memberships}
-          onToggle={handleToggleListMembership}
-          onClose={() => setPlaylistPicker(null)}
-          onCreateList={() => { setPlaylistPicker(null); setShowCreateList(true); }}
-        />
-      )}
+      {/* Toasts */}
+      <ToastContainer toasts={toasts} onUndo={handleUndo} onDismiss={(id) => setToasts(prev => prev.filter(t => t.id !== id))} />
     </>
   );
 }
 
-// ─── Scroll passthrough for WKWebView/Tauri ────────────────
+// ─── Scroll passthrough for WKWebView ───────────────────────
 document.addEventListener("wheel", (e) => { e.stopPropagation(); }, { passive: true, capture: false });
 
 // ─── Mount ──────────────────────────────────────────────────

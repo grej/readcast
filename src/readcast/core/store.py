@@ -639,17 +639,17 @@ class Store:
             return renditions
         # Backwards compat: build renditions from old flat fields
         audio = None
-        status = meta.get("status", "queued")
-        if status == "done" and meta.get("audio_duration_sec"):
+        status = meta.get("status")
+        if meta.get("audio_duration_sec") and status in ("done", None):
             audio = {
                 "state": "ready",
                 "duration": meta.get("audio_duration_sec"),
                 "voice": meta.get("voice"),
-                "generated_at": meta.get("listened_at"),  # best approximation
+                "generated_at": meta.get("listened_at"),
             }
-        elif status in ("queued", "synthesizing"):
+        elif status == "synthesizing":
             audio = {
-                "state": "queued" if status == "queued" else "generating",
+                "state": "generating",
                 "voice": meta.get("voice"),
                 "duration": None,
                 "generated_at": None,
