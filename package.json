@@ -6,7 +6,7 @@
     "build:frontend": "node scripts/build-frontend.mjs"
   },
   "dependencies": {
-    "react": "^18.3.1",
+    "react": "^19.2.5",
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
