@@ -47,7 +47,7 @@ dev = [
   "pytest-cov>=5.0",
   "ruff>=0.5",
   "build>=1.2",
-  "hatchling>=1.27",
+  "hatchling>=1.29.0",
 ]
 
 [project.scripts]
