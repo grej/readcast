@@ -99,7 +99,7 @@ def test_api_status_and_voices(monkeypatch, base_dir) -> None:
     app = create_app(base_dir)
     with TestClient(app) as client:
         monkeypatch.setattr("readcast.api.app.ReadcastService.daemon_status", lambda self: {"model": "kokoro-82m"})
-        monkeypatch.setattr("readcast.api.app.ensure_server_running", lambda config: {"model": "kokoro-82m"})
+        monkeypatch.setattr("readcast.api.app.ReadcastService.ensure_server_running", lambda self: {"model": "kokoro-82m"})
         monkeypatch.setattr(
             "readcast.api.app.ReadcastService.available_voices",
             lambda self: [{"name": "af_sky"}, {"name": "af_heart"}],
@@ -117,7 +117,7 @@ def test_api_status_and_voices(monkeypatch, base_dir) -> None:
 def test_api_preferences_round_trip_and_drive_new_articles(monkeypatch, base_dir) -> None:
     app = create_app(base_dir)
     with TestClient(app) as client:
-        monkeypatch.setattr("readcast.api.app.ensure_server_running", lambda config: {"model": "kokoro-82m"})
+        monkeypatch.setattr("readcast.api.app.ReadcastService.ensure_server_running", lambda self: {"model": "kokoro-82m"})
         monkeypatch.setattr(
             "readcast.api.app.ReadcastService.available_voices",
             lambda self: [{"name": "af_sky"}, {"name": "af_heart"}],
@@ -386,7 +386,10 @@ def test_api_renditions_endpoint(base_dir) -> None:
 def test_api_search_returns_matching_articles(base_dir) -> None:
     app = create_app(base_dir)
     with TestClient(app) as client:
-        client.post("/api/articles", json={"input": "Quantum computing breakthrough\n\nNew research in quantum entanglement.", "process": False})
+        client.post(
+            "/api/articles",
+            json={"input": "Quantum computing breakthrough\n\nNew research in quantum entanglement.", "process": False},
+        )
         client.post("/api/articles", json={"input": "Cooking pasta\n\nBoil water and add salt.", "process": False})
 
         response = client.get("/api/articles?q=quantum")

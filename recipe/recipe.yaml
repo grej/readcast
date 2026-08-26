@@ -27,7 +27,7 @@ requirements:
     - hatchling
   run:
     - python >=3.11
-    - kokoro-edge >=0.1.1
+    - kokoro-edge >=0.2.0
     - ffmpeg
     - httpx >=0.27
     - readability-lxml >=0.8

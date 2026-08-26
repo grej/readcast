@@ -21,6 +21,15 @@ def _wav_bytes(duration: float = 0.1) -> bytes:
     return buffer.getvalue()
 
 
+class FakeTTSRuntime:
+    def ensure_running(self) -> dict[str, object]:
+        return {"model": "kokoro-82m"}
+
+
+def _service_with_tts(base_dir) -> ReadcastService:
+    return ReadcastService(Config.load(base_dir), tts_client=object(), tts_runtime=FakeTTSRuntime())
+
+
 def test_add_text_dedupes_within_window(base_dir) -> None:
     service = ReadcastService(Config.load(base_dir))
 
@@ -113,13 +122,11 @@ def test_preview_input_for_url_uses_extractor(monkeypatch, base_dir) -> None:
 
 
 def test_process_article_removes_segments_after_success(monkeypatch, base_dir) -> None:
-    service = ReadcastService(Config.load(base_dir))
+    service = _service_with_tts(base_dir)
     added = service.add_text("Cleanup title\n\nParagraph one.\n\nParagraph two.")
     article_dir = service.store.get_article_dir(added.article.id)
 
-    monkeypatch.setattr("readcast.services.ensure_server_running", lambda config: {"model": "kokoro-82m"})
-
-    def fake_synthesize(segments, article_dir: Path, config, progress=None):
+    def fake_synthesize(segments, article_dir: Path, config, progress=None, *, tts_client):
         segments_dir = article_dir / "segments"
         segments_dir.mkdir(parents=True, exist_ok=True)
         (segments_dir / "seg_000.wav").write_bytes(_wav_bytes())
@@ -140,13 +147,11 @@ def test_process_article_removes_segments_after_success(monkeypatch, base_dir) -
 
 
 def test_process_article_keeps_segments_on_failure(monkeypatch, base_dir) -> None:
-    service = ReadcastService(Config.load(base_dir))
+    service = _service_with_tts(base_dir)
     added = service.add_text("Failure title\n\nParagraph one.\n\nParagraph two.")
     article_dir = service.store.get_article_dir(added.article.id)
 
-    monkeypatch.setattr("readcast.services.ensure_server_running", lambda config: {"model": "kokoro-82m"})
-
-    def fake_synthesize(segments, article_dir: Path, config, progress=None):
+    def fake_synthesize(segments, article_dir: Path, config, progress=None, *, tts_client):
         segments_dir = article_dir / "segments"
         segments_dir.mkdir(parents=True, exist_ok=True)
         (segments_dir / "seg_000.wav").write_bytes(_wav_bytes())
@@ -186,14 +191,12 @@ def test_cancel_article_rejects_non_processing_status(base_dir) -> None:
 
 
 def test_remove_audio_deletes_files_and_resets_status(monkeypatch, base_dir) -> None:
-    service = ReadcastService(Config.load(base_dir))
+    service = _service_with_tts(base_dir)
     added = service.add_text("Audio title\n\nParagraph one.\n\nParagraph two.")
     article_dir = service.store.get_article_dir(added.article.id)
 
     # Simulate completed synthesis
-    monkeypatch.setattr("readcast.services.ensure_server_running", lambda config: {"model": "kokoro-82m"})
-
-    def fake_synthesize(segments, article_dir: Path, config, progress=None):
+    def fake_synthesize(segments, article_dir: Path, config, progress=None, *, tts_client):
         audio_path = article_dir / "audio.mp3"
         audio_path.write_bytes(_wav_bytes())
         return audio_path
@@ -223,14 +226,12 @@ def test_remove_audio_from_article_without_audio(base_dir) -> None:
 
 
 def test_processing_worker_skips_cancelled_articles(monkeypatch, base_dir) -> None:
-    service = ReadcastService(Config.load(base_dir))
+    service = _service_with_tts(base_dir)
     added = service.add_text("Worker cancel\n\nParagraph body.")
-
-    monkeypatch.setattr("readcast.services.ensure_server_running", lambda config: {"model": "kokoro-82m"})
 
     processed_ids: list[str] = []
 
-    def fake_synthesize(segments, article_dir: Path, config, progress=None):
+    def fake_synthesize(segments, article_dir: Path, config, progress=None, *, tts_client):
         # Record which articles get processed
         processed_ids.append(article_dir.name)
         audio_path = article_dir / "audio.mp3"

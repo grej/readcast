@@ -4,6 +4,7 @@ from dataclasses import asdict, dataclass, field, fields
 from pathlib import Path
 import json
 import tomllib
+import warnings
 
 
 DEFAULT_PUBLICATIONS = {
@@ -36,6 +37,8 @@ class TTSConfig:
 
 @dataclass(slots=True)
 class KokoroEdgeConfig:
+    """Deprecated readcast-owned runtime settings kept for migration only."""
+
     server_url: str = "http://127.0.0.1:7777"
     binary: str = "kokoro-edge"
     auto_start: bool = True
@@ -103,6 +106,7 @@ class Config:
         config.readcast = ReadcastConfig(**{**asdict(config.readcast), **readcast_data})
         config.tts = TTSConfig(**{**asdict(config.tts), **tts_data})
         config.kokoro_edge = KokoroEdgeConfig(**{**asdict(config.kokoro_edge), **kokoro_edge_data})
+        _warn_about_legacy_kokoro_edge(kokoro_edge_data)
         config.web = WebConfig(**{**asdict(config.web), **web_data})
         config.extraction = ExtractionConfig(
             publications={**DEFAULT_PUBLICATIONS, **extraction_data.get("publications", {})}
@@ -121,6 +125,11 @@ class Config:
         section_name, _, field_name = dotted_key.partition(".")
         if not section_name or not field_name:
             raise KeyError("Config keys must use section.key format")
+        if section_name == "kokoro_edge":
+            raise KeyError(
+                "kokoro_edge runtime settings moved to ~/.localknowledge/config.toml; "
+                "set the corresponding tts key there"
+            )
 
         section = getattr(self, section_name, None)
         if section is None or not hasattr(section, field_name):
@@ -134,7 +143,6 @@ class Config:
         return {
             "readcast": asdict(self.readcast),
             "tts": asdict(self.tts),
-            "kokoro_edge": asdict(self.kokoro_edge),
             "web": asdict(self.web),
             "extraction": {"publications": dict(self.extraction.publications)},
             "llm": asdict(self.llm),
@@ -155,13 +163,6 @@ class Config:
         lines.append(f'language = {json.dumps(self.tts.language)}')
         lines.append(f"max_chunk_chars = {self.tts.max_chunk_chars}")
         lines.append(f'audio_format = {json.dumps(self.tts.audio_format)}')
-        lines.append("")
-
-        lines.append("[kokoro_edge]")
-        lines.append(f'server_url = {json.dumps(self.kokoro_edge.server_url)}')
-        lines.append(f'binary = {json.dumps(self.kokoro_edge.binary)}')
-        lines.append(f"auto_start = {str(self.kokoro_edge.auto_start).lower()}")
-        lines.append(f"startup_timeout_sec = {self.kokoro_edge.startup_timeout_sec}")
         lines.append("")
 
         lines.append("[web]")
@@ -224,3 +225,29 @@ def _migrate_tts_data(values: dict[str, object]) -> dict[str, object]:
         tts_data["voice"] = DEFAULT_TTS_VOICE
 
     return _known_fields(TTSConfig, tts_data)
+
+
+def _warn_about_legacy_kokoro_edge(values: dict[str, object]) -> None:
+    if not values:
+        return
+
+    defaults = KokoroEdgeConfig()
+    custom_keys: list[str] = []
+    server_url = values.get("server_url")
+    if server_url and server_url not in {defaults.server_url, "http://localhost:7777"}:
+        custom_keys.append("server_url")
+    for key in ("binary", "auto_start", "startup_timeout_sec"):
+        if key in values and values[key] != getattr(defaults, key):
+            custom_keys.append(key)
+
+    if not custom_keys:
+        return
+
+    keys = ", ".join(f"kokoro_edge.{key}" for key in custom_keys)
+    target_keys = ", ".join(f"tts.{key}" for key in custom_keys)
+    warnings.warn(
+        f"Readcast configuration {keys} is deprecated; configure the shared "
+        f"Local Knowledge {target_keys} instead. Readcast will not modify that file.",
+        DeprecationWarning,
+        stacklevel=2,
+    )

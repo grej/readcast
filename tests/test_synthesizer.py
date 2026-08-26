@@ -3,9 +3,9 @@ from __future__ import annotations
 from io import BytesIO
 import json
 from pathlib import Path
+from typing import Callable
 import wave
 
-import httpx
 from mutagen import File as MutagenFile
 import pytest
 
@@ -71,12 +71,28 @@ def _article(article_id: str = "art12345") -> Article:
     )
 
 
-def _json_response(status_code: int, payload: dict[str, object]) -> httpx.Response:
-    return httpx.Response(status_code, json=payload)
+class FakeTTSClient:
+    def __init__(
+        self,
+        *,
+        voices: list[dict[str, object]] | None = None,
+        handler: Callable[[str, dict[str, object]], bytes] | None = None,
+    ) -> None:
+        self.voices = voices or [{"name": "af_sky"}, {"name": "af_heart"}]
+        self.handler = handler
+        self.voice_calls = 0
+        self.speech_calls: list[dict[str, object]] = []
 
+    def fetch_voices(self) -> list[dict[str, object]]:
+        self.voice_calls += 1
+        return self.voices
 
-def _wav_response() -> httpx.Response:
-    return httpx.Response(200, content=_wav_bytes())
+    def synthesize_text(self, text: str, **kwargs: object) -> bytes:
+        payload = {"input": text, **kwargs}
+        self.speech_calls.append(payload)
+        if self.handler is not None:
+            return self.handler(text, payload)
+        return _wav_bytes()
 
 
 def test_synthesize_creates_audio_and_tags(monkeypatch, base_dir: Path) -> None:
@@ -90,33 +106,19 @@ def test_synthesize_creates_audio_and_tags(monkeypatch, base_dir: Path) -> None:
         TTSSegment(idx=2, text="Charlie.", source_chunk_idx=4, source_chunk_end_idx=4),
     ]
     recorder = Recorder()
-    post_calls: list[dict[str, object]] = []
-    get_calls: list[str] = []
+    client = FakeTTSClient()
 
-    def fake_get(url: str, timeout: float) -> httpx.Response:
-        get_calls.append(url)
-        if url.endswith("/v1/voices"):
-            return _json_response(200, {"voices": [{"name": "af_sky"}, {"name": "af_heart"}]})
-        raise AssertionError(f"Unexpected GET {url}")
-
-    def fake_post(url: str, json: dict[str, object], timeout: float) -> httpx.Response:
-        post_calls.append({"url": url, "json": json, "timeout": timeout})
-        return _wav_response()
-
-    monkeypatch.setattr("readcast.core.synthesizer.httpx.get", fake_get)
-    monkeypatch.setattr("readcast.core.synthesizer.httpx.post", fake_post)
-
-    audio_path = synthesize(segments, article_dir, config, progress=recorder)
+    audio_path = synthesize(segments, article_dir, config, progress=recorder, tts_client=client)
 
     assert audio_path.exists()
     assert recorder.progress_calls == [(1, 3), (2, 3), (3, 3)]
     assert recorder.completed is True
-    assert get_calls == ["http://127.0.0.1:7777/v1/voices"]
-    assert len(post_calls) == 3
-    assert all(call["json"]["model"] == "kokoro-82m" for call in post_calls)
-    assert all(call["json"]["voice"] == config.tts.voice for call in post_calls)
-    assert all(call["json"]["language"] == config.tts.language for call in post_calls)
-    assert all(call["json"]["response_format"] == "wav" for call in post_calls)
+    assert client.voice_calls == 1
+    assert len(client.speech_calls) == 3
+    assert all(call["model"] == "kokoro-82m" for call in client.speech_calls)
+    assert all(call["voice"] == config.tts.voice for call in client.speech_calls)
+    assert all(call["language"] == config.tts.language for call in client.speech_calls)
+    assert all(call["response_format"] == "wav" for call in client.speech_calls)
     tags = MutagenFile(audio_path, easy=True)
     assert tags is not None
     assert tags["title"] == ["Synth Test"]
@@ -131,13 +133,10 @@ def test_synthesize_rejects_invalid_voice_from_server_inventory(monkeypatch, bas
     (article_dir / "meta.json").write_text(json.dumps(_article().to_dict()), encoding="utf-8")
     segments = [TTSSegment(idx=0, text="Alpha.", source_chunk_idx=0)]
 
-    monkeypatch.setattr(
-        "readcast.core.synthesizer.httpx.get",
-        lambda url, timeout: _json_response(200, {"voices": [{"name": "af_sky"}]}),
-    )
+    client = FakeTTSClient(voices=[{"name": "af_sky"}])
 
     with pytest.raises(SynthesisError) as excinfo:
-        synthesize(segments, article_dir, config)
+        synthesize(segments, article_dir, config, tts_client=client)
 
     assert "Voice 'invalid_voice' is not supported" in str(excinfo.value)
 
@@ -149,25 +148,17 @@ def test_synthesize_retries_once_and_surfaces_input_snippet(monkeypatch, base_di
     (article_dir / "meta.json").write_text(json.dumps(_article().to_dict()), encoding="utf-8")
     text = "Alpha beta gamma delta epsilon zeta eta theta iota kappa lambda mu."
     segments = [TTSSegment(idx=0, text=text, source_chunk_idx=0)]
-    attempts: list[dict[str, object]] = []
+    def fail(_text: str, _payload: dict[str, object]) -> bytes:
+        raise SynthesisError("daemon exploded")
 
-    monkeypatch.setattr(
-        "readcast.core.synthesizer.httpx.get",
-        lambda url, timeout: _json_response(200, {"voices": [{"name": "af_sky"}]}),
-    )
-
-    def fake_post(url: str, json: dict[str, object], timeout: float) -> httpx.Response:
-        attempts.append(json)
-        return _json_response(500, {"message": "daemon exploded"})
-
-    monkeypatch.setattr("readcast.core.synthesizer.httpx.post", fake_post)
+    client = FakeTTSClient(handler=fail)
 
     with pytest.raises(SynthesisError) as excinfo:
-        synthesize(segments, article_dir, config)
+        synthesize(segments, article_dir, config, tts_client=client)
 
-    assert len(attempts) > 2
-    assert attempts[0]["input"] == text
-    assert attempts[1]["input"] == text
+    assert len(client.speech_calls) > 2
+    assert client.speech_calls[0]["input"] == text
+    assert client.speech_calls[1]["input"] == text
     assert "daemon exploded" in str(excinfo.value)
     assert "segment 0" in str(excinfo.value)
     assert "(input:" in str(excinfo.value)
@@ -180,17 +171,11 @@ def test_synthesize_does_not_write_json_error_body_as_wav(monkeypatch, base_dir:
     (article_dir / "meta.json").write_text(json.dumps(_article().to_dict()), encoding="utf-8")
     segments = [TTSSegment(idx=0, text="Alpha.", source_chunk_idx=0)]
 
-    monkeypatch.setattr(
-        "readcast.core.synthesizer.httpx.get",
-        lambda url, timeout: _json_response(200, {"voices": [{"name": "af_sky"}]}),
-    )
-    monkeypatch.setattr(
-        "readcast.core.synthesizer.httpx.post",
-        lambda url, json, timeout: _json_response(400, {"message": "Unknown voice"}),
-    )
+    def fail(_text: str, _payload: dict[str, object]) -> bytes:
+        raise SynthesisError("Unknown voice")
 
     with pytest.raises(SynthesisError):
-        synthesize(segments, article_dir, config)
+        synthesize(segments, article_dir, config, tts_client=FakeTTSClient(handler=fail))
 
     assert not any((article_dir / "segments").glob("*.wav"))
 
@@ -208,22 +193,15 @@ def test_synthesize_splits_failed_grouped_request_into_smaller_parts(monkeypatch
             source_chunk_end_idx=2,
         )
     ]
-    attempts: list[str] = []
+    def fail_group(text: str, _payload: dict[str, object]) -> bytes:
+        if text == "Title\n\nFirst paragraph.\n\nSecond paragraph.":
+            raise SynthesisError("too big")
+        return _wav_bytes()
 
-    monkeypatch.setattr(
-        "readcast.core.synthesizer.httpx.get",
-        lambda url, timeout: _json_response(200, {"voices": [{"name": "af_sky"}]}),
-    )
+    client = FakeTTSClient(handler=fail_group)
 
-    def fake_post(url: str, json: dict[str, object], timeout: float) -> httpx.Response:
-        attempts.append(str(json["input"]))
-        if json["input"] == "Title\n\nFirst paragraph.\n\nSecond paragraph.":
-            return _json_response(500, {"message": "too big"})
-        return _wav_response()
-
-    monkeypatch.setattr("readcast.core.synthesizer.httpx.post", fake_post)
-
-    audio_path = synthesize(segments, article_dir, config)
+    audio_path = synthesize(segments, article_dir, config, tts_client=client)
+    attempts = [str(call["input"]) for call in client.speech_calls]
 
     assert audio_path.exists()
     assert attempts.count("Title\n\nFirst paragraph.\n\nSecond paragraph.") == 2
@@ -237,26 +215,15 @@ def test_synthesize_falls_back_to_sentence_splitting_when_single_paragraph_fails
     article_dir.mkdir(parents=True)
     (article_dir / "meta.json").write_text(json.dumps(_article().to_dict()), encoding="utf-8")
     segments = [TTSSegment(idx=0, text=FAILING_PASSAGE_COMBINED, source_chunk_idx=0, source_chunk_end_idx=0)]
-    attempts: list[str] = []
+    def fail_group(text: str, _payload: dict[str, object]) -> bytes:
+        if text == FAILING_PASSAGE_COMBINED:
+            raise SynthesisError("The operation couldn't be completed. (KokoroSwift.KokoroTTS.KokoroTTSError error 0.)")
+        return _wav_bytes()
 
-    monkeypatch.setattr(
-        "readcast.core.synthesizer.httpx.get",
-        lambda url, timeout: _json_response(200, {"voices": [{"name": "af_sky"}]}),
-    )
+    client = FakeTTSClient(handler=fail_group)
 
-    def fake_post(url: str, json: dict[str, object], timeout: float) -> httpx.Response:
-        current = str(json["input"])
-        attempts.append(current)
-        if current == FAILING_PASSAGE_COMBINED:
-            return _json_response(
-                500,
-                {"message": "The operation couldn't be completed. (KokoroSwift.KokoroTTS.KokoroTTSError error 0.)"},
-            )
-        return _wav_response()
-
-    monkeypatch.setattr("readcast.core.synthesizer.httpx.post", fake_post)
-
-    audio_path = synthesize(segments, article_dir, config)
+    audio_path = synthesize(segments, article_dir, config, tts_client=client)
+    attempts = [str(call["input"]) for call in client.speech_calls]
 
     assert audio_path.exists()
     assert attempts.count(FAILING_PASSAGE_COMBINED) == 2

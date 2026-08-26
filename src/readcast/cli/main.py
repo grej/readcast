@@ -16,15 +16,8 @@ from readcast.core.config import Config
 from readcast.core.extractor import ExtractionError
 from readcast.core.models import Article
 from readcast.core.store import Store
-from readcast.core.synthesizer import (
-    ProgressCallback,
-    ServerError,
-    ensure_server_running,
-    fetch_server_status,
-    start_server,
-    stop_server,
-)
-from readcast.services import ProcessArticleResult, ReadcastService
+from readcast.core.synthesizer import ProgressCallback
+from readcast.services import ProcessArticleResult, ReadcastService, ServerError
 
 
 console = Console()
@@ -162,11 +155,6 @@ def web(ctx: click.Context, host: Optional[str], port: Optional[int], no_open: b
     """Launch the local web frontend."""
     config: Config = ctx.obj["config"]
 
-    try:
-        ensure_server_running(config)
-    except ServerError as exc:
-        raise click.ClickException(str(exc)) from exc
-
     from readcast.api.app import create_app
     import uvicorn
 
@@ -190,43 +178,45 @@ def server() -> None:
 @server.command("start")
 @click.pass_context
 def server_start(ctx: click.Context) -> None:
-    config: Config = ctx.obj["config"]
+    service: ReadcastService = ctx.obj["service"]
     try:
-        payload = start_server(config)
+        payload = service.start_server()
     except ServerError as exc:
         raise click.ClickException(str(exc)) from exc
+    endpoint = payload.get("endpoint") if isinstance(payload.get("endpoint"), str) else service.tts_endpoint()
     console.print(
-        f"[green]running[/green] kokoro-edge at {config.kokoro_edge.server_url} "
-        f"({payload.get('model', config.tts.model)})"
+        f"[green]running[/green] kokoro-edge at {endpoint} "
+        f"({payload.get('model', service.config.tts.model)})"
     )
 
 
 @server.command("stop")
 @click.pass_context
 def server_stop(ctx: click.Context) -> None:
-    config: Config = ctx.obj["config"]
+    service: ReadcastService = ctx.obj["service"]
     try:
-        stopped = stop_server(config)
+        stopped = service.stop_server()
     except ServerError as exc:
         raise click.ClickException(str(exc)) from exc
     if not stopped:
-        console.print("kokoro-edge is not running.")
+        console.print(f"kokoro-edge is not running at {service.tts_endpoint()}.")
         return
-    console.print("[green]stopped[/green] kokoro-edge")
+    console.print(f"[green]stopped[/green] kokoro-edge at {service.tts_endpoint()}")
 
 
 @server.command("status")
 @click.pass_context
 def server_status_command(ctx: click.Context) -> None:
-    config: Config = ctx.obj["config"]
+    service: ReadcastService = ctx.obj["service"]
     try:
-        payload = fetch_server_status(config)
-    except ServerError:
-        console.print("kokoro-edge is not running.")
+        payload = service.daemon_status()
+    except ServerError as exc:
+        console.print(f"kokoro-edge is not running at {service.tts_endpoint()}: {exc}")
         raise click.exceptions.Exit(1)
+    endpoint = payload.get("endpoint") if isinstance(payload.get("endpoint"), str) else service.tts_endpoint()
     console.print(
-        f"kokoro-edge v{payload.get('version', '?')} at {config.kokoro_edge.server_url} "
-        f"(model: {payload.get('model', config.tts.model)}, "
+        f"kokoro-edge v{payload.get('version', '?')} at {endpoint} "
+        f"(model: {payload.get('model', service.config.tts.model)}, "
         f"voices: {len(payload.get('voices_available', []))}, "
         f"uptime: {payload.get('uptime_seconds', '?')}s)"
     )
@@ -424,7 +414,10 @@ def migrate_v1(ctx: click.Context) -> None:
 
     console.print(f"Migrating from {old_base / 'index.db'} to {new_base / 'store.db'}...")
     stats = migrate(old_base, new_base)
-    console.print(f"[green]Migration complete:[/green] {stats['articles']} articles, {stats['artifacts']} artifacts, {stats['skipped']} skipped")
+    console.print(
+        f"[green]Migration complete:[/green] {stats['articles']} articles, "
+        f"{stats['artifacts']} artifacts, {stats['skipped']} skipped"
+    )
 
 
 @cli.command()

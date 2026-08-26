@@ -2,18 +2,13 @@ from __future__ import annotations
 
 from dataclasses import replace
 import json
-import os
 from pathlib import Path
 import re
 import shutil
 import subprocess
-import sys
-import time
-from typing import Optional, Protocol
-from urllib.parse import urlparse
+from typing import Any, Optional, Protocol
 import wave
 
-import httpx
 from mutagen import File as MutagenFile
 from mutagen.id3 import COMM, TALB, TCON, TDRC, TIT2, TPE1, ID3
 from mutagen.mp4 import MP4
@@ -38,7 +33,7 @@ class SynthesisError(RuntimeError):
 
 
 class ServerError(RuntimeError):
-    pass
+    """Actionable errors from the shared TTS runtime boundary."""
 
 
 def synthesize(
@@ -46,11 +41,14 @@ def synthesize(
     article_dir: Path,
     config: Config,
     progress: Optional[ProgressCallback] = None,
+    *,
+    tts_client: Any = None,
 ) -> Path:
     article_id = article_dir.name
     article = _load_article(article_dir)
     runtime_config = _apply_article_overrides(config, article)
-    voices = fetch_available_voices(runtime_config)
+    client = tts_client or _load_default_tts_client()
+    voices = fetch_available_voices(client)
     _validate_voice_selection(voices, runtime_config.tts.voice)
 
     segments_dir = article_dir / "segments"
@@ -62,7 +60,7 @@ def synthesize(
         progress.on_status(article_id, "synthesizing", "Generating audio segments")
 
     for position, segment in enumerate(segments, start=1):
-        path = _synthesize_segment(article_id, segment, segments_dir, runtime_config)
+        path = _synthesize_segment(article_id, segment, segments_dir, runtime_config, client)
         segment.wav_path = str(path)
         segment.duration_sec = _wav_duration(path)
         if progress:
@@ -93,118 +91,18 @@ def with_runtime_overrides(config: Config, voice: Optional[str] = None, speed: O
     return replace(config, tts=tts)
 
 
-def resolve_kokoro_edge_binary(config: Config) -> Path:
-    env_override = _env_path("READCAST_KOKORO_EDGE_BIN")
-    configured = Path(config.kokoro_edge.binary).expanduser() if config.kokoro_edge.binary else None
-    if configured and configured.is_file():
-        configured_path = configured
-    else:
-        configured_path = _which_path(config.kokoro_edge.binary) if config.kokoro_edge.binary else None
+def _load_default_tts_client() -> Any:
+    from .tts import load_shared_tts_client
 
-    candidates = [
-        env_override,
-        configured_path,
-        _which_path("kokoro-edge"),
-        Path(sys.executable).parent / "kokoro-edge",
-        Path(__file__).resolve().parents[3] / "kokoro-mlx" / ".build-xcode" / "stage" / "bin" / "kokoro-edge",
-    ]
-    for candidate in candidates:
-        if candidate and candidate.exists():
-            return candidate
-    raise ServerError(
-        "Could not find kokoro-edge. Install it, put it on PATH, or set READCAST_KOKORO_EDGE_BIN."
-    )
+    return load_shared_tts_client()
 
 
-def fetch_server_status(config: Config) -> dict[str, object]:
-    url = f"{_server_base_url(config)}/v1/status"
+def fetch_available_voices(tts_client: Any) -> list[str]:
     try:
-        response = httpx.get(url, timeout=2.0)
-    except httpx.HTTPError as exc:
-        raise ServerError(f"kokoro-edge is not reachable at {url}: {exc}") from exc
-    if response.status_code != 200:
-        raise ServerError(f"kokoro-edge status check failed: {_error_message(response)}")
-    return response.json()
-
-
-def ensure_server_running(config: Config) -> dict[str, object]:
-    try:
-        return fetch_server_status(config)
-    except ServerError:
-        if not config.kokoro_edge.auto_start:
-            raise
-    return start_server(config)
-
-
-def start_server(config: Config) -> dict[str, object]:
-    try:
-        return fetch_server_status(config)
-    except ServerError:
-        pass
-
-    binary = resolve_kokoro_edge_binary(config)
-    _strip_quarantine(binary)
-    host, port = _server_host_port(config)
-    result = subprocess.run(
-        [str(binary), "serve", "-d", "--host", host, "--port", str(port)],
-        capture_output=True,
-        text=True,
-    )
-    if result.returncode != 0:
-        details = result.stderr.strip() or result.stdout.strip() or "unknown error"
-        raise ServerError(f"Failed to start kokoro-edge: {details}")
-
-    deadline = time.monotonic() + config.kokoro_edge.startup_timeout_sec
-    last_error: Optional[ServerError] = None
-    while time.monotonic() < deadline:
-        try:
-            return fetch_server_status(config)
-        except ServerError as exc:
-            last_error = exc
-            time.sleep(0.5)
-    if last_error is not None:
-        raise ServerError(
-            f"kokoro-edge did not become ready within {config.kokoro_edge.startup_timeout_sec}s: {last_error}"
-        ) from last_error
-    raise ServerError(f"kokoro-edge did not become ready within {config.kokoro_edge.startup_timeout_sec}s")
-
-
-def stop_server(config: Config) -> bool:
-    try:
-        fetch_server_status(config)
-    except ServerError:
-        return False
-
-    binary = resolve_kokoro_edge_binary(config)
-    result = subprocess.run([str(binary), "stop"], capture_output=True, text=True)
-    if result.returncode != 0:
-        details = result.stderr.strip() or result.stdout.strip() or "unknown error"
-        raise ServerError(f"Failed to stop kokoro-edge: {details}")
-
-    deadline = time.monotonic() + 5.0
-    while time.monotonic() < deadline:
-        try:
-            fetch_server_status(config)
-        except ServerError:
-            return True
-        time.sleep(0.25)
-    raise ServerError("kokoro-edge stop command returned successfully, but the daemon is still running.")
-
-
-def fetch_voices(config: Config) -> list[dict[str, object]]:
-    url = f"{_server_base_url(config)}/v1/voices"
-    try:
-        response = httpx.get(url, timeout=5.0)
-    except httpx.HTTPError as exc:
+        voices = tts_client.fetch_voices()
+    except Exception as exc:
         raise SynthesisError(f"Failed to fetch kokoro-edge voices: {exc}") from exc
-    if response.status_code != 200:
-        raise SynthesisError(f"Failed to fetch kokoro-edge voices: {_error_message(response)}")
-    payload = response.json()
-    return [voice for voice in payload.get("voices", []) if isinstance(voice, dict) and "name" in voice]
-
-
-def fetch_available_voices(config: Config) -> list[str]:
-    return [str(voice["name"]) for voice in fetch_voices(config)]
+    return [str(voice["name"]) for voice in voices if isinstance(voice, dict) and "name" in voice]
 
 
 def _apply_article_overrides(config: Config, article: Optional[Article]) -> Config:
@@ -229,6 +127,7 @@ def _synthesize_segment(
     segment: TTSSegment,
     segments_dir: Path,
     config: Config,
+    tts_client: Any,
 ) -> Path:
     prefix = f"seg_{segment.idx:03d}"
     return _synthesize_text_group(
@@ -240,6 +139,7 @@ def _synthesize_segment(
         prefix=prefix,
         segments_dir=segments_dir,
         config=config,
+        tts_client=tts_client,
     )
 
 
@@ -252,12 +152,13 @@ def _synthesize_text_group(
     prefix: str,
     segments_dir: Path,
     config: Config,
+    tts_client: Any,
 ) -> Path:
     path = segments_dir / f"{prefix}.wav"
     last_error: Optional[SynthesisError] = None
     for _ in range(2):
         try:
-            wav_bytes = _request_speech(text, config)
+            wav_bytes = _request_speech(text, config, tts_client)
             path.write_bytes(wav_bytes)
             return path
         except SynthesisError as exc:
@@ -278,6 +179,7 @@ def _synthesize_text_group(
                 prefix=f"{prefix}_a",
                 segments_dir=segments_dir,
                 config=config,
+                tts_client=tts_client,
             )
             right = _synthesize_text_group(
                 article_id=article_id,
@@ -288,6 +190,7 @@ def _synthesize_text_group(
                 prefix=f"{prefix}_b",
                 segments_dir=segments_dir,
                 config=config,
+                tts_client=tts_client,
             )
             _concat_wav_files([left, right], path)
             return path
@@ -299,23 +202,18 @@ def _synthesize_text_group(
     ) from last_error
 
 
-def _request_speech(text: str, config: Config) -> bytes:
-    url = f"{_server_base_url(config)}/v1/audio/speech"
-    payload = {
-        "model": config.tts.model,
-        "input": text,
-        "voice": config.tts.voice,
-        "speed": config.tts.speed,
-        "response_format": "wav",
-        "language": config.tts.language,
-    }
+def _request_speech(text: str, config: Config, tts_client: Any) -> bytes:
     try:
-        response = httpx.post(url, json=payload, timeout=120.0)
-    except httpx.HTTPError as exc:
+        return tts_client.synthesize_text(
+            text,
+            model=config.tts.model,
+            voice=config.tts.voice,
+            speed=config.tts.speed,
+            language=config.tts.language,
+            response_format="wav",
+        )
+    except Exception as exc:
         raise SynthesisError(f"kokoro-edge request failed: {exc}") from exc
-    if response.status_code != 200:
-        raise SynthesisError(_error_message(response))
-    return response.content
 
 
 def _build_concat_list(segments: list[TTSSegment], segments_dir: Path) -> Path:
@@ -429,27 +327,6 @@ def _load_article(article_dir: Path) -> Optional[Article]:
     return Article.from_dict(json.loads(meta_path.read_text(encoding="utf-8")))
 
 
-def _server_base_url(config: Config) -> str:
-    return config.kokoro_edge.server_url.rstrip("/")
-
-
-def _server_host_port(config: Config) -> tuple[str, int]:
-    parsed = urlparse(_server_base_url(config))
-    return parsed.hostname or "127.0.0.1", parsed.port or 7777
-
-
-def _error_message(response: httpx.Response) -> str:
-    try:
-        payload = response.json()
-    except ValueError:
-        text = response.text.strip()
-        return text or f"HTTP {response.status_code}"
-    message = payload.get("message") if isinstance(payload, dict) else None
-    if isinstance(message, str) and message.strip():
-        return message.strip()
-    return f"HTTP {response.status_code}"
-
-
 def _snippet(text: str, limit: int = 100) -> str:
     return " ".join(text.split())[:limit]
 
@@ -495,40 +372,3 @@ def _join_split_groups(groups: list[str], joiner: str) -> str:
     if not groups:
         return ""
     return joiner.join(group for group in groups if group.strip()).strip()
-
-
-def _env_path(name: str) -> Optional[Path]:
-    value = os.environ.get(name)
-    if not value:
-        return None
-    path = Path(value).expanduser()
-    return path if path.exists() else None
-
-
-def _which_path(binary_name: Optional[str]) -> Optional[Path]:
-    if not binary_name:
-        return None
-    resolved = shutil.which(binary_name)
-    return Path(resolved) if resolved else None
-
-
-def _strip_quarantine(binary: Path) -> None:
-    """Remove macOS quarantine attribute so Gatekeeper doesn't block unsigned binaries."""
-    if sys.platform != "darwin":
-        return
-    try:
-        subprocess.run(["xattr", "-d", "com.apple.quarantine", str(binary)], capture_output=True)
-    except FileNotFoundError:
-        return
-
-    bin_dir = binary.parent
-    lib_dir = bin_dir.parent / "lib"
-    for directory in (bin_dir, lib_dir):
-        if not directory.is_dir():
-            continue
-        for entry in directory.iterdir():
-            if entry.suffix in (".bundle", ".framework"):
-                try:
-                    subprocess.run(["xattr", "-cr", str(entry)], capture_output=True)
-                except FileNotFoundError:
-                    pass

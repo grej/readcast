@@ -15,19 +15,14 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-log = logging.getLogger(__name__)
-
 from readcast import __version__
 from readcast.core.config import Config
 from readcast.core.llm import complete as llm_complete, ensure_llm_running, llm_status as get_llm_status, stop_llm_server
 from readcast.core.models import Article
-from readcast.core.synthesizer import (
-    ServerError,
-    SynthesisError,
-    ensure_server_running,
-    resolve_kokoro_edge_binary,
-)
-from readcast.services import PreviewResult, ProcessingWorker, ReadcastService
+from readcast.core.synthesizer import SynthesisError
+from readcast.services import PreviewResult, ProcessingWorker, ReadcastService, ServerError
+
+log = logging.getLogger(__name__)
 
 
 STATIC_DIR = Path(__file__).resolve().parents[1] / "web" / "static"
@@ -123,11 +118,16 @@ class GenerateAudioRequest(BaseModel):
     voice: Optional[str] = None
 
 
-def create_app(base_dir: Optional[Path] = None) -> FastAPI:
+def create_app(
+    base_dir: Optional[Path] = None,
+    *,
+    tts_client: object | None = None,
+    tts_runtime: object | None = None,
+) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         config = Config.load(base_dir)
-        service = ReadcastService(config)
+        service = ReadcastService(config, tts_client=tts_client, tts_runtime=tts_runtime)
         worker = ProcessingWorker(service)
         app.state.config = config
         app.state.service = service
@@ -329,7 +329,7 @@ def create_app(base_dir: Optional[Path] = None) -> FastAPI:
     async def api_voices(request: Request) -> dict[str, object]:
         service = _service(request)
         try:
-            ensure_server_running(service.config)
+            service.ensure_server_running()
             voices = service.available_voices()
         except (ServerError, SynthesisError) as exc:
             raise HTTPException(status_code=503, detail=str(exc)) from exc
@@ -342,7 +342,7 @@ def create_app(base_dir: Optional[Path] = None) -> FastAPI:
             if payload.default_voice is None and payload.playback_rate is None:
                 raise ValueError("Provide at least one preference value.")
             if payload.default_voice is not None:
-                ensure_server_running(service.config)
+                service.ensure_server_running()
                 service.set_default_voice(payload.default_voice)
             if payload.playback_rate is not None:
                 service.set_playback_rate(payload.playback_rate)
@@ -614,7 +614,7 @@ def create_app(base_dir: Optional[Path] = None) -> FastAPI:
         worker = _worker(request)
         voice = payload.voice or service.default_voice()
         try:
-            article = service.reprocess_article(doc_id, voice=voice)
+            service.reprocess_article(doc_id, voice=voice)
         except KeyError as exc:
             raise HTTPException(status_code=404, detail="Document not found") from exc
         service.store.set_rendition(doc_id, "audio", {"state": "queued", "voice": voice, "duration": None, "generated_at": None})
@@ -696,7 +696,11 @@ def create_app(base_dir: Optional[Path] = None) -> FastAPI:
                 try:
                     voice = service.default_voice()
                     service.reprocess_article(item["doc_id"], voice=voice)
-                    service.store.set_rendition(item["doc_id"], "audio", {"state": "queued", "voice": voice, "duration": None, "generated_at": None})
+                    service.store.set_rendition(
+                        item["doc_id"],
+                        "audio",
+                        {"state": "queued", "voice": voice, "duration": None, "generated_at": None},
+                    )
                     queued += 1
                 except (KeyError, ValueError):
                     pass
@@ -754,17 +758,23 @@ def _article_source(article: Article) -> str:
 
 
 def _kokoro_status_payload(service: ReadcastService) -> dict[str, object]:
+    endpoint = service.tts_endpoint()
     try:
         status = service.daemon_status()
+        status_endpoint = status.get("endpoint")
+        if isinstance(status_endpoint, str) and status_endpoint:
+            endpoint = status_endpoint
     except ServerError as exc:
-        installed = _kokoro_binary_available(service.config)
+        installed = service.tts_binary_available()
         state = "missing" if not installed else "offline"
         message = (
-            "kokoro-edge is not installed. Run `pixi run setup` or set READCAST_KOKORO_EDGE_BIN."
+            "kokoro-edge is not installed or is incompatible with the shared TTS runtime. "
+            f"Run `pixi run setup` or upgrade localknowledge-core. ({exc})"
             if not installed
             else str(exc)
         )
         return {
+            "endpoint": endpoint,
             "installed": installed,
             "connected": False,
             "ready": False,
@@ -784,6 +794,7 @@ def _kokoro_status_payload(service: ReadcastService) -> dict[str, object]:
         else f"kokoro-edge is ready ({status.get('model', service.config.tts.model)})."
     )
     return {
+        "endpoint": endpoint,
         "installed": True,
         "connected": True,
         "ready": ready,
@@ -793,14 +804,6 @@ def _kokoro_status_payload(service: ReadcastService) -> dict[str, object]:
         "error": None,
         "message": message,
     }
-
-
-def _kokoro_binary_available(config: Config) -> bool:
-    try:
-        resolve_kokoro_edge_binary(config)
-        return True
-    except ServerError:
-        return False
 
 
 def _build_feed_xml(request: Request, service: ReadcastService) -> str:

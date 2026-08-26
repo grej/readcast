@@ -8,6 +8,7 @@ import wave
 from click.testing import CliRunner
 
 from readcast.cli.main import cli
+from readcast.services import ReadcastService
 
 
 def _wav_bytes(duration: float = 0.1) -> bytes:
@@ -32,9 +33,10 @@ def test_cli_end_to_end_with_fixture(monkeypatch, tmp_path: Path, fixture_dir: P
     fixture_path = fixture_dir / "brave_reader_article.html"
     synth_calls: list[list[object]] = []
 
-    monkeypatch.setattr("readcast.services.ensure_server_running", lambda config: {"model": "kokoro-82m"})
+    monkeypatch.setattr(ReadcastService, "ensure_server_running", lambda _self: {"model": "kokoro-82m"})
+    monkeypatch.setattr(ReadcastService, "_ensure_tts_collaborators", lambda _self: (object(), object()))
 
-    def fake_synthesize(segments, article_dir, config, progress=None):
+    def fake_synthesize(segments, article_dir, config, progress=None, *, tts_client):
         synth_calls.append(segments)
         return _write_audio(article_dir)
 
@@ -69,8 +71,12 @@ def test_cli_end_to_end_with_plain_text(monkeypatch, tmp_path: Path) -> None:
         "The first paragraph covers air power.\n\nThe second paragraph covers THAAD batteries.",
         encoding="utf-8",
     )
-    monkeypatch.setattr("readcast.services.ensure_server_running", lambda config: {"model": "kokoro-82m"})
-    monkeypatch.setattr("readcast.services.synthesize", lambda segments, article_dir, config, progress=None: _write_audio(article_dir))
+    monkeypatch.setattr(ReadcastService, "ensure_server_running", lambda _self: {"model": "kokoro-82m"})
+    monkeypatch.setattr(ReadcastService, "_ensure_tts_collaborators", lambda _self: (object(), object()))
+    monkeypatch.setattr(
+        "readcast.services.synthesize",
+        lambda segments, article_dir, config, progress=None, *, tts_client: _write_audio(article_dir),
+    )
     monkeypatch.setattr("readcast.services.audio_duration", lambda path: 2.34)
 
     result = runner.invoke(
@@ -109,12 +115,13 @@ def test_cli_server_commands(monkeypatch, tmp_path: Path) -> None:
     runner = CliRunner()
     base_dir = tmp_path / ".readcast"
 
-    monkeypatch.setattr("readcast.cli.main.start_server", lambda config: {"model": "kokoro-82m"})
+    monkeypatch.setattr(ReadcastService, "start_server", lambda _self: {"model": "kokoro-82m"})
     monkeypatch.setattr(
-        "readcast.cli.main.fetch_server_status",
-        lambda config: {"version": "0.1.0", "model": "kokoro-82m", "voices_available": ["af_sky"], "uptime_seconds": 10},
+        ReadcastService,
+        "daemon_status",
+        lambda _self: {"version": "0.2.0", "model": "kokoro-82m", "voices_available": ["af_sky"], "uptime_seconds": 10},
     )
-    monkeypatch.setattr("readcast.cli.main.stop_server", lambda config: True)
+    monkeypatch.setattr(ReadcastService, "stop_server", lambda _self: True)
 
     start_result = runner.invoke(cli, ["--base-dir", str(base_dir), "server", "start"])
     assert start_result.exit_code == 0, start_result.output
@@ -122,7 +129,7 @@ def test_cli_server_commands(monkeypatch, tmp_path: Path) -> None:
 
     status_result = runner.invoke(cli, ["--base-dir", str(base_dir), "server", "status"])
     assert status_result.exit_code == 0, status_result.output
-    assert "kokoro-edge v0.1.0" in status_result.output
+    assert "kokoro-edge v0.2.0" in status_result.output
 
     stop_result = runner.invoke(cli, ["--base-dir", str(base_dir), "server", "stop"])
     assert stop_result.exit_code == 0, stop_result.output

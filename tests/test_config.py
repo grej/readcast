@@ -18,19 +18,19 @@ def test_config_created_with_defaults(base_dir) -> None:
     assert config.web.port == 8765
     assert config.web.open_browser is True
     saved = config.config_path.read_text(encoding="utf-8")
-    assert "[kokoro_edge]" in saved
+    assert "[kokoro_edge]" not in saved
     assert "[web]" in saved
-    assert "server_url = \"http://127.0.0.1:7777\"" in saved
+    assert "127.0.0.1:7777" not in saved
 
 
 def test_config_set_value(base_dir) -> None:
     config = Config.load(base_dir)
     config.set_value("tts.voice", "af_heart")
-    config.set_value("kokoro_edge.auto_start", "false")
+    config.set_value("tts.speed", "1.25")
     config.set_value("web.port", "9999")
     reloaded = Config.load(base_dir)
     assert reloaded.tts.voice == "af_heart"
-    assert reloaded.kokoro_edge.auto_start is False
+    assert reloaded.tts.speed == 1.25
     assert reloaded.web.port == 9999
 
 

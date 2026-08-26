@@ -118,8 +118,22 @@ Search uses hybrid Reciprocal Rank Fusion: FTS5 keyword results and cosine-simil
 vector results are merged with `score(d) = Σ 1/(k + rank(d))`, so both exact matches
 and semantic matches surface without needing to normalize BM25 and cosine scores.
 
-`kokoro-edge` runs as a local daemon on `localhost:7777`, providing an OpenAI-compatible
-TTS API. readcast starts it automatically when needed.
+`kokoro-edge >=0.2.0` provides an OpenAI-compatible HTTP API over the current-user Unix
+socket `~/.localknowledge/run/kokoro-edge.sock`. The shared Local Knowledge runtime starts
+it automatically when readcast needs TTS; readcast does not open or manage a second TCP
+listener.
+
+Check the local endpoint with:
+
+```bash
+curl --fail --unix-socket "$HOME/.localknowledge/run/kokoro-edge.sock" \
+  http://kokoro-edge/v1/status
+```
+
+For rollback or development, explicitly set `[tts].transport = "tcp"` and
+`server_url = "http://127.0.0.1:7777"` in `~/.localknowledge/config.toml`, then start
+`kokoro-edge` with `--host 127.0.0.1 --port 7777`. Readcast never falls back to TCP
+silently.
 
 ## Status
 

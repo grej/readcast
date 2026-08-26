@@ -9,7 +9,7 @@ from pathlib import Path
 import re
 import shutil
 import threading
-from typing import Callable, Optional
+from typing import Callable, Optional, Protocol
 
 from .core.chunker import create_tts_segments
 from .core.config import Config
@@ -20,12 +20,23 @@ from .core.synthesizer import (
     ProgressCallback,
     ServerError,
     audio_duration,
-    ensure_server_running,
-    fetch_server_status,
     synthesize,
 )
+from .core.tts import endpoint_label, load_shared_tts_client, load_shared_tts_collaborators, load_shared_tts_runtime
 
 log = logging.getLogger(__name__)
+
+
+class TTSClientProtocol(Protocol):
+    def server_status(self) -> dict[str, object]: ...
+    def fetch_voices(self) -> list[dict[str, object]]: ...
+    def synthesize_text(self, text: str, **kwargs: object) -> bytes: ...
+
+
+class TTSRuntimeProtocol(Protocol):
+    def ensure_running(self) -> dict[str, object]: ...
+    def start(self) -> dict[str, object]: ...
+    def stop(self) -> bool: ...
 
 
 @dataclass(slots=True)
@@ -55,9 +66,17 @@ class ReadcastService:
     PLAYBACK_RATE_SETTING_KEY = "playback_rate"
     PLAYBACK_RATES = (1.0, 1.25, 1.5, 1.75, 2.0)
 
-    def __init__(self, config: Config, store: Optional[Store] = None):
+    def __init__(
+        self,
+        config: Config,
+        store: Optional[Store] = None,
+        tts_client: Optional[TTSClientProtocol] = None,
+        tts_runtime: Optional[TTSRuntimeProtocol] = None,
+    ):
         self.config = config
         self.store = store or Store(config.base_dir)
+        self.tts_client = tts_client
+        self.tts_runtime = tts_runtime
 
     def list_articles(self, status: Optional[str] = None, limit: int = 500) -> list[Article]:
         return self.store.list_articles(status=status, limit=limit)
@@ -294,7 +313,7 @@ class ReadcastService:
         if not articles:
             return []
 
-        ensure_server_running(self.config)
+        self.ensure_server_running()
         results: list[ProcessArticleResult] = []
         for article in articles:
             progress = progress_factory(article) if progress_factory else None
@@ -302,12 +321,82 @@ class ReadcastService:
         return results
 
     def available_voices(self) -> list[dict[str, object]]:
-        from .core.synthesizer import fetch_voices
-
-        return fetch_voices(self.config)
+        client = self._ensure_tts_collaborators()[0]
+        try:
+            return client.fetch_voices()
+        except Exception as exc:
+            raise ServerError(f"Failed to fetch kokoro-edge voices at {self.tts_endpoint()}: {exc}") from exc
 
     def daemon_status(self) -> dict[str, object]:
-        return fetch_server_status(self.config)
+        client = self._ensure_tts_collaborators()[0]
+        try:
+            return client.server_status()
+        except Exception as exc:
+            raise ServerError(f"kokoro-edge status failed at {self.tts_endpoint()}: {exc}") from exc
+
+    def ensure_tts_running(self) -> dict[str, object]:
+        runtime = self._ensure_tts_collaborators()[1]
+        try:
+            return runtime.ensure_running()
+        except Exception as exc:
+            if isinstance(exc, ServerError):
+                raise
+            raise ServerError(f"kokoro-edge could not become ready at {self.tts_endpoint()}: {exc}") from exc
+
+    def ensure_server_running(self) -> dict[str, object]:
+        return self.ensure_tts_running()
+
+    def start_tts(self) -> dict[str, object]:
+        runtime = self._ensure_tts_collaborators()[1]
+        try:
+            return runtime.start()
+        except Exception as exc:
+            if isinstance(exc, ServerError):
+                raise
+            raise ServerError(f"kokoro-edge could not start at {self.tts_endpoint()}: {exc}") from exc
+
+    def stop_tts(self) -> bool:
+        runtime = self._ensure_tts_collaborators()[1]
+        try:
+            return bool(runtime.stop())
+        except Exception as exc:
+            if isinstance(exc, ServerError):
+                raise
+            raise ServerError(f"kokoro-edge could not stop at {self.tts_endpoint()}: {exc}") from exc
+
+    def start_server(self) -> dict[str, object]:
+        return self.start_tts()
+
+    def stop_server(self) -> bool:
+        return self.stop_tts()
+
+    def tts_endpoint(self) -> str:
+        return endpoint_label(self.tts_client, self.tts_runtime)
+
+    def tts_binary_available(self) -> bool:
+        try:
+            runtime = self._ensure_tts_collaborators()[1]
+        except ServerError:
+            return False
+        checker = getattr(runtime, "binary_available", None)
+        if not callable(checker):
+            return True
+        try:
+            return bool(checker())
+        except Exception:
+            return False
+
+    def _ensure_tts_collaborators(self) -> tuple[TTSClientProtocol, TTSRuntimeProtocol]:
+        try:
+            if self.tts_client is None and self.tts_runtime is None:
+                self.tts_client, self.tts_runtime = load_shared_tts_collaborators()
+            elif self.tts_client is None:
+                self.tts_client = load_shared_tts_client()
+            elif self.tts_runtime is None:
+                self.tts_runtime = load_shared_tts_runtime()
+        except Exception as exc:
+            raise ServerError(str(exc)) from exc
+        return self.tts_client, self.tts_runtime
 
     def audio_path_for_article(self, article_id: str) -> Optional[Path]:
         article_dir = self.store.get_article_dir(article_id)
@@ -354,7 +443,13 @@ class ReadcastService:
         article_dir = self.store.get_article_dir(article.id)
 
         try:
-            output_path = synthesize(segments, article_dir, self.config, progress=progress)
+            output_path = synthesize(
+                segments,
+                article_dir,
+                self.config,
+                progress=progress,
+                tts_client=self._ensure_tts_collaborators()[0],
+            )
         except Exception as exc:
             message = str(exc)
             self.store.update_status(article.id, "failed", message)
