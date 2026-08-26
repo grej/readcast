@@ -52,6 +52,7 @@ tests:
         - readcast.core.store
         - readcast.api.app
   - script:
+      - python -c "from importlib.metadata import version; assert version('readcast') == '${{ version }}'"
       - readcast --help
 
 about:

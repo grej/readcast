@@ -2519,8 +2519,8 @@ packages:
   - cchardet ; extra == 'speed'
 - pypi: ./
   name: readcast
-  version: 2.0.0
-  sha256: fbc6b10d1c5575ba807e2b2d3d172cbeaf114477d6a975a92684244383a372cb
+  version: 2.0.2
+  sha256: 3f79a8c7009057a67f84d33366579e3a4da1fe852792b543372fa3165e775a39
   requires_dist:
   - httpx>=0.27
   - readability-lxml>=0.8
