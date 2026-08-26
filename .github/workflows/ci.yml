@@ -14,6 +14,10 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
+      # pixi.toml uses the adjacent editable checkout during development.
+      - name: Check out Local Knowledge dependency
+        run: git clone --depth 1 --branch main https://github.com/grej/local-knowledge.git ../local-knowledge
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
@@ -22,6 +26,8 @@ jobs:
 
       - name: Set up pixi
         uses: prefix-dev/setup-pixi@v0.8.8
+        with:
+          run-install: false
 
       - name: Install environment
         run: pixi install
