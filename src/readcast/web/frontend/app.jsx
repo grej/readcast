@@ -273,7 +273,7 @@ function CenterPanel({
   onPlayerToggle, onPlayerSeek, onPlayerPrev, onPlayerNext,
   onBatchNarrate, onLoadPlaylist, onToggleDone, onPlayNow, onAddToQueue,
   editing, onToggleEditing, onRenameList, onDeleteList,
-  speed, onCycleSpeed, onRemoveFromList,
+  speed, onCycleSpeed, onRemoveFromList, onShowExtension,
 }) {
   const typeInfo = TYPES.find(t => t.key === railType);
   const matching = typeInfo?.listType ? lists.filter(l => l.type === typeInfo.listType) : [];
@@ -477,6 +477,7 @@ function CenterPanel({
         <span style={{ fontSize: 14 }}>{"\u2299"}</span>
         <span style={{ fontSize: 13, fontWeight: 700, flex: 1 }}>All Items</span>
         <span style={{ fontSize: 10, padding: "2px 6px", borderRadius: 4, fontWeight: 600, background: C.abg, color: C.acc, fontFamily: FONT.mono }}>{articles.length}</span>
+        <button data-testid="extension-setup-button" onClick={onShowExtension} aria-label="Browser extension setup" style={{ padding: "4px 8px", borderRadius: 5, border: `1px solid ${C.br}`, background: C.bg3, color: C.t2, fontSize: 9, fontWeight: 600, fontFamily: "inherit", cursor: "pointer" }}>Extension</button>
       </div>
       {/* Orientation chips */}
       <div style={{ padding: "8px 12px", borderBottom: `1px solid ${C.br}`, display: "flex", gap: 8, alignItems: "center", flexShrink: 0, flexWrap: "wrap" }}>
@@ -837,6 +838,33 @@ function CreateListModal({ onClose, onCreate, presetType }) {
 }
 
 // ═════════════════════════════════════════════════════════════
+// BROWSER EXTENSION SETUP
+// ═════════════════════════════════════════════════════════════
+function ExtensionSetupModal({ onClose }) {
+  return (
+    <div data-testid="extension-setup-modal" style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }} onClick={onClose}>
+      <div role="dialog" aria-modal="true" aria-labelledby="extension-setup-title" style={{ background: C.bg1, border: `1px solid ${C.br}`, borderRadius: 12, width: "min(460px, 100%)", padding: 20, animation: "popIn .15s ease" }} onClick={e => e.stopPropagation()}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
+          <h3 id="extension-setup-title" style={{ fontSize: 14, fontWeight: 700, flex: 1 }}>Browser extension</h3>
+          <button onClick={onClose} aria-label="Close browser extension setup" style={{ color: C.t3, fontSize: 16, padding: 4 }}>{"\u00d7"}</button>
+        </div>
+
+        <a data-testid="extension-download" href="/api/extension.zip" download style={{ display: "inline-flex", alignItems: "center", padding: "7px 12px", marginBottom: 16, borderRadius: 6, background: C.acc, color: C.bg0, fontSize: 11, fontWeight: 700, textDecoration: "none" }}>Download extension</a>
+
+        <ol style={{ paddingLeft: 20, color: C.t2, fontSize: 11, lineHeight: 1.7 }}>
+          <li>Unzip the downloaded file.</li>
+          <li>Open <code style={{ color: C.acc, fontFamily: FONT.mono }}>brave://extensions</code> in Brave.</li>
+          <li>Enable <strong style={{ color: C.t1 }}>Developer mode</strong>.</li>
+          <li>Click <strong style={{ color: C.t1 }}>Load unpacked</strong> and select the extracted <code style={{ color: C.acc, fontFamily: FONT.mono }}>readcast-extension</code> folder.</li>
+        </ol>
+
+        <p style={{ marginTop: 14, color: C.t4, fontSize: 10, lineHeight: 1.5 }}>After replacing extension files during an update, click Reload for Readcast on Brave's extensions page.</p>
+      </div>
+    </div>
+  );
+}
+
+// ═════════════════════════════════════════════════════════════
 // TOAST
 // ═════════════════════════════════════════════════════════════
 function ToastContainer({ toasts, onUndo, onDismiss }) {
@@ -881,6 +909,7 @@ function ReadcastApp() {
 
   // Modals & toasts
   const [showCreateList, setShowCreateList] = useState(false);
+  const [showExtensionSetup, setShowExtensionSetup] = useState(false);
   const [createListPresetType, setCreateListPresetType] = useState(null);
   const [toasts, setToasts] = useState([]);
 
@@ -1180,13 +1209,13 @@ function ReadcastApp() {
       if (e.key === "ArrowDown" || e.key === "j") { e.preventDefault(); const next = Math.min(curIdx + 1, ids.length - 1); if (ids[next]) setFocusedId(ids[next]); }
       if (e.key === "ArrowUp" || e.key === "k") { e.preventDefault(); const prev = Math.max(curIdx - 1, 0); if (ids[prev]) setFocusedId(ids[prev]); }
       if (e.key === "/") { e.preventDefault(); document.querySelector("input[placeholder]")?.focus(); }
-      if (e.key === "Escape") { if (search) setSearch(""); if (showCreateList) setShowCreateList(false); }
+      if (e.key === "Escape") { if (search) setSearch(""); if (showCreateList) setShowCreateList(false); if (showExtensionSetup) setShowExtensionSetup(false); }
       if (e.key === " " && playerPlaylistId) { e.preventDefault(); handlePlayerToggle(); }
       if (e.key === "]") { setQueuePeek(q => !q); setSpeedOpen(false); }
     };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [focusedId, activeList, listItems, articles, search, showCreateList, playerPlaylistId]);
+  }, [focusedId, activeList, listItems, articles, search, showCreateList, showExtensionSetup, playerPlaylistId]);
 
   // ─── Render ────────────────────────────────────────────────
   return (
@@ -1215,6 +1244,7 @@ function ReadcastApp() {
           onRenameList={() => {}} onDeleteList={handleDeleteList}
           speed={speed} onCycleSpeed={handleCycleSpeed}
           onRemoveFromList={handleRemoveFromList}
+          onShowExtension={() => setShowExtensionSetup(true)}
         />
 
         <DetailPanel
@@ -1240,6 +1270,7 @@ function ReadcastApp() {
 
       {/* Modals */}
       {showCreateList && <CreateListModal onClose={() => setShowCreateList(false)} onCreate={handleCreateList} presetType={createListPresetType} />}
+      {showExtensionSetup && <ExtensionSetupModal onClose={() => setShowExtensionSetup(false)} />}
 
       {/* Toasts */}
       <ToastContainer toasts={toasts} onUndo={handleUndo} onDismiss={(id) => setToasts(prev => prev.filter(t => t.id !== id))} />

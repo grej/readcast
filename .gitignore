@@ -22,6 +22,7 @@ node_modules/
 # Local scratch
 test_audio/
 .local/
+research/
 
 # Private vision docs
 spock.md

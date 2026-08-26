@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from io import BytesIO
 import wave
+from zipfile import ZipFile
 
 from fastapi.testclient import TestClient
 
@@ -42,7 +43,23 @@ def test_api_serves_frontend_shell_and_bundle(base_dir) -> None:
         assert "text/html" in index.headers["content-type"]
         assert "app.js" in index.text
         assert bundle.status_code == 200
-        assert bundle.text
+        assert "Browser extension" in bundle.text
+        assert "/api/extension.zip" in bundle.text
+
+
+def test_api_serves_browser_extension_archive(base_dir) -> None:
+    app = create_app(base_dir)
+    with TestClient(app) as client:
+        response = client.get("/api/extension.zip")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/zip"
+    assert "readcast-extension.zip" in response.headers["content-disposition"]
+    with ZipFile(BytesIO(response.content)) as archive:
+        names = set(archive.namelist())
+    assert "readcast-extension/manifest.json" in names
+    assert "readcast-extension/background.js" in names
+    assert "readcast-extension/popup.html" in names
 
 
 def test_api_dedupes_text_for_short_window(base_dir) -> None:
