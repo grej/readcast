@@ -34,7 +34,8 @@ def main() -> int:
     wheel = _latest("readcast-*.whl")
     sdist = _latest("readcast-*.tar.gz")
     _check_archive_contains(wheel, STATIC_EXPECTED)
-    _check_archive_contains(sdist, [f"readcast-0.1.0/src/{path}" for path in STATIC_EXPECTED])
+    sdist_root = _sdist_root(sdist)
+    _check_archive_contains(sdist, [f"{sdist_root}/src/{path}" for path in STATIC_EXPECTED])
 
     with tempfile.TemporaryDirectory() as target:
         subprocess.run(
@@ -81,6 +82,14 @@ def _check_archive_contains(archive: pathlib.Path, expected: list[str]) -> None:
     missing = [path for path in expected if path not in archive_names]
     if missing:
         raise SystemExit(f"Missing files in {archive.name}: {', '.join(missing)}")
+
+
+def _sdist_root(archive: pathlib.Path) -> str:
+    with tarfile.open(archive) as handle:
+        roots = {pathlib.PurePosixPath(member.name).parts[0] for member in handle.getmembers() if member.name}
+    if len(roots) != 1:
+        raise SystemExit(f"Expected one root directory in {archive.name}, found: {', '.join(sorted(roots))}")
+    return roots.pop()
 
 
 if __name__ == "__main__":
