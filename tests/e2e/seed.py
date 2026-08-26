@@ -1,10 +1,8 @@
 """Seed a temporary readcast database with realistic test data for e2e tests."""
 from __future__ import annotations
 
-import struct
 from io import BytesIO
 from pathlib import Path
-from typing import Optional
 import wave
 
 from readcast.core.config import Config
@@ -24,14 +22,73 @@ def _wav_bytes(duration: float = 0.5) -> bytes:
 
 # Articles: (title, body, source_url, tags, has_audio, duration)
 ARTICLES = [
-    ("The Future of Artificial Intelligence", "AI is transforming industries from healthcare to finance. Large language models have enabled new forms of human-computer interaction.", "https://techcrunch.com/ai-future", ["ai-tools", "ai-research"], True, 45.0),
-    ("Understanding Geopolitical Tensions in East Asia", "The balance of power in East Asia is shifting as regional players invest in defense capabilities and form new alliances.", "https://foreignpolicy.com/east-asia", ["geopolitics", "defense"], True, 62.0),
-    ("Python Best Practices for 2026", "Modern Python development emphasizes type hints, async patterns, and reproducible environments with tools like pixi.", "https://realpython.com/best-practices", ["ai-tools"], True, 30.0),
-    ("The Psychology of Decision Making", "Behavioral economics reveals how cognitive biases shape our everyday choices, from financial decisions to personal relationships.", "https://aeon.co/psychology-decisions", ["reading"], True, 55.0),
-    ("Military Technology and Modern Warfare", "Autonomous systems and AI-guided munitions are reshaping the battlefield, raising ethical questions about the future of warfare.", "https://defensenews.com/mil-tech", ["mil-tech", "defense"], True, 48.0),
-    ("Climate Change and Renewable Energy", "The transition to renewable energy is accelerating, with solar and wind now cheaper than fossil fuels in most markets.", "https://nature.com/climate-energy", ["reading"], False, None),
-    ("Quantum Computing Breakthroughs", "Recent advances in error correction bring practical quantum computing closer to reality, with implications for cryptography and drug discovery.", None, ["ai-research"], False, None),
-    ("Building Local-First Software", "Local-first software keeps data on the user's device while still enabling collaboration, offering privacy and performance benefits.", "https://inkandswitch.com/local-first", ["ai-tools"], "generating", None),
+    (
+        "The Future of Artificial Intelligence",
+        "AI is transforming industries from healthcare to finance. "
+        "Large language models have enabled new forms of human-computer interaction.",
+        "https://techcrunch.com/ai-future",
+        ["ai-tools", "ai-research"],
+        True,
+        45.0,
+    ),
+    (
+        "Understanding Geopolitical Tensions in East Asia",
+        "The balance of power in East Asia is shifting as regional players invest in defense capabilities and form new alliances.",
+        "https://foreignpolicy.com/east-asia",
+        ["geopolitics", "defense"],
+        True,
+        62.0,
+    ),
+    (
+        "Python Best Practices for 2026",
+        "Modern Python development emphasizes type hints, async patterns, and reproducible environments with tools like pixi.",
+        "https://realpython.com/best-practices",
+        ["ai-tools"],
+        True,
+        30.0,
+    ),
+    (
+        "The Psychology of Decision Making",
+        "Behavioral economics reveals how cognitive biases shape our everyday choices, from financial decisions to personal relationships.",
+        "https://aeon.co/psychology-decisions",
+        ["reading"],
+        True,
+        55.0,
+    ),
+    (
+        "Military Technology and Modern Warfare",
+        "Autonomous systems and AI-guided munitions are reshaping the battlefield, raising ethical questions about the future of warfare.",
+        "https://defensenews.com/mil-tech",
+        ["mil-tech", "defense"],
+        True,
+        48.0,
+    ),
+    (
+        "Climate Change and Renewable Energy",
+        "The transition to renewable energy is accelerating, with solar and wind now cheaper than fossil fuels in most markets.",
+        "https://nature.com/climate-energy",
+        ["reading"],
+        False,
+        None,
+    ),
+    (
+        "Quantum Computing Breakthroughs",
+        "Recent advances in error correction bring practical quantum computing closer to reality, "
+        "with implications for cryptography and drug discovery.",
+        None,
+        ["ai-research"],
+        False,
+        None,
+    ),
+    (
+        "Building Local-First Software",
+        "Local-first software keeps data on the user's device while still enabling collaboration, "
+        "offering privacy and performance benefits.",
+        "https://inkandswitch.com/local-first",
+        ["ai-tools"],
+        "generating",
+        None,
+    ),
 ]
 
 LISTS = [

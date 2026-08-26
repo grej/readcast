@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from contextlib import closing
 from pathlib import Path
 
 from readcast.core.models import Article, Chunk
@@ -184,7 +183,7 @@ def test_list_lists_ordered(base_dir: Path) -> None:
     store.create_list("Third", "playlist")
 
     lists = store.list_lists()
-    assert [l["name"] for l in lists] == ["First", "Second", "Third"]
+    assert [item["name"] for item in lists] == ["First", "Second", "Third"]
 
 
 def test_update_list(base_dir: Path) -> None:
@@ -219,7 +218,7 @@ def test_reorder_lists(base_dir: Path) -> None:
     store.reorder_lists([c["id"], a["id"], b["id"]])
 
     lists = store.list_lists()
-    assert [l["name"] for l in lists] == ["C", "A", "B"]
+    assert [item["name"] for item in lists] == ["C", "A", "B"]
 
 
 # -- List items ------------------------------------------------------------
@@ -344,4 +343,3 @@ def test_set_and_clear_rendition(base_dir: Path) -> None:
     store.clear_rendition(article.id, "summary")
     renditions = store.get_renditions(article.id)
     assert renditions["summary"] is None
-
