@@ -24875,7 +24875,8 @@ input,select{font-family:inherit}
     onDeleteList,
     speed,
     onCycleSpeed,
-    onRemoveFromList
+    onRemoveFromList,
+    onShowExtension
   }) {
     const typeInfo = TYPES.find((t) => t.key === railType);
     const matching = typeInfo?.listType ? lists.filter((l) => l.type === typeInfo.listType) : [];
@@ -25167,7 +25168,8 @@ input,select{font-family:inherit}
       /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { padding: "10px 12px", borderBottom: `1px solid ${C.br}`, display: "flex", alignItems: "center", gap: 8, flexShrink: 0, minHeight: 42 }, children: [
         /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 14 }, children: "\u2299" }),
         /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 13, fontWeight: 700, flex: 1 }, children: "All Items" }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 10, padding: "2px 6px", borderRadius: 4, fontWeight: 600, background: C.abg, color: C.acc, fontFamily: FONT.mono }, children: articles.length })
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 10, padding: "2px 6px", borderRadius: 4, fontWeight: 600, background: C.abg, color: C.acc, fontFamily: FONT.mono }, children: articles.length }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { "data-testid": "extension-setup-button", onClick: onShowExtension, "aria-label": "Browser extension setup", style: { padding: "4px 8px", borderRadius: 5, border: `1px solid ${C.br}`, background: C.bg3, color: C.t2, fontSize: 9, fontWeight: 600, fontFamily: "inherit", cursor: "pointer" }, children: "Extension" })
       ] }),
       /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { padding: "8px 12px", borderBottom: `1px solid ${C.br}`, display: "flex", gap: 8, alignItems: "center", flexShrink: 0, flexWrap: "wrap" }, children: [
         dueCount > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { onClick: () => onSelectList(null, "action"), style: { padding: "3px 8px", borderRadius: 5, fontSize: 9, fontWeight: 600, background: C.ambg, color: C.amb, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }, children: [
@@ -25625,6 +25627,36 @@ input,select{font-family:inherit}
       ] })
     ] }) });
   }
+  function ExtensionSetupModal({ onClose }) {
+    return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { "data-testid": "extension-setup-modal", style: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }, onClick: onClose, children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { role: "dialog", "aria-modal": "true", "aria-labelledby": "extension-setup-title", style: { background: C.bg1, border: `1px solid ${C.br}`, borderRadius: 12, width: "min(460px, 100%)", padding: 20, animation: "popIn .15s ease" }, onClick: (e) => e.stopPropagation(), children: [
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", { id: "extension-setup-title", style: { fontSize: 14, fontWeight: 700, flex: 1 }, children: "Browser extension" }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: onClose, "aria-label": "Close browser extension setup", style: { color: C.t3, fontSize: 16, padding: 4 }, children: "\xD7" })
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("a", { "data-testid": "extension-download", href: "/api/extension.zip", download: true, style: { display: "inline-flex", alignItems: "center", padding: "7px 12px", marginBottom: 16, borderRadius: 6, background: C.acc, color: C.bg0, fontSize: 11, fontWeight: 700, textDecoration: "none" }, children: "Download extension" }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("ol", { style: { paddingLeft: 20, color: C.t2, fontSize: 11, lineHeight: 1.7 }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("li", { children: "Unzip the downloaded file." }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", { children: [
+          "Open ",
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("code", { style: { color: C.acc, fontFamily: FONT.mono }, children: "brave://extensions" }),
+          " in Brave."
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", { children: [
+          "Enable ",
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", { style: { color: C.t1 }, children: "Developer mode" }),
+          "."
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", { children: [
+          "Click ",
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", { style: { color: C.t1 }, children: "Load unpacked" }),
+          " and select the extracted ",
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("code", { style: { color: C.acc, fontFamily: FONT.mono }, children: "readcast-extension" }),
+          " folder."
+        ] })
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { style: { marginTop: 14, color: C.t4, fontSize: 10, lineHeight: 1.5 }, children: "After replacing extension files during an update, click Reload for Readcast on Brave's extensions page." })
+    ] }) });
+  }
   function ToastContainer({ toasts, onUndo, onDismiss }) {
     if (!toasts.length) return null;
     const t = toasts[toasts.length - 1];
@@ -25652,6 +25684,7 @@ input,select{font-family:inherit}
     const [speedOpen, setSpeedOpen] = (0, import_react.useState)(false);
     const [queuePeek, setQueuePeek] = (0, import_react.useState)(false);
     const [showCreateList, setShowCreateList] = (0, import_react.useState)(false);
+    const [showExtensionSetup, setShowExtensionSetup] = (0, import_react.useState)(false);
     const [createListPresetType, setCreateListPresetType] = (0, import_react.useState)(null);
     const [toasts, setToasts] = (0, import_react.useState)([]);
     const activeListObj = (0, import_react.useMemo)(() => lists.find((l) => l.id === activeList) || null, [lists, activeList]);
@@ -26000,6 +26033,7 @@ input,select{font-family:inherit}
         if (e.key === "Escape") {
           if (search) setSearch("");
           if (showCreateList) setShowCreateList(false);
+          if (showExtensionSetup) setShowExtensionSetup(false);
         }
         if (e.key === " " && playerPlaylistId) {
           e.preventDefault();
@@ -26012,7 +26046,7 @@ input,select{font-family:inherit}
       };
       document.addEventListener("keydown", handler);
       return () => document.removeEventListener("keydown", handler);
-    }, [focusedId, activeList, listItems, articles, search, showCreateList, playerPlaylistId]);
+    }, [focusedId, activeList, listItems, articles, search, showCreateList, showExtensionSetup, playerPlaylistId]);
     return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
       /* @__PURE__ */ (0, import_jsx_runtime.jsx)("style", { children: globalCSS }),
       /* @__PURE__ */ (0, import_jsx_runtime.jsx)("audio", { "data-testid": "audio-element", ref: audioRef, preload: "metadata" }),
@@ -26058,7 +26092,8 @@ input,select{font-family:inherit}
             onDeleteList: handleDeleteList,
             speed,
             onCycleSpeed: handleCycleSpeed,
-            onRemoveFromList: handleRemoveFromList
+            onRemoveFromList: handleRemoveFromList,
+            onShowExtension: () => setShowExtensionSetup(true)
           }
         ),
         /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
@@ -26107,6 +26142,7 @@ input,select{font-family:inherit}
         }
       ),
       showCreateList && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CreateListModal, { onClose: () => setShowCreateList(false), onCreate: handleCreateList, presetType: createListPresetType }),
+      showExtensionSetup && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ExtensionSetupModal, { onClose: () => setShowExtensionSetup(false) }),
       /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ToastContainer, { toasts, onUndo: handleUndo, onDismiss: (id) => setToasts((prev) => prev.filter((t) => t.id !== id)) })
     ] });
   }
