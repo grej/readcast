@@ -123,6 +123,22 @@ def test_port_check_accepts_an_available_port() -> None:
     _check_port_available("127.0.0.1", port, wait_timeout=0.1, poll_interval=0.01)
 
 
+def test_port_check_accepts_port_in_restart_time_wait() -> None:
+    listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    listener.bind(("127.0.0.1", 0))
+    port = listener.getsockname()[1]
+    listener.listen()
+    client = socket.create_connection(("127.0.0.1", port))
+    connection, _ = listener.accept()
+
+    connection.close()
+    client.close()
+    listener.close()
+
+    _check_port_available("127.0.0.1", port, wait_timeout=0.1, poll_interval=0.01)
+
+
 def test_port_check_waits_for_previous_server_to_release_port() -> None:
     listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     listener.bind(("127.0.0.1", 0))
