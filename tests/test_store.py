@@ -135,19 +135,50 @@ def test_doc_to_article_with_full_metadata(base_dir: Path) -> None:
     assert loaded.author == article.author
 
 
-def test_delete_article_removes_entity_links(base_dir: Path) -> None:
+def test_delete_article_moves_to_trash_and_restore_preserves_data(base_dir: Path) -> None:
     store = Store(base_dir)
     article = _article()
     store.add_article(article, _chunks(), "drone war text")
 
+    audio_path = store.get_article_dir(article.id) / "audio.mp3"
+    audio_path.write_bytes(b"audio")
+    output_path = store.create_output_symlink(article, audio_path)
+
+    reading_list = store.create_list("Reading", "collection")
+    store.add_list_item(reading_list["id"], article.id)
+
     entity_id = store.upsert_entity("TestCorp", "company", "2026-01-01T00:00:00Z")
     store.link_article_entity(article.id, entity_id)
 
-    assert len(store.get_article_entities(article.id)) == 1
-
-    store.delete_article(article.id)
+    assert store.delete_article(article.id) is True
 
     assert store.get_article(article.id) is None
+    assert [item.id for item in store.list_deleted_articles()] == [article.id]
+    assert store.get_deleted_article(article.id).deleted_at is not None
+    assert store.search("drone war") == []
+    assert audio_path.exists()
+    assert not output_path.exists()
+    assert store.get_list_items(reading_list["id"]) == []
+
+    assert store.restore_article(article.id) is True
+    assert store.get_article(article.id) is not None
+    assert len(store.get_article_entities(article.id)) == 1
+    assert store.get_list_items(reading_list["id"])[0]["doc_id"] == article.id
+    assert any(path.resolve() == audio_path.resolve() for path in store.output_dir.iterdir())
+
+
+def test_permanent_delete_requires_trashed_article_and_removes_files(base_dir: Path) -> None:
+    store = Store(base_dir)
+    article = _article()
+    store.add_article(article, _chunks(), "drone war text")
+    article_dir = store.get_article_dir(article.id)
+
+    assert store.permanently_delete_article(article.id) is False
+    assert store.delete_article(article.id) is True
+    assert store.permanently_delete_article(article.id) is True
+
+    assert store.get_deleted_article(article.id) is None
+    assert not article_dir.exists()
 
 
 def test_settings_round_trip(base_dir: Path) -> None:

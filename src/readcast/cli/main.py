@@ -298,11 +298,11 @@ def retry(ctx: click.Context, article_id: str) -> None:
 @click.argument("article_id")
 @click.pass_context
 def delete(ctx: click.Context, article_id: str) -> None:
-    """Delete an article and all stored files."""
+    """Move an article to Trash."""
     service: ReadcastService = ctx.obj["service"]
     if not service.delete_article(article_id):
         raise click.ClickException(f"Unknown article: {article_id}")
-    console.print(f"[green]deleted[/green] {article_id}")
+    console.print(f"[green]moved to Trash[/green] {article_id}")
 
 
 @cli.group(invoke_without_command=True)

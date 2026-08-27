@@ -47,6 +47,7 @@ class Article:
     listened_complete: int = 0
     last_digested_at: Optional[str] = None
     digest_status: Optional[str] = None
+    deleted_at: Optional[str] = None
 
     def to_dict(self) -> dict[str, Any]:
         return _strip_none(asdict(self))

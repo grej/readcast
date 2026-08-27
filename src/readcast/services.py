@@ -88,8 +88,33 @@ class ReadcastService:
     def get_article(self, article_id: str) -> Optional[Article]:
         return self.store.get_article(article_id)
 
+    def list_deleted_articles(self, limit: int = 500) -> list[Article]:
+        return self.store.list_deleted_articles(limit=limit)
+
+    def get_deleted_article(self, article_id: str) -> Optional[Article]:
+        return self.store.get_deleted_article(article_id)
+
     def delete_article(self, article_id: str) -> bool:
+        article = self.store.get_article(article_id)
+        if article is None:
+            return False
+        if article.status in {"queued", "synthesizing"}:
+            article.status = "added"
+            article.error_message = None
+            self.store.update_article(article)
+            self.store.clear_rendition(article_id, "audio")
         return self.store.delete_article(article_id)
+
+    def restore_article(self, article_id: str) -> Optional[Article]:
+        if not self.store.restore_article(article_id):
+            return None
+        return self.store.get_article(article_id)
+
+    def permanently_delete_article(self, article_id: str) -> bool:
+        return self.store.permanently_delete_article(article_id)
+
+    def empty_trash(self) -> int:
+        return self.store.empty_trash()
 
     def default_voice(self) -> str:
         return self.store.get_setting(self.DEFAULT_VOICE_SETTING_KEY) or self.config.tts.voice
@@ -466,6 +491,8 @@ class ReadcastService:
         created = self.store.add_article(article, chunks, full_text)
         if not created:
             existing = self.store.get_article(article.id)
+            if existing is None and article.source_url:
+                existing = self.store.get_article_by_source_url(article.source_url)
             if existing is None:
                 raise RuntimeError(f"Article {article.id} reported duplicate but was not found in the store.")
             return AddArticleResult(article=existing, created=False)
@@ -493,7 +520,15 @@ class ReadcastService:
                 progress=progress,
                 tts_client=self._ensure_tts_collaborators()[0],
             )
-            current = self._require_article(article.id)
+            current = self.store.get_article(article.id)
+            if current is None:
+                self._cleanup_segments(article_dir)
+                return ProcessArticleResult(
+                    article=article,
+                    success=False,
+                    output_path=output_path,
+                    error="Article was moved to Trash during synthesis.",
+                )
             duration = audio_duration(output_path)
             voice = current.voice or self.default_voice()
             speed = current.speed if current.speed is not None else self.config.tts.speed
@@ -505,6 +540,9 @@ class ReadcastService:
             return ProcessArticleResult(article=latest, success=True, output_path=output_path, link_path=link_path)
         except Exception as exc:
             message = str(exc)
+            if self.store.get_article(article.id) is None:
+                self._cleanup_segments(self.store.get_article_dir(article.id))
+                return ProcessArticleResult(article=article, success=False, error="Article was moved to Trash during synthesis.")
             self.store.update_status(article.id, "failed", message)
             failed = self._require_article(article.id)
             self._set_audio_rendition(failed, "failed", error=message)
@@ -627,6 +665,9 @@ class ProcessingWorker:
 
     def cancel(self, article_id: str) -> None:
         self._cancelled.add(article_id)
+
+    def resume(self, article_id: str) -> None:
+        self._cancelled.discard(article_id)
 
     def kick(self) -> None:
         self._wake.set()

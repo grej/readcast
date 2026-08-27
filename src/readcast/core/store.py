@@ -140,16 +140,24 @@ class Store:
     # -- Article CRUD ----------------------------------------------------------
 
     def add_article(self, article: Article, chunks: list[Chunk], full_text: str) -> bool:
-        article_dir = self.get_article_dir(article.id)
+        existing_by_id = self._svc.docs.get(article.id, include_deleted=True)
+        if existing_by_id is not None:
+            if existing_by_id.deleted_at is not None and existing_by_id.source_product == "readcast":
+                self.restore_article(article.id)
+            return False
 
         if article.source_url:
             with closing(self._connect()) as conn:
                 existing = conn.execute(
-                    "SELECT id FROM documents WHERE source_uri = ? AND deleted_at IS NULL",
+                    "SELECT id, deleted_at FROM documents WHERE source_uri = ? AND source_product = 'readcast'",
                     (article.source_url,),
                 ).fetchone()
                 if existing:
+                    if existing["deleted_at"] is not None:
+                        self.restore_article(existing["id"])
                     return False
+
+        article_dir = self.get_article_dir(article.id)
 
         try:
             self._svc.docs.create(
@@ -182,6 +190,25 @@ class Store:
         doc = self._svc.docs.get(article_id)
         return self._doc_to_article(doc) if doc else None
 
+    def get_deleted_article(self, article_id: str) -> Optional[Article]:
+        doc = self._svc.docs.get(article_id, include_deleted=True)
+        if doc is None or doc.deleted_at is None or doc.source_product != "readcast":
+            return None
+        return self._doc_to_article(doc)
+
+    def get_article_by_source_url(self, source_url: str) -> Optional[Article]:
+        with closing(self._connect()) as conn:
+            row = conn.execute(
+                """
+                SELECT * FROM documents
+                WHERE source_uri = ? AND source_product = 'readcast' AND deleted_at IS NULL
+                ORDER BY created_at DESC
+                LIMIT 1
+                """,
+                (source_url,),
+            ).fetchone()
+        return self._doc_to_article(Document.from_row(row)) if row else None
+
     def list_articles(self, status: Optional[str] = None, limit: int = 50) -> list[Article]:
         fetch_limit = limit * 5 if status else limit
         docs = self._svc.docs.list(source_product="readcast", limit=fetch_limit)
@@ -189,6 +216,19 @@ class Store:
         if status:
             articles = [a for a in articles if a.status == status]
         return articles[:limit]
+
+    def list_deleted_articles(self, limit: int = 500) -> list[Article]:
+        with closing(self._connect()) as conn:
+            rows = conn.execute(
+                """
+                SELECT * FROM documents
+                WHERE source_product = 'readcast' AND deleted_at IS NOT NULL
+                ORDER BY deleted_at DESC
+                LIMIT ?
+                """,
+                (limit,),
+            ).fetchall()
+        return [self._doc_to_article(Document.from_row(row)) for row in rows]
 
     def update_status(self, article_id: str, status: str, error_message: Optional[str] = None) -> None:
         doc = self._svc.docs.get(article_id, include_deleted=True)
@@ -307,20 +347,52 @@ class Store:
         if article is None:
             return False
 
-        self._svc.docs.delete(article_id, hard=True)
+        deleted = self._svc.docs.delete(article_id)
+        if deleted:
+            self._remove_output_links(self.articles_dir / article_id)
+        return deleted
+
+    def restore_article(self, article_id: str) -> bool:
+        doc = self._svc.docs.get(article_id, include_deleted=True)
+        if doc is None or doc.deleted_at is None or doc.source_product != "readcast":
+            return False
+        doc.deleted_at = None
+        self._svc.docs.update(doc)
+
+        article = self._doc_to_article(doc)
+        article_dir = self.articles_dir / article_id
+        for extension in ("mp3", "m4a"):
+            audio_path = article_dir / f"audio.{extension}"
+            if audio_path.exists():
+                self.create_output_symlink(article, audio_path)
+                break
+        return True
+
+    def permanently_delete_article(self, article_id: str) -> bool:
+        article = self.get_deleted_article(article_id)
+        if article is None:
+            return False
 
         article_dir = self.articles_dir / article_id
+        self._remove_output_links(article_dir)
+
+        if not self._svc.docs.delete(article_id, hard=True):
+            return False
+
+        with closing(self._connect()) as conn:
+            conn.execute("DELETE FROM list_items WHERE doc_id = ?", (article_id,))
+            conn.commit()
+
         if article_dir.exists():
             shutil.rmtree(article_dir)
-
-        for path in self.output_dir.iterdir():
-            if path.is_symlink():
-                try:
-                    if path.resolve().parent == article_dir:
-                        path.unlink()
-                except OSError:
-                    pass
         return True
+
+    def empty_trash(self) -> int:
+        deleted = 0
+        for article in self.list_deleted_articles(limit=10000):
+            if self.permanently_delete_article(article.id):
+                deleted += 1
+        return deleted
 
     def update_article(self, article: Article) -> None:
         doc = self._svc.docs.get(article.id, include_deleted=True)
@@ -632,7 +704,7 @@ class Store:
     # -- Renditions ------------------------------------------------------------
 
     def get_renditions(self, doc_id: str) -> dict:
-        doc = self._svc.docs.get(doc_id)
+        doc = self._svc.docs.get(doc_id, include_deleted=True)
         if not doc:
             return {"audio": None, "summary": None, "audio_summary": None}
         meta = doc.metadata or {}
@@ -693,9 +765,21 @@ class Store:
             "word_count": meta.get("word_count", 0),
             "estimated_read_min": meta.get("estimated_read_min", 0),
             "status": meta.get("status") or _INGEST_TO_STATUS.get(doc.ingest_status, "queued"),
+            "deleted_at": doc.deleted_at,
         }
         merged = {**defaults, **meta}
+        merged["deleted_at"] = doc.deleted_at
         return Article.from_dict(merged)
+
+    def _remove_output_links(self, article_dir: Path) -> None:
+        for path in self.output_dir.iterdir():
+            if not path.is_symlink():
+                continue
+            try:
+                if path.resolve().parent == article_dir:
+                    path.unlink()
+            except OSError:
+                pass
 
     @staticmethod
     def _write_json(path: Path, payload: object) -> None:

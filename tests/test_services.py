@@ -91,6 +91,63 @@ def test_preview_input_does_not_store_article(base_dir) -> None:
     assert service.list_articles() == []
 
 
+def test_trash_and_restore_article(base_dir) -> None:
+    service = ReadcastService(Config.load(base_dir))
+    article = service.add_text("Recoverable title\n\nBody text.").article
+
+    assert service.delete_article(article.id) is True
+    assert service.get_article(article.id) is None
+    assert service.list_deleted_articles()[0].id == article.id
+
+    restored = service.restore_article(article.id)
+
+    assert restored is not None
+    assert restored.id == article.id
+    assert restored.deleted_at is None
+    assert restored.status == "added"
+
+
+def test_recapturing_trashed_url_restores_original_article(base_dir) -> None:
+    service = ReadcastService(Config.load(base_dir))
+    first = service.add_text(
+        "Recoverable capture\n\nBody text.",
+        source_url="https://example.com/recoverable",
+    )
+    assert service.delete_article(first.article.id) is True
+
+    recaptured = service.add_text(
+        "Recoverable capture\n\nBody text.",
+        source_url="https://example.com/recoverable",
+        duplicate_window_sec=0,
+    )
+
+    assert recaptured.created is False
+    assert recaptured.article.id == first.article.id
+    assert service.get_deleted_article(first.article.id) is None
+
+
+def test_trashing_during_synthesis_does_not_crash_worker(monkeypatch, base_dir) -> None:
+    service = _service_with_tts(base_dir)
+    article = service.add_text("Delete while generating\n\nBody text.").article
+    article_dir = service.store.get_article_dir(article.id)
+
+    def fake_synthesize(segments, article_dir: Path, config, progress=None, *, tts_client):
+        assert service.delete_article(article.id) is True
+        audio_path = article_dir / "audio.mp3"
+        audio_path.write_bytes(_wav_bytes())
+        return audio_path
+
+    monkeypatch.setattr("readcast.services.synthesize", fake_synthesize)
+
+    result = service.process_articles([article])[0]
+
+    assert result.success is False
+    assert result.error == "Article was moved to Trash during synthesis."
+    assert service.get_article(article.id) is None
+    assert service.get_deleted_article(article.id).status == "added"
+    assert not (article_dir / "segments").exists()
+
+
 def test_preview_input_for_url_uses_extractor(monkeypatch, base_dir) -> None:
     service = ReadcastService(Config.load(base_dir))
 

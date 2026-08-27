@@ -92,7 +92,7 @@ def test_api_reprocess_updates_same_article_and_kicks_worker(base_dir) -> None:
         assert kicks == [True]
 
 
-def test_api_delete_removes_article_and_audio(base_dir) -> None:
+def test_api_delete_moves_article_to_trash_then_restore_or_delete_permanently(base_dir) -> None:
     app = create_app(base_dir)
     with TestClient(app) as client:
         service = client.app.state.service
@@ -113,7 +113,38 @@ def test_api_delete_removes_article_and_audio(base_dir) -> None:
 
         assert response.status_code == 204
         assert service.get_article(article.id) is None
+        assert article_dir.exists()
+        assert client.get(f"/api/articles/{article.id}/audio").status_code == 404
+        assert client.get("/api/articles").json()["articles"] == []
+        trashed = client.get("/api/trash")
+        assert trashed.status_code == 200
+        assert trashed.json()["articles"][0]["id"] == article.id
+        assert trashed.json()["articles"][0]["deleted_at"] is not None
+
+        restored = client.post(f"/api/articles/{article.id}/restore")
+        assert restored.status_code == 200
+        assert restored.json()["article"]["deleted_at"] is None
+        assert service.get_article(article.id) is not None
+
+        assert client.delete(f"/api/articles/{article.id}").status_code == 204
+        permanent = client.delete(f"/api/trash/{article.id}")
+        assert permanent.status_code == 204
+        assert client.get("/api/trash").json()["articles"] == []
         assert not article_dir.exists()
+
+
+def test_api_empty_trash_removes_all_trashed_articles(base_dir) -> None:
+    app = create_app(base_dir)
+    with TestClient(app) as client:
+        first = client.post("/api/articles", json={"input": "First title\n\nFirst body.", "process": False}).json()["article"]
+        second = client.post("/api/articles", json={"input": "Second title\n\nSecond body.", "process": False}).json()["article"]
+        client.delete(f"/api/articles/{first['id']}")
+        client.delete(f"/api/articles/{second['id']}")
+
+        response = client.delete("/api/trash")
+
+        assert response.status_code == 204
+        assert client.get("/api/trash").json()["articles"] == []
 
 
 def test_api_status_and_voices(monkeypatch, base_dir) -> None:
