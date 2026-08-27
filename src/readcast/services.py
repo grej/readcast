@@ -65,6 +65,7 @@ class ReadcastService:
     DEFAULT_VOICE_SETTING_KEY = "default_voice"
     PLAYBACK_RATE_SETTING_KEY = "playback_rate"
     PLAYBACK_RATES = (1.0, 1.25, 1.5, 1.75, 2.0)
+    PENDING_AUDIO_STATES = frozenset({"queued", "generating"})
 
     def __init__(
         self,
@@ -184,6 +185,7 @@ class ReadcastService:
         article.status = "queued"
         article.error_message = None
         self.store.update_article(article)
+        self._set_audio_rendition(article, "queued")
         return article
 
     def cancel_article(self, article_id: str) -> Article:
@@ -194,6 +196,7 @@ class ReadcastService:
         article.status = "added"
         article.error_message = None
         self.store.update_article(article)
+        self.store.clear_rendition(article_id, "audio")
         return article
 
     def remove_audio(self, article_id: str) -> Article:
@@ -224,6 +227,7 @@ class ReadcastService:
         article.status = "added"
         article.error_message = None
         self.store.update_article(article)
+        self.store.clear_rendition(article_id, "audio")
         return article
 
     def reprocess_article(self, article_id: str, voice: Optional[str] = None, speed: Optional[float] = None) -> Article:
@@ -235,7 +239,44 @@ class ReadcastService:
         article.status = "queued"
         article.error_message = None
         self.store.update_article(article)
+        self._set_audio_rendition(article, "queued")
         return article
+
+    def recover_interrupted_audio_jobs(self) -> int:
+        """Reconcile audio jobs left nonterminal by a prior process shutdown."""
+        reconciled = 0
+        for article in self.store.list_articles(limit=1000):
+            audio = self.store.get_renditions(article.id).get("audio")
+            audio_state = audio.get("state") if isinstance(audio, dict) else None
+            interrupted = article.status == "synthesizing" or (
+                article.status == "failed" and audio_state in self.PENDING_AUDIO_STATES
+            )
+
+            if interrupted:
+                self.store.update_status(article.id, "queued")
+                article.status = "queued"
+                article.error_message = None
+                self._set_audio_rendition(article, "queued")
+                reconciled += 1
+                continue
+
+            if article.status == "queued" and audio_state == "generating":
+                self._set_audio_rendition(article, "queued")
+                reconciled += 1
+                continue
+
+            if article.status == "done" and audio_state in self.PENDING_AUDIO_STATES:
+                audio_path = self.audio_path_for_article(article.id)
+                if audio_path is not None and article.audio_duration_sec is not None:
+                    self._set_audio_rendition(
+                        article,
+                        "ready",
+                        duration=article.audio_duration_sec,
+                        generated_at=audio.get("generated_at") if isinstance(audio, dict) else None,
+                    )
+                    reconciled += 1
+
+        return reconciled
 
     def add_source(
         self,
@@ -438,11 +479,13 @@ class ReadcastService:
 
     def _process_article(self, article: Article, progress: Optional[ProgressCallback] = None) -> ProcessArticleResult:
         self.store.update_status(article.id, "synthesizing")
-        chunks = self.store.get_chunks(article.id)
-        segments = create_tts_segments(chunks, max_chars=self.config.tts.max_chunk_chars)
-        article_dir = self.store.get_article_dir(article.id)
+        current = self._require_article(article.id)
+        self._set_audio_rendition(current, "generating")
 
         try:
+            chunks = self.store.get_chunks(article.id)
+            segments = create_tts_segments(chunks, max_chars=self.config.tts.max_chunk_chars)
+            article_dir = self.store.get_article_dir(article.id)
             output_path = synthesize(
                 segments,
                 article_dir,
@@ -450,20 +493,43 @@ class ReadcastService:
                 progress=progress,
                 tts_client=self._ensure_tts_collaborators()[0],
             )
+            current = self._require_article(article.id)
+            duration = audio_duration(output_path)
+            voice = current.voice or self.default_voice()
+            speed = current.speed if current.speed is not None else self.config.tts.speed
+            self.store.update_audio_metadata(article.id, duration, voice, self.config.tts.model, speed)
+            latest = self._require_article(article.id)
+            self._set_audio_rendition(latest, "ready", duration=duration, generated_at=datetime.now(UTC).isoformat())
+            link_path = self.store.create_output_symlink(latest, output_path)
+            self._cleanup_segments(article_dir)
+            return ProcessArticleResult(article=latest, success=True, output_path=output_path, link_path=link_path)
         except Exception as exc:
             message = str(exc)
             self.store.update_status(article.id, "failed", message)
-            return ProcessArticleResult(article=self._require_article(article.id), success=False, error=message)
+            failed = self._require_article(article.id)
+            self._set_audio_rendition(failed, "failed", error=message)
+            return ProcessArticleResult(article=failed, success=False, error=message)
 
-        current = self._require_article(article.id)
-        duration = audio_duration(output_path)
-        voice = current.voice or self.default_voice()
-        speed = current.speed if current.speed is not None else self.config.tts.speed
-        self.store.update_audio_metadata(article.id, duration, voice, self.config.tts.model, speed)
-        latest = self._require_article(article.id)
-        link_path = self.store.create_output_symlink(latest, output_path)
-        self._cleanup_segments(article_dir)
-        return ProcessArticleResult(article=latest, success=True, output_path=output_path, link_path=link_path)
+    def _set_audio_rendition(
+        self,
+        article: Article,
+        state: str,
+        *,
+        duration: Optional[float] = None,
+        generated_at: Optional[str] = None,
+        error: Optional[str] = None,
+    ) -> None:
+        self.store.set_rendition(
+            article.id,
+            "audio",
+            {
+                "state": state,
+                "voice": article.voice or self.default_voice(),
+                "duration": duration,
+                "generated_at": generated_at,
+                "error": error,
+            },
+        )
 
     def _require_article(self, article_id: str) -> Article:
         article = self.store.get_article(article_id)
@@ -544,6 +610,9 @@ class ProcessingWorker:
     def start(self) -> None:
         if self._thread and self._thread.is_alive():
             return
+        reconciled = self.service.recover_interrupted_audio_jobs()
+        if reconciled:
+            log.info("Reconciled %d interrupted audio job(s)", reconciled)
         self._stop.clear()
         self._thread = threading.Thread(target=self._run, name="readcast-worker", daemon=True)
         self._thread.start()

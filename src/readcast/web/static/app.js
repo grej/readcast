@@ -25279,6 +25279,7 @@ input,select{font-family:inherit}
     const audio = rend.audio;
     const audioReady = audio && audio.state === "ready";
     const audioGen = audio && (audio.state === "generating" || audio.state === "queued");
+    const audioFailed = audio && audio.state === "failed";
     const memberships = article.list_memberships || [];
     const membershipIds = new Set(memberships.map((m) => m.id));
     const inPlaylists = lists.filter((l) => l.type === "playlist" && membershipIds.has(l.id));
@@ -25353,6 +25354,12 @@ input,select{font-family:inherit}
         ] }) : audioGen ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: { fontSize: 10, padding: "3px 8px", borderRadius: 5, background: C.ambg, color: C.amb, fontWeight: 500, animation: "pulse 1.2s infinite" }, children: [
           "\u25CC",
           " Generating..."
+        ] }) : audioFailed ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { title: audio.error || article.error_message || "Narration failed", style: { fontSize: 10, padding: "3px 8px", borderRadius: 5, background: C.rbg, color: C.red, fontWeight: 500 }, children: [
+            "\u26A0",
+            " Narration failed"
+          ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: () => handleGenerateRendition("audio"), style: { padding: "3px 8px", borderRadius: 5, border: `1px solid ${C.red}`, background: "transparent", color: C.red, fontSize: 9, fontWeight: 600, fontFamily: "inherit", cursor: "pointer" }, children: "Retry narration" })
         ] }) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
           /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: { fontSize: 10, padding: "3px 8px", borderRadius: 5, background: C.bg1, color: C.t4 }, children: [
             "\u266A",
@@ -25761,11 +25768,20 @@ input,select{font-family:inherit}
       if (activeList) await refreshListItems(activeList);
       if (playerPlaylistId) await refreshPlayerItems(playerPlaylistId);
     }, [refreshArticles, refreshLists, refreshListItems, refreshPlayerItems, activeList, playerPlaylistId, search]);
+    const hasPendingAudio = articles.some((article) => {
+      const state = (article.renditions || {}).audio?.state;
+      return state === "queued" || state === "generating";
+    });
     (0, import_react.useEffect)(() => {
       refreshArticles();
       refreshLists();
       refreshVoices();
     }, []);
+    (0, import_react.useEffect)(() => {
+      if (!hasPendingAudio) return void 0;
+      const interval = setInterval(refreshAll, 2e3);
+      return () => clearInterval(interval);
+    }, [hasPendingAudio, refreshAll]);
     (0, import_react.useEffect)(() => {
       if (playerPlaylistId) return;
       const firstPlaylist = lists.find((l) => l.type === "playlist");

@@ -567,6 +567,7 @@ function DetailPanel({ article, lists, onRefresh, onToggleListMembership, onPlay
   const audio = rend.audio;
   const audioReady = audio && audio.state === "ready";
   const audioGen = audio && (audio.state === "generating" || audio.state === "queued");
+  const audioFailed = audio && audio.state === "failed";
   const memberships = article.list_memberships || [];
   const membershipIds = new Set(memberships.map(m => m.id));
 
@@ -619,6 +620,11 @@ function DetailPanel({ article, lists, onRefresh, onToggleListMembership, onPlay
           </>
         ) : audioGen ? (
           <span style={{ fontSize: 10, padding: "3px 8px", borderRadius: 5, background: C.ambg, color: C.amb, fontWeight: 500, animation: "pulse 1.2s infinite" }}>{"\u25cc"} Generating...</span>
+        ) : audioFailed ? (
+          <>
+            <span title={audio.error || article.error_message || "Narration failed"} style={{ fontSize: 10, padding: "3px 8px", borderRadius: 5, background: C.rbg, color: C.red, fontWeight: 500 }}>{"\u26a0"} Narration failed</span>
+            <button onClick={() => handleGenerateRendition("audio")} style={{ padding: "3px 8px", borderRadius: 5, border: `1px solid ${C.red}`, background: "transparent", color: C.red, fontSize: 9, fontWeight: 600, fontFamily: "inherit", cursor: "pointer" }}>Retry narration</button>
+          </>
         ) : (
           <>
             <span style={{ fontSize: 10, padding: "3px 8px", borderRadius: 5, background: C.bg1, color: C.t4 }}>{"\u266a"} No audio</span>
@@ -970,8 +976,20 @@ function ReadcastApp() {
     if (playerPlaylistId) await refreshPlayerItems(playerPlaylistId);
   }, [refreshArticles, refreshLists, refreshListItems, refreshPlayerItems, activeList, playerPlaylistId, search]);
 
+  const hasPendingAudio = articles.some(article => {
+    const state = (article.renditions || {}).audio?.state;
+    return state === "queued" || state === "generating";
+  });
+
   // Initial load
   useEffect(() => { refreshArticles(); refreshLists(); refreshVoices(); }, []);
+
+  // Keep active narration state current without polling when the queue is idle.
+  useEffect(() => {
+    if (!hasPendingAudio) return undefined;
+    const interval = setInterval(refreshAll, 2000);
+    return () => clearInterval(interval);
+  }, [hasPendingAudio, refreshAll]);
 
   // Auto-load first playlist into player
   useEffect(() => {

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from readcast.core.models import Article, Chunk
@@ -339,6 +340,8 @@ def test_set_and_clear_rendition(base_dir: Path) -> None:
 
     renditions = store.get_renditions(article.id)
     assert renditions["summary"]["text"] == "A short summary."
+    meta = json.loads((store.get_article_dir(article.id) / "meta.json").read_text(encoding="utf-8"))
+    assert meta["renditions"]["summary"]["text"] == "A short summary."
 
     store.clear_rendition(article.id, "summary")
     renditions = store.get_renditions(article.id)
