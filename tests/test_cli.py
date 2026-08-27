@@ -3,11 +3,15 @@ from __future__ import annotations
 from io import BytesIO
 import json
 from pathlib import Path
+import socket
+import threading
 import wave
 
+import click
 from click.testing import CliRunner
+import pytest
 
-from readcast.cli.main import cli
+from readcast.cli.main import _check_port_available, cli
 from readcast.services import ReadcastService
 
 
@@ -109,6 +113,37 @@ def test_cli_help_shows_server_and_web_commands() -> None:
     assert result.exit_code == 0
     assert "server" in result.output
     assert "web" in result.output
+
+
+def test_port_check_accepts_an_available_port() -> None:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
+        probe.bind(("127.0.0.1", 0))
+        port = probe.getsockname()[1]
+
+    _check_port_available("127.0.0.1", port, wait_timeout=0.1, poll_interval=0.01)
+
+
+def test_port_check_waits_for_previous_server_to_release_port() -> None:
+    listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    listener.bind(("127.0.0.1", 0))
+    port = listener.getsockname()[1]
+    release = threading.Timer(0.05, listener.close)
+    release.start()
+
+    try:
+        _check_port_available("127.0.0.1", port, wait_timeout=1.0, poll_interval=0.01)
+    finally:
+        release.cancel()
+        listener.close()
+
+
+def test_port_check_fails_cleanly_when_conflict_persists() -> None:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as listener:
+        listener.bind(("127.0.0.1", 0))
+        port = listener.getsockname()[1]
+
+        with pytest.raises(click.ClickException, match=f"Port {port} is already in use"):
+            _check_port_available("127.0.0.1", port, wait_timeout=0.03, poll_interval=0.005)
 
 
 def test_cli_server_commands(monkeypatch, tmp_path: Path) -> None:
