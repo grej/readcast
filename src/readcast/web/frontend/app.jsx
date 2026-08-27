@@ -30,6 +30,7 @@ const TYPES = [
 ];
 
 const SPEEDS = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0];
+const STANDALONE_PLAYER_ID = "__standalone__";
 const EMOJIS = ["\ud83d\udccc","\ud83d\udcda","\ud83c\udfaf","\ud83d\udd2c","\ud83d\udca1","\ud83c\udfd7","\ud83d\udcca","\ud83c\udfa8","\ud83e\uddea","\ud83d\uddfa","\u270f\ufe0f","\ud83d\udd16","\ud83c\udf93","\ud83d\udce1","\ud83d\udee0","\u2709","\ud83e\udde0","\ud83c\udf0d","\ud83c\udfa7","\u26a1","\ud83d\udcd6","\ud83d\udd2e"];
 
 const COLOR_CLASSES = {
@@ -773,7 +774,7 @@ function BottomBar({ article, playlist, isPlaying, currentTime, duration, player
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 11, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{trackTitle}</div>
         <div style={{ fontSize: 9, color: C.t3, display: "flex", gap: 6, alignItems: "center" }}>
-          {playlist && <span style={{ color: C.acc, cursor: "pointer" }} onClick={onGoToPlaylist}>{playlist.icon} {playlist.name}</span>}
+          {playlist && <span style={{ color: C.acc, cursor: playlist.standalone ? "default" : "pointer" }} onClick={playlist.standalone ? undefined : onGoToPlaylist}>{playlist.icon} {playlist.name}</span>}
           <span>{"\u00b7"} {trackNum}/{trackTotal}</span>
         </div>
         <div data-testid="player-progress" onClick={onSeek} style={{ width: "100%", height: 3, background: C.br, borderRadius: 2, cursor: "pointer", marginTop: 2, overflow: "hidden" }}>
@@ -927,12 +928,17 @@ function ReadcastApp() {
     if (fromItems?.article) return fromItems.article;
     return articles.find(a => a.id === focusedId) || null;
   }, [focusedId, articles, listItems]);
-  const playerPlaylist = useMemo(() => lists.find(l => l.id === playerPlaylistId) || null, [lists, playerPlaylistId]);
+  const playerPlaylist = useMemo(() => {
+    if (playerPlaylistId === STANDALONE_PLAYER_ID) {
+      return { id: STANDALONE_PLAYER_ID, name: "Now Playing", icon: "\u266b", item_count: playerItems.length, standalone: true };
+    }
+    return lists.find(l => l.id === playerPlaylistId) || null;
+  }, [lists, playerPlaylistId, playerItems.length]);
   const nowPlayingArticle = useMemo(() => {
-    if (!playerPlaylistId || !playerItems.length) return null;
+    if (!playerItems.length) return null;
     const item = playerItems[playerIdx];
     return item?.article || null;
-  }, [playerPlaylistId, playerIdx, playerItems]);
+  }, [playerIdx, playerItems]);
 
   // ─── Toast helper ──────────────────────────────────────────
   const addToast = useCallback((message, undoFn = null) => {
@@ -965,6 +971,7 @@ function ReadcastApp() {
   }, []);
   const refreshPlayerItems = useCallback(async (listId) => {
     if (!listId) { setPlayerItems([]); return; }
+    if (listId === STANDALONE_PLAYER_ID) return;
     try { const data = await apiGet(`/api/lists/${listId}/items`); setPlayerItems(data.items || []); } catch {}
   }, []);
   const refreshVoices = useCallback(async () => {
@@ -973,7 +980,7 @@ function ReadcastApp() {
   const refreshAll = useCallback(async () => {
     await Promise.all([refreshArticles(search), refreshLists()]);
     if (activeList) await refreshListItems(activeList);
-    if (playerPlaylistId) await refreshPlayerItems(playerPlaylistId);
+    if (playerPlaylistId && playerPlaylistId !== STANDALONE_PLAYER_ID) await refreshPlayerItems(playerPlaylistId);
   }, [refreshArticles, refreshLists, refreshListItems, refreshPlayerItems, activeList, playerPlaylistId, search]);
 
   const hasPendingAudio = articles.some(article => {
@@ -1005,7 +1012,9 @@ function ReadcastApp() {
   useEffect(() => { refreshListItems(activeList); }, [activeList, refreshListItems]);
 
   // Reload player items when player playlist changes
-  useEffect(() => { if (playerPlaylistId) refreshPlayerItems(playerPlaylistId); }, [playerPlaylistId, refreshPlayerItems]);
+  useEffect(() => {
+    if (playerPlaylistId && playerPlaylistId !== STANDALONE_PLAYER_ID) refreshPlayerItems(playerPlaylistId);
+  }, [playerPlaylistId, refreshPlayerItems]);
 
   // Debounced search
   useEffect(() => {
@@ -1144,14 +1153,28 @@ function ReadcastApp() {
   };
 
   const handlePlayNow = async (docId) => {
-    if (playerPlaylistId) {
-      const idx = playerItems.findIndex(i => (i.doc_id || i.article?.id) === docId);
-      if (idx >= 0) {
-        setPlayerIdx(idx);
-        setAudioState(s => ({ ...s, currentTime: 0 }));
-      }
-      setTimeout(() => { audioRef.current?.play().catch(() => {}); }, 100);
+    const queuedIdx = playerItems.findIndex(i => (i.doc_id || i.article?.id) === docId);
+    const queuedArticle = queuedIdx >= 0 ? playerItems[queuedIdx]?.article : null;
+    const article = queuedArticle || articles.find(a => a.id === docId) || listItems.find(i => (i.doc_id || i.article?.id) === docId)?.article;
+    if (!article?.audio_url) return;
+
+    if (queuedIdx >= 0) {
+      setPlayerIdx(queuedIdx);
+    } else {
+      setPlayerPlaylistId(STANDALONE_PLAYER_ID);
+      setPlayerItems([{ doc_id: article.id, article, use_summary: false }]);
+      setPlayerIdx(0);
     }
+
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (!audio.src.endsWith(article.audio_url)) {
+      audio.src = article.audio_url;
+      audio.load();
+    }
+    audio.currentTime = 0;
+    setAudioState(s => ({ ...s, currentTime: 0 }));
+    audio.play().catch(() => {});
   };
 
   const handleLoadPlaylist = async (listId) => {

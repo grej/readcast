@@ -24535,6 +24535,7 @@
     { key: "playlist", icon: "\u266B", label: "Playlists", listType: "playlist" }
   ];
   var SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
+  var STANDALONE_PLAYER_ID = "__standalone__";
   var EMOJIS = ["\u{1F4CC}", "\u{1F4DA}", "\u{1F3AF}", "\u{1F52C}", "\u{1F4A1}", "\u{1F3D7}", "\u{1F4CA}", "\u{1F3A8}", "\u{1F9EA}", "\u{1F5FA}", "\u270F\uFE0F", "\u{1F516}", "\u{1F393}", "\u{1F4E1}", "\u{1F6E0}", "\u2709", "\u{1F9E0}", "\u{1F30D}", "\u{1F3A7}", "\u26A1", "\u{1F4D6}", "\u{1F52E}"];
   var COLOR_CLASSES = {
     "on-amb": { border: "rgba(239,159,39,0.3)", color: C.amb, bg: C.ambg },
@@ -25556,7 +25557,7 @@ input,select{font-family:inherit}
       /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { flex: 1, minWidth: 0 }, children: [
         /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 11, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, children: trackTitle }),
         /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { fontSize: 9, color: C.t3, display: "flex", gap: 6, alignItems: "center" }, children: [
-          playlist && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: { color: C.acc, cursor: "pointer" }, onClick: onGoToPlaylist, children: [
+          playlist && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: { color: C.acc, cursor: playlist.standalone ? "default" : "pointer" }, onClick: playlist.standalone ? void 0 : onGoToPlaylist, children: [
             playlist.icon,
             " ",
             playlist.name
@@ -25701,12 +25702,17 @@ input,select{font-family:inherit}
       if (fromItems?.article) return fromItems.article;
       return articles.find((a) => a.id === focusedId) || null;
     }, [focusedId, articles, listItems]);
-    const playerPlaylist = (0, import_react.useMemo)(() => lists.find((l) => l.id === playerPlaylistId) || null, [lists, playerPlaylistId]);
+    const playerPlaylist = (0, import_react.useMemo)(() => {
+      if (playerPlaylistId === STANDALONE_PLAYER_ID) {
+        return { id: STANDALONE_PLAYER_ID, name: "Now Playing", icon: "\u266B", item_count: playerItems.length, standalone: true };
+      }
+      return lists.find((l) => l.id === playerPlaylistId) || null;
+    }, [lists, playerPlaylistId, playerItems.length]);
     const nowPlayingArticle = (0, import_react.useMemo)(() => {
-      if (!playerPlaylistId || !playerItems.length) return null;
+      if (!playerItems.length) return null;
       const item = playerItems[playerIdx];
       return item?.article || null;
-    }, [playerPlaylistId, playerIdx, playerItems]);
+    }, [playerIdx, playerItems]);
     const addToast = (0, import_react.useCallback)((message, undoFn = null) => {
       const id = Date.now();
       setToasts((prev) => [...prev, { id, message, undoFn }]);
@@ -25750,6 +25756,7 @@ input,select{font-family:inherit}
         setPlayerItems([]);
         return;
       }
+      if (listId === STANDALONE_PLAYER_ID) return;
       try {
         const data = await apiGet(`/api/lists/${listId}/items`);
         setPlayerItems(data.items || []);
@@ -25766,7 +25773,7 @@ input,select{font-family:inherit}
     const refreshAll = (0, import_react.useCallback)(async () => {
       await Promise.all([refreshArticles(search), refreshLists()]);
       if (activeList) await refreshListItems(activeList);
-      if (playerPlaylistId) await refreshPlayerItems(playerPlaylistId);
+      if (playerPlaylistId && playerPlaylistId !== STANDALONE_PLAYER_ID) await refreshPlayerItems(playerPlaylistId);
     }, [refreshArticles, refreshLists, refreshListItems, refreshPlayerItems, activeList, playerPlaylistId, search]);
     const hasPendingAudio = articles.some((article) => {
       const state = (article.renditions || {}).audio?.state;
@@ -25794,7 +25801,7 @@ input,select{font-family:inherit}
       refreshListItems(activeList);
     }, [activeList, refreshListItems]);
     (0, import_react.useEffect)(() => {
-      if (playerPlaylistId) refreshPlayerItems(playerPlaylistId);
+      if (playerPlaylistId && playerPlaylistId !== STANDALONE_PLAYER_ID) refreshPlayerItems(playerPlaylistId);
     }, [playerPlaylistId, refreshPlayerItems]);
     (0, import_react.useEffect)(() => {
       const timeout = setTimeout(() => refreshArticles(search), 200);
@@ -25951,17 +25958,27 @@ input,select{font-family:inherit}
       }
     };
     const handlePlayNow = async (docId) => {
-      if (playerPlaylistId) {
-        const idx = playerItems.findIndex((i) => (i.doc_id || i.article?.id) === docId);
-        if (idx >= 0) {
-          setPlayerIdx(idx);
-          setAudioState((s) => ({ ...s, currentTime: 0 }));
-        }
-        setTimeout(() => {
-          audioRef.current?.play().catch(() => {
-          });
-        }, 100);
+      const queuedIdx = playerItems.findIndex((i) => (i.doc_id || i.article?.id) === docId);
+      const queuedArticle = queuedIdx >= 0 ? playerItems[queuedIdx]?.article : null;
+      const article = queuedArticle || articles.find((a) => a.id === docId) || listItems.find((i) => (i.doc_id || i.article?.id) === docId)?.article;
+      if (!article?.audio_url) return;
+      if (queuedIdx >= 0) {
+        setPlayerIdx(queuedIdx);
+      } else {
+        setPlayerPlaylistId(STANDALONE_PLAYER_ID);
+        setPlayerItems([{ doc_id: article.id, article, use_summary: false }]);
+        setPlayerIdx(0);
       }
+      const audio = audioRef.current;
+      if (!audio) return;
+      if (!audio.src.endsWith(article.audio_url)) {
+        audio.src = article.audio_url;
+        audio.load();
+      }
+      audio.currentTime = 0;
+      setAudioState((s) => ({ ...s, currentTime: 0 }));
+      audio.play().catch(() => {
+      });
     };
     const handleLoadPlaylist = async (listId) => {
       setPlayerPlaylistId(listId);

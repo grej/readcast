@@ -79,6 +79,24 @@ test.describe("Audio player (bottom bar)", () => {
     }).toPass({ timeout: 5000 });
   });
 
+  test("article Play replaces the current playlist track with that article", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.getByTestId("bottom-bar").getByText("Morning Commute")).toBeVisible();
+
+    const articlesResponse = await page.request.get("/api/articles");
+    const { articles } = await articlesResponse.json();
+    const requested = articles.find((article: { title: string }) => article.title === "Python Best Practices for 2026");
+    expect(requested).toBeTruthy();
+
+    await page.getByTestId(`doc-row-${requested.id}`).click();
+    await page.getByTestId("detail-panel").getByRole("button", { name: /Play/ }).click();
+
+    await expect(page.getByTestId("bottom-bar").getByText(requested.title)).toBeVisible();
+    await expect(page.getByTestId("bottom-bar").getByText("Now Playing")).toBeVisible();
+    await expect.poll(async () => page.getByTestId("audio-element").evaluate((audio: HTMLAudioElement) => audio.src))
+      .toContain(`/api/articles/${requested.id}/audio`);
+  });
+
   test("progress bar is present", async ({ page }) => {
     await page.goto("/");
     await page.getByTestId("nav-sidebar").getByText("Morning Commute").click();
