@@ -6,6 +6,7 @@ from zipfile import ZipFile
 
 from fastapi.testclient import TestClient
 
+from readcast import __version__
 from readcast.api.app import create_app
 
 
@@ -41,8 +42,10 @@ def test_api_serves_frontend_shell_and_bundle(base_dir) -> None:
 
         assert index.status_code == 200
         assert "text/html" in index.headers["content-type"]
-        assert "app.js" in index.text
+        assert f"app.js?v={__version__}" in index.text
+        assert index.headers["cache-control"] == "no-cache, must-revalidate"
         assert bundle.status_code == 200
+        assert bundle.headers["cache-control"] == "no-cache, must-revalidate"
         assert "Browser extension" in bundle.text
         assert "/api/extension.zip" in bundle.text
         assert "Narration failed" in bundle.text
