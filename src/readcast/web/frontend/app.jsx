@@ -27,6 +27,7 @@ const TYPES = [
   { key: "action", icon: "\u2610", label: "Action Items", listType: "todo" },
   { key: "collection", icon: "\u25ce", label: "Collections", listType: "collection" },
   { key: "playlist", icon: "\u266b", label: "Playlists", listType: "playlist" },
+  { key: "trash", icon: "\u232b", label: "Trash" },
 ];
 
 const SPEEDS = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0];
@@ -161,9 +162,9 @@ async function apiDelete(path) {
 }
 
 // ═════════════════════════════════════════════════════════════
-// NAV RAIL — 4 fixed type buttons
+// NAV RAIL — fixed type buttons
 // ═════════════════════════════════════════════════════════════
-function NavRail({ railType, onNavType, lists }) {
+function NavRail({ railType, onNavType, lists, trashCount }) {
   const hasDueItems = lists.some(l => l.type === "todo" && l.item_count > 0);
   return (
     <div data-testid="nav-rail" style={{
@@ -174,9 +175,10 @@ function NavRail({ railType, onNavType, lists }) {
       {TYPES.map((t, i) => {
         const isOn = railType === t.key;
         const matching = t.listType ? lists.filter(l => l.type === t.listType) : [];
-        const count = matching.length;
+        const count = t.key === "trash" ? trashCount : matching.length;
         return (
           <React.Fragment key={t.key}>
+            {t.key === "trash" && <div style={{ flex: 1 }} />}
             <button data-testid={`rail-${t.key}`} onClick={() => onNavType(t.key)} title={t.label}
               style={{
                 width: 30, height: 30, borderRadius: 7, border: "none", position: "relative",
@@ -191,7 +193,7 @@ function NavRail({ railType, onNavType, lists }) {
               {t.key === "action" && hasDueItems && (
                 <span style={{ position: "absolute", top: 3, right: 3, width: 6, height: 6, borderRadius: "50%", background: C.amb }} />
               )}
-              {count > 1 && (
+              {(t.key === "trash" ? count > 0 : count > 1) && (
                 <span style={{ position: "absolute", bottom: 2, right: 1, fontSize: 7, fontWeight: 700, color: isOn ? C.acc : C.t4, fontFamily: FONT.mono }}>{count}</span>
               )}
             </button>
@@ -268,19 +270,41 @@ function ChooserView({ typeInfo, matchingLists, onSelectList, onCreateList, play
 // CENTER PANEL
 // ═════════════════════════════════════════════════════════════
 function CenterPanel({
-  railType, activeList, lists, articles, listItems, focusedId, search,
+  railType, activeList, lists, articles, trashedArticles, listItems, focusedId, search,
   onSelectDoc, onSearchChange, onSelectList, onBackToChooser, onCreateList,
   playerPlaylistId, playerIdx, isPlaying, audioCurrentTime, audioDuration,
   onPlayerToggle, onPlayerSeek, onPlayerPrev, onPlayerNext,
   onBatchNarrate, onLoadPlaylist, onToggleDone, onPlayNow, onAddToQueue,
   editing, onToggleEditing, onRenameList, onDeleteList,
-  speed, onCycleSpeed, onRemoveFromList, onShowExtension,
+  speed, onCycleSpeed, onRemoveFromList, onShowExtension, onEmptyTrash,
 }) {
   const typeInfo = TYPES.find(t => t.key === railType);
   const matching = typeInfo?.listType ? lists.filter(l => l.type === typeInfo.listType) : [];
   const list = activeList ? lists.find(l => l.id === activeList) : null;
-  const showChooser = railType !== "all" && !activeList;
+  const showChooser = railType !== "all" && railType !== "trash" && !activeList;
   const showBack = list && matching.length > 1;
+
+  if (railType === "trash") {
+    return (
+      <div data-testid="center-panel" style={{ width: 350, flexShrink: 0, borderRight: `1px solid ${C.br}`, display: "flex", flexDirection: "column", background: C.bg1, overflow: "hidden" }}>
+        <div style={{ padding: "10px 12px", borderBottom: `1px solid ${C.br}`, display: "flex", alignItems: "center", gap: 8, flexShrink: 0, minHeight: 42 }}>
+          <span style={{ fontSize: 14 }}>{"\u232b"}</span>
+          <span style={{ fontSize: 13, fontWeight: 700, flex: 1 }}>Trash</span>
+          <span style={{ fontSize: 10, padding: "2px 6px", borderRadius: 4, fontWeight: 600, background: C.rbg, color: C.red, fontFamily: FONT.mono }}>{trashedArticles.length}</span>
+          {trashedArticles.length > 0 && (
+            <button data-testid="empty-trash-button" onClick={onEmptyTrash} style={{ padding: "4px 8px", borderRadius: 5, border: `1px solid rgba(248,113,113,0.3)`, background: "transparent", color: C.red, fontSize: 9, fontWeight: 600, fontFamily: "inherit" }}>Empty Trash</button>
+          )}
+        </div>
+        <div style={{ padding: "8px 12px", borderBottom: `1px solid ${C.br2}`, color: C.t3, fontSize: 9, lineHeight: 1.5 }}>
+          Items stay here until you permanently delete them. Restoring an item also restores its lists and audio.
+        </div>
+        <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
+          {trashedArticles.map(a => <DocRow key={a.id} article={a} isFocused={focusedId === a.id} onSelect={onSelectDoc} isTrash />)}
+          {trashedArticles.length === 0 && <div data-testid="trash-empty" style={{ padding: 24, textAlign: "center", color: C.t4, fontSize: 11 }}>Trash is empty</div>}
+        </div>
+      </div>
+    );
+  }
 
   // Playlist view
   if (list && list.type === "playlist") {
@@ -504,7 +528,7 @@ function CenterPanel({
 // ═════════════════════════════════════════════════════════════
 // DOC ROW
 // ═════════════════════════════════════════════════════════════
-function DocRow({ article, isFocused, onSelect, onPlayNow, lists, showRemove, onRemove }) {
+function DocRow({ article, isFocused, onSelect, onPlayNow, lists, showRemove, onRemove, isTrash }) {
   const rend = article.renditions || {};
   const audio = rend.audio;
   const audioReady = audio && audio.state === "ready";
@@ -526,7 +550,7 @@ function DocRow({ article, isFocused, onSelect, onPlayNow, lists, showRemove, on
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 11, fontWeight: isFocused ? 600 : 500, lineHeight: 1.4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{article.title}</div>
         <div style={{ fontSize: 9, color: C.t3, marginTop: 1 }}>
-          {sourceLabel(article)} {"\u00b7"} {timeAgo(article.ingested_at)}
+          {isTrash ? `Deleted ${timeAgo(article.deleted_at)} ago` : <>{sourceLabel(article)} {"\u00b7"} {timeAgo(article.ingested_at)}</>}
           {audio?.duration ? <> {"\u00b7"} <span style={{ fontFamily: FONT.mono }}>{fmtDur(audio.duration)}</span></> : ""}
         </div>
         {memberships.length > 0 && (
@@ -545,7 +569,7 @@ function DocRow({ article, isFocused, onSelect, onPlayNow, lists, showRemove, on
 // ═════════════════════════════════════════════════════════════
 // DETAIL PANEL
 // ═════════════════════════════════════════════════════════════
-function DetailPanel({ article, lists, onRefresh, onToggleListMembership, onPlayNow, playerPlaylistId }) {
+function DetailPanel({ article, lists, onRefresh, onToggleListMembership, onPlayNow, playerPlaylistId, isTrash, onMoveToTrash, onRestore, onPermanentDelete }) {
   const [fullText, setFullText] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -612,6 +636,13 @@ function DetailPanel({ article, lists, onRefresh, onToggleListMembership, onPlay
           </div>
         </div>
       )}
+      {isTrash ? (
+        <div style={{ padding: "10px 24px", borderBottom: `1px solid ${C.br}`, display: "flex", gap: 8, alignItems: "center", background: "rgba(248,113,113,0.03)" }}>
+          <button data-testid="restore-article-button" onClick={() => onRestore(article)} style={{ padding: "5px 10px", borderRadius: 5, border: `1px solid ${C.acc}`, background: C.acc, color: C.bg0, fontSize: 9, fontWeight: 700, fontFamily: "inherit" }}>Restore</button>
+          <span style={{ flex: 1, color: C.t3, fontSize: 9 }}>Deleted {timeAgo(article.deleted_at)} ago</span>
+          <button data-testid="permanent-delete-button" onClick={() => onPermanentDelete(article)} style={{ padding: "5px 10px", borderRadius: 5, border: `1px solid rgba(248,113,113,0.35)`, background: "transparent", color: C.red, fontSize: 9, fontWeight: 600, fontFamily: "inherit" }}>Delete permanently</button>
+        </div>
+      ) : <>
       {/* Rendition bar */}
       <div style={{ padding: "8px 24px", borderBottom: `1px solid ${C.br}`, display: "flex", gap: 5, alignItems: "center", flexWrap: "wrap" }}>
         {audioReady ? (
@@ -634,6 +665,7 @@ function DetailPanel({ article, lists, onRefresh, onToggleListMembership, onPlay
         )}
         <span style={{ flex: 1 }} />
         <button onClick={() => handleGenerateRendition("summary")} style={{ padding: "3px 6px", border: "none", background: "none", color: C.t4, fontSize: 9, cursor: "pointer", fontFamily: "inherit" }}>{"\ud83d\udcdd"} Summary</button>
+        <button data-testid="move-to-trash-button" onClick={() => onMoveToTrash(article)} style={{ padding: "3px 6px", border: "none", background: "none", color: C.red, fontSize: 9, cursor: "pointer", fontFamily: "inherit" }}>{"\u232b"} Delete</button>
       </div>
       {/* List pills — functional toggles */}
       <div style={{ padding: "10px 24px", borderBottom: `1px solid ${C.br}`, display: "flex", gap: 5, flexWrap: "wrap", alignItems: "center" }}>
@@ -654,6 +686,7 @@ function DetailPanel({ article, lists, onRefresh, onToggleListMembership, onPlay
           );
         })}
       </div>
+      </>}
       {/* Body text */}
       <div style={{ padding: "16px 24px", fontFamily: FONT.serif, fontSize: 14, lineHeight: 1.75, color: "#b8bac4" }}>
         {loading ? <span style={{ color: C.t4 }}>Loading...</span> : (
@@ -893,6 +926,7 @@ function ToastContainer({ toasts, onUndo, onDismiss }) {
 function ReadcastApp() {
   // Data
   const [articles, setArticles] = useState([]);
+  const [trashedArticles, setTrashedArticles] = useState([]);
   const [lists, setLists] = useState([]);
   const [voices, setVoices] = useState([]);
   const [listItems, setListItems] = useState([]);
@@ -924,10 +958,11 @@ function ReadcastApp() {
   const activeListObj = useMemo(() => lists.find(l => l.id === activeList) || null, [lists, activeList]);
   const focusedArticle = useMemo(() => {
     if (!focusedId) return null;
+    if (railType === "trash") return trashedArticles.find(a => a.id === focusedId) || null;
     const fromItems = listItems.find(i => i.doc_id === focusedId || (i.article && i.article.id === focusedId));
     if (fromItems?.article) return fromItems.article;
     return articles.find(a => a.id === focusedId) || null;
-  }, [focusedId, articles, listItems]);
+  }, [focusedId, articles, trashedArticles, listItems, railType]);
   const playerPlaylist = useMemo(() => {
     if (playerPlaylistId === STANDALONE_PLAYER_ID) {
       return { id: STANDALONE_PLAYER_ID, name: "Now Playing", icon: "\u266b", item_count: playerItems.length, standalone: true };
@@ -962,6 +997,9 @@ function ReadcastApp() {
       setArticles(data.articles || []);
     } catch {}
   }, []);
+  const refreshTrash = useCallback(async () => {
+    try { const data = await apiGet("/api/trash"); setTrashedArticles(data.articles || []); } catch {}
+  }, []);
   const refreshLists = useCallback(async () => {
     try { const data = await apiGet("/api/lists"); setLists(data.lists || []); } catch {}
   }, []);
@@ -978,10 +1016,10 @@ function ReadcastApp() {
     try { const data = await apiGet("/api/voices"); setVoices(data.voices || []); } catch {}
   }, []);
   const refreshAll = useCallback(async () => {
-    await Promise.all([refreshArticles(search), refreshLists()]);
+    await Promise.all([refreshArticles(search), refreshTrash(), refreshLists()]);
     if (activeList) await refreshListItems(activeList);
     if (playerPlaylistId && playerPlaylistId !== STANDALONE_PLAYER_ID) await refreshPlayerItems(playerPlaylistId);
-  }, [refreshArticles, refreshLists, refreshListItems, refreshPlayerItems, activeList, playerPlaylistId, search]);
+  }, [refreshArticles, refreshTrash, refreshLists, refreshListItems, refreshPlayerItems, activeList, playerPlaylistId, search]);
 
   const hasPendingAudio = articles.some(article => {
     const state = (article.renditions || {}).audio?.state;
@@ -989,7 +1027,7 @@ function ReadcastApp() {
   });
 
   // Initial load
-  useEffect(() => { refreshArticles(); refreshLists(); refreshVoices(); }, []);
+  useEffect(() => { refreshArticles(); refreshTrash(); refreshLists(); refreshVoices(); }, []);
 
   // Keep active narration state current without polling when the queue is idle.
   useEffect(() => {
@@ -1022,10 +1060,15 @@ function ReadcastApp() {
     return () => clearTimeout(timeout);
   }, [search, refreshArticles]);
 
-  // Auto-focus first article
+  // Keep focus within the currently visible article set.
   useEffect(() => {
-    if (articles.length > 0 && !focusedId) setFocusedId(articles[0].id);
-  }, [articles, focusedId]);
+    const visible = railType === "trash"
+      ? trashedArticles
+      : activeList
+        ? listItems.map(item => item.article).filter(Boolean)
+        : articles;
+    if (!visible.some(article => article.id === focusedId)) setFocusedId(visible[0]?.id || null);
+  }, [railType, activeList, articles, trashedArticles, listItems, focusedId]);
 
   // Audio event listeners
   useEffect(() => {
@@ -1070,7 +1113,7 @@ function ReadcastApp() {
   // ─── Navigation handlers ───────────────────────────────────
   const handleNavType = (typeKey) => {
     setRailType(typeKey); setEditing(false); setSearch("");
-    if (typeKey === "all") { setActiveList(null); return; }
+    if (typeKey === "all" || typeKey === "trash") { setActiveList(null); return; }
     const matching = listsOfType(lists, typeKey);
     setActiveList(matching.length === 1 ? matching[0].id : null);
   };
@@ -1149,6 +1192,55 @@ function ReadcastApp() {
         await refreshAll();
       });
       await refreshAll();
+    } catch {}
+  };
+
+  const handleMoveToTrash = async (article) => {
+    if (!confirm(`Move "${article.title}" to Trash?`)) return;
+    try {
+      if (nowPlayingArticle?.id === article.id) {
+        audioRef.current?.pause();
+        audioRef.current?.removeAttribute("src");
+        audioRef.current?.load();
+        setPlayerItems(items => items.filter(item => (item.doc_id || item.article?.id) !== article.id));
+        setPlayerIdx(0);
+      }
+      await apiDelete(`/api/articles/${article.id}`);
+      setFocusedId(null);
+      await refreshAll();
+      addToast(`Moved "${article.title}" to Trash`, async () => {
+        await apiJson(`/api/articles/${article.id}/restore`, "POST", {});
+        await refreshAll();
+      });
+    } catch {}
+  };
+
+  const handleRestore = async (article) => {
+    try {
+      await apiJson(`/api/articles/${article.id}/restore`, "POST", {});
+      setFocusedId(null);
+      await refreshAll();
+      addToast(`Restored "${article.title}"`);
+    } catch {}
+  };
+
+  const handlePermanentDelete = async (article) => {
+    if (!confirm(`Permanently delete "${article.title}"? This removes its text and audio and cannot be undone.`)) return;
+    try {
+      await apiDelete(`/api/trash/${article.id}`);
+      setFocusedId(null);
+      await refreshAll();
+      addToast(`Permanently deleted "${article.title}"`);
+    } catch {}
+  };
+
+  const handleEmptyTrash = async () => {
+    if (!trashedArticles.length || !confirm(`Permanently delete all ${trashedArticles.length} items in Trash? This cannot be undone.`)) return;
+    try {
+      await apiDelete("/api/trash");
+      setFocusedId(null);
+      await refreshAll();
+      addToast("Trash emptied");
     } catch {}
   };
 
@@ -1243,8 +1335,10 @@ function ReadcastApp() {
   useEffect(() => {
     const handler = (e) => {
       if (isTypingTarget(e.target)) return;
-      const currentItems = activeList ? listItems : articles;
-      const ids = activeList ? currentItems.map(i => i.doc_id || (i.article && i.article.id)) : currentItems.map(a => a.id);
+      const currentItems = railType === "trash" ? trashedArticles : activeList ? listItems : articles;
+      const ids = railType === "trash"
+        ? currentItems.map(a => a.id)
+        : activeList ? currentItems.map(i => i.doc_id || (i.article && i.article.id)) : currentItems.map(a => a.id);
       const curIdx = ids.indexOf(focusedId);
 
       if (e.key === "ArrowDown" || e.key === "j") { e.preventDefault(); const next = Math.min(curIdx + 1, ids.length - 1); if (ids[next]) setFocusedId(ids[next]); }
@@ -1256,7 +1350,7 @@ function ReadcastApp() {
     };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [focusedId, activeList, listItems, articles, search, showCreateList, showExtensionSetup, playerPlaylistId]);
+  }, [focusedId, railType, activeList, listItems, articles, trashedArticles, search, showCreateList, showExtensionSetup, playerPlaylistId]);
 
   // ─── Render ────────────────────────────────────────────────
   return (
@@ -1266,10 +1360,10 @@ function ReadcastApp() {
 
       {/* Main area */}
       <div id="app" style={{ display: "flex", flex: 1, overflow: "hidden" }}>
-        <NavRail railType={railType} onNavType={handleNavType} lists={lists} />
+        <NavRail railType={railType} onNavType={handleNavType} lists={lists} trashCount={trashedArticles.length} />
 
         <CenterPanel
-          railType={railType} activeList={activeList} lists={lists} articles={articles}
+          railType={railType} activeList={activeList} lists={lists} articles={articles} trashedArticles={trashedArticles}
           listItems={listItems} focusedId={focusedId} search={search}
           onSelectDoc={handleSelectDoc} onSearchChange={setSearch}
           onSelectList={handleSelectList} onBackToChooser={handleBackToChooser}
@@ -1286,12 +1380,15 @@ function ReadcastApp() {
           speed={speed} onCycleSpeed={handleCycleSpeed}
           onRemoveFromList={handleRemoveFromList}
           onShowExtension={() => setShowExtensionSetup(true)}
+          onEmptyTrash={handleEmptyTrash}
         />
 
         <DetailPanel
           article={focusedArticle} lists={lists} voices={voices}
           onRefresh={refreshAll} onToggleListMembership={handleToggleListMembership}
           onPlayNow={handlePlayNow} playerPlaylistId={playerPlaylistId}
+          isTrash={railType === "trash"} onMoveToTrash={handleMoveToTrash}
+          onRestore={handleRestore} onPermanentDelete={handlePermanentDelete}
         />
       </div>
 

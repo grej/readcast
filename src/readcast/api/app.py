@@ -180,6 +180,12 @@ def create_app(
         articles = service.search_articles(q, limit=500) if q else service.list_articles(status=status, limit=500)
         return {"articles": [_serialize_article(service, article) for article in articles]}
 
+    @app.get("/api/trash")
+    async def list_trash(request: Request) -> dict[str, object]:
+        service = _service(request)
+        articles = service.list_deleted_articles(limit=500)
+        return {"articles": [_serialize_article(service, article) for article in articles]}
+
     @app.get("/api/articles/{article_id}")
     async def get_article(request: Request, article_id: str) -> dict[str, object]:
         service = _service(request)
@@ -249,6 +255,7 @@ def create_app(
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
         if payload.process:
+            worker.resume(result.article.id)
             worker.kick()
         elif result.created:
             # Save-only: mark as "added" so the worker doesn't pick it up for TTS
@@ -261,6 +268,33 @@ def create_app(
         service = _service(request)
         if not service.delete_article(article_id):
             raise HTTPException(status_code=404, detail="Article not found")
+        _worker(request).cancel(article_id)
+        return Response(status_code=204)
+
+    @app.post("/api/articles/{article_id}/restore")
+    async def restore_article(request: Request, article_id: str) -> dict[str, object]:
+        service = _service(request)
+        article = service.restore_article(article_id)
+        if article is None:
+            raise HTTPException(status_code=404, detail="Article not found in Trash")
+        _worker(request).resume(article_id)
+        return {"article": _serialize_article(service, article)}
+
+    @app.delete("/api/trash/{article_id}", status_code=204)
+    async def permanently_delete_article(request: Request, article_id: str) -> Response:
+        service = _service(request)
+        if not service.permanently_delete_article(article_id):
+            raise HTTPException(status_code=404, detail="Article not found in Trash")
+        _worker(request).resume(article_id)
+        return Response(status_code=204)
+
+    @app.delete("/api/trash", status_code=204)
+    async def empty_trash(request: Request) -> Response:
+        service = _service(request)
+        articles = service.list_deleted_articles(limit=10000)
+        service.empty_trash()
+        for article in articles:
+            _worker(request).resume(article.id)
         return Response(status_code=204)
 
     @app.post("/api/articles/{article_id}/cancel")
@@ -299,13 +333,14 @@ def create_app(
             article = service.reprocess_article(article_id, voice=payload.voice, speed=payload.speed)
         except KeyError as exc:
             raise HTTPException(status_code=404, detail="Article not found") from exc
+        worker.resume(article_id)
         worker.kick()
         return {"article": _serialize_article(service, article)}
 
     @app.get("/api/articles/{article_id}/text")
     async def article_text(request: Request, article_id: str) -> dict[str, object]:
         service = _service(request)
-        article = service.get_article(article_id)
+        article = service.get_article(article_id) or service.get_deleted_article(article_id)
         if article is None:
             raise HTTPException(status_code=404, detail="Article not found")
         text = service.store.get_full_text(article_id)
@@ -314,6 +349,8 @@ def create_app(
     @app.get("/api/articles/{article_id}/audio")
     async def article_audio(request: Request, article_id: str) -> FileResponse:
         service = _service(request)
+        if service.get_article(article_id) is None:
+            raise HTTPException(status_code=404, detail="Article not found")
         path = service.audio_path_for_article(article_id)
         if path is None or not path.exists():
             raise HTTPException(status_code=404, detail="Audio not found")
@@ -434,6 +471,7 @@ def create_app(
         try:
             result = service.add_input(content, source_url=f"plugin:{payload.plugin_name}")
             if payload.process:
+                worker.resume(result.article.id)
                 worker.kick()
             elif result.created:
                 result.article.status = "added"
@@ -626,6 +664,7 @@ def create_app(
             service.reprocess_article(doc_id, voice=voice)
         except KeyError as exc:
             raise HTTPException(status_code=404, detail="Document not found") from exc
+        worker.resume(doc_id)
         worker.kick()
         return {"rendition": {"state": "queued", "voice": voice}}
 
@@ -704,6 +743,7 @@ def create_app(
                 try:
                     voice = service.default_voice()
                     service.reprocess_article(item["doc_id"], voice=voice)
+                    worker.resume(item["doc_id"])
                     queued += 1
                 except (KeyError, ValueError):
                     pass
@@ -726,7 +766,7 @@ def _serialize_article(service: ReadcastService, article: Article) -> dict[str, 
     payload = article.to_dict()
     payload["source"] = _article_source(article)
     path = service.audio_path_for_article(article.id)
-    payload["audio_url"] = f"/api/articles/{article.id}/audio" if path else None
+    payload["audio_url"] = f"/api/articles/{article.id}/audio" if path and article.deleted_at is None else None
     payload["has_audio"] = path is not None
     payload["renditions"] = service.store.get_renditions(article.id)
     payload["list_memberships"] = service.store.get_doc_list_memberships(article.id)

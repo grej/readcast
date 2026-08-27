@@ -24532,7 +24532,8 @@
     { key: "all", icon: "\u2299", label: "All Items" },
     { key: "action", icon: "\u2610", label: "Action Items", listType: "todo" },
     { key: "collection", icon: "\u25CE", label: "Collections", listType: "collection" },
-    { key: "playlist", icon: "\u266B", label: "Playlists", listType: "playlist" }
+    { key: "playlist", icon: "\u266B", label: "Playlists", listType: "playlist" },
+    { key: "trash", icon: "\u232B", label: "Trash" }
   ];
   var SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
   var STANDALONE_PLAYER_ID = "__standalone__";
@@ -24676,7 +24677,7 @@ input,select{font-family:inherit}
     }
     return null;
   }
-  function NavRail({ railType, onNavType, lists }) {
+  function NavRail({ railType, onNavType, lists, trashCount }) {
     const hasDueItems = lists.some((l) => l.type === "todo" && l.item_count > 0);
     return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { "data-testid": "nav-rail", style: {
       width: 40,
@@ -24691,8 +24692,9 @@ input,select{font-family:inherit}
     }, children: TYPES.map((t, i) => {
       const isOn = railType === t.key;
       const matching = t.listType ? lists.filter((l) => l.type === t.listType) : [];
-      const count = matching.length;
+      const count = t.key === "trash" ? trashCount : matching.length;
       return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_react.default.Fragment, { children: [
+        t.key === "trash" && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { flex: 1 } }),
         /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
           "button",
           {
@@ -24730,7 +24732,7 @@ input,select{font-family:inherit}
             children: [
               t.icon,
               t.key === "action" && hasDueItems && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { position: "absolute", top: 3, right: 3, width: 6, height: 6, borderRadius: "50%", background: C.amb } }),
-              count > 1 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { position: "absolute", bottom: 2, right: 1, fontSize: 7, fontWeight: 700, color: isOn ? C.acc : C.t4, fontFamily: FONT.mono }, children: count })
+              (t.key === "trash" ? count > 0 : count > 1) && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { position: "absolute", bottom: 2, right: 1, fontSize: 7, fontWeight: 700, color: isOn ? C.acc : C.t4, fontFamily: FONT.mono }, children: count })
             ]
           }
         ),
@@ -24848,6 +24850,7 @@ input,select{font-family:inherit}
     activeList,
     lists,
     articles,
+    trashedArticles,
     listItems,
     focusedId,
     search,
@@ -24877,13 +24880,29 @@ input,select{font-family:inherit}
     speed,
     onCycleSpeed,
     onRemoveFromList,
-    onShowExtension
+    onShowExtension,
+    onEmptyTrash
   }) {
     const typeInfo = TYPES.find((t) => t.key === railType);
     const matching = typeInfo?.listType ? lists.filter((l) => l.type === typeInfo.listType) : [];
     const list = activeList ? lists.find((l) => l.id === activeList) : null;
-    const showChooser = railType !== "all" && !activeList;
+    const showChooser = railType !== "all" && railType !== "trash" && !activeList;
     const showBack = list && matching.length > 1;
+    if (railType === "trash") {
+      return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { "data-testid": "center-panel", style: { width: 350, flexShrink: 0, borderRight: `1px solid ${C.br}`, display: "flex", flexDirection: "column", background: C.bg1, overflow: "hidden" }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { padding: "10px 12px", borderBottom: `1px solid ${C.br}`, display: "flex", alignItems: "center", gap: 8, flexShrink: 0, minHeight: 42 }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 14 }, children: "\u232B" }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 13, fontWeight: 700, flex: 1 }, children: "Trash" }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 10, padding: "2px 6px", borderRadius: 4, fontWeight: 600, background: C.rbg, color: C.red, fontFamily: FONT.mono }, children: trashedArticles.length }),
+          trashedArticles.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { "data-testid": "empty-trash-button", onClick: onEmptyTrash, style: { padding: "4px 8px", borderRadius: 5, border: `1px solid rgba(248,113,113,0.3)`, background: "transparent", color: C.red, fontSize: 9, fontWeight: 600, fontFamily: "inherit" }, children: "Empty Trash" })
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { padding: "8px 12px", borderBottom: `1px solid ${C.br2}`, color: C.t3, fontSize: 9, lineHeight: 1.5 }, children: "Items stay here until you permanently delete them. Restoring an item also restores its lists and audio." }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { flex: 1, overflowY: "auto", minHeight: 0 }, children: [
+          trashedArticles.map((a) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(DocRow, { article: a, isFocused: focusedId === a.id, onSelect: onSelectDoc, isTrash: true }, a.id)),
+          trashedArticles.length === 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { "data-testid": "trash-empty", style: { padding: 24, textAlign: "center", color: C.t4, fontSize: 11 }, children: "Trash is empty" })
+        ] })
+      ] });
+    }
     if (list && list.type === "playlist") {
       const docs = listItems;
       const totalSecs = totalDurSecs(docs);
@@ -25208,7 +25227,7 @@ input,select{font-family:inherit}
       ] })
     ] });
   }
-  function DocRow({ article, isFocused, onSelect, onPlayNow, lists, showRemove, onRemove }) {
+  function DocRow({ article, isFocused, onSelect, onPlayNow, lists, showRemove, onRemove, isTrash }) {
     const rend = article.renditions || {};
     const audio = rend.audio;
     const audioReady = audio && audio.state === "ready";
@@ -25241,11 +25260,13 @@ input,select{font-family:inherit}
           /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { flex: 1, minWidth: 0 }, children: [
             /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 11, fontWeight: isFocused ? 600 : 500, lineHeight: 1.4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, children: article.title }),
             /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { fontSize: 9, color: C.t3, marginTop: 1 }, children: [
-              sourceLabel(article),
-              " ",
-              "\xB7",
-              " ",
-              timeAgo(article.ingested_at),
+              isTrash ? `Deleted ${timeAgo(article.deleted_at)} ago` : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+                sourceLabel(article),
+                " ",
+                "\xB7",
+                " ",
+                timeAgo(article.ingested_at)
+              ] }),
               audio?.duration ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
                 " ",
                 "\xB7",
@@ -25263,7 +25284,7 @@ input,select{font-family:inherit}
       }
     );
   }
-  function DetailPanel({ article, lists, onRefresh, onToggleListMembership, onPlayNow, playerPlaylistId }) {
+  function DetailPanel({ article, lists, onRefresh, onToggleListMembership, onPlayNow, playerPlaylistId, isTrash, onMoveToTrash, onRestore, onPermanentDelete }) {
     const [fullText, setFullText] = (0, import_react.useState)(null);
     const [loading, setLoading] = (0, import_react.useState)(true);
     (0, import_react.useEffect)(() => {
@@ -25344,70 +25365,84 @@ input,select{font-family:inherit}
           ] })
         ] })
       ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { padding: "8px 24px", borderBottom: `1px solid ${C.br}`, display: "flex", gap: 5, alignItems: "center", flexWrap: "wrap" }, children: [
-        audioReady ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: { fontSize: 10, padding: "3px 8px", borderRadius: 5, background: C.abg, color: C.acc, fontWeight: 500 }, children: [
-            "\u266B",
-            " ",
-            fmtDur(audio.duration)
-          ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: () => onPlayNow(article.id), style: { padding: "3px 8px", borderRadius: 5, border: `1px solid ${C.br}`, background: "transparent", color: C.t3, fontSize: 9, fontWeight: 600, fontFamily: "inherit", cursor: "pointer" }, children: playLabel })
-        ] }) : audioGen ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: { fontSize: 10, padding: "3px 8px", borderRadius: 5, background: C.ambg, color: C.amb, fontWeight: 500, animation: "pulse 1.2s infinite" }, children: [
-          "\u25CC",
-          " Generating..."
-        ] }) : audioFailed ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { title: audio.error || article.error_message || "Narration failed", style: { fontSize: 10, padding: "3px 8px", borderRadius: 5, background: C.rbg, color: C.red, fontWeight: 500 }, children: [
-            "\u26A0",
-            " Narration failed"
-          ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: () => handleGenerateRendition("audio"), style: { padding: "3px 8px", borderRadius: 5, border: `1px solid ${C.red}`, background: "transparent", color: C.red, fontSize: 9, fontWeight: 600, fontFamily: "inherit", cursor: "pointer" }, children: "Retry narration" })
-        ] }) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
-          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: { fontSize: 10, padding: "3px 8px", borderRadius: 5, background: C.bg1, color: C.t4 }, children: [
-            "\u266A",
-            " No audio"
-          ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: () => handleGenerateRendition("audio"), style: { padding: "3px 8px", borderRadius: 5, border: `1px solid ${C.acc}`, background: C.acc, color: C.bg0, fontSize: 9, fontWeight: 600, fontFamily: "inherit", cursor: "pointer" }, children: "Generate narration" })
+      isTrash ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { padding: "10px 24px", borderBottom: `1px solid ${C.br}`, display: "flex", gap: 8, alignItems: "center", background: "rgba(248,113,113,0.03)" }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { "data-testid": "restore-article-button", onClick: () => onRestore(article), style: { padding: "5px 10px", borderRadius: 5, border: `1px solid ${C.acc}`, background: C.acc, color: C.bg0, fontSize: 9, fontWeight: 700, fontFamily: "inherit" }, children: "Restore" }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: { flex: 1, color: C.t3, fontSize: 9 }, children: [
+          "Deleted ",
+          timeAgo(article.deleted_at),
+          " ago"
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { flex: 1 } }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", { onClick: () => handleGenerateRendition("summary"), style: { padding: "3px 6px", border: "none", background: "none", color: C.t4, fontSize: 9, cursor: "pointer", fontFamily: "inherit" }, children: [
-          "\u{1F4DD}",
-          " Summary"
-        ] })
-      ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { padding: "10px 24px", borderBottom: `1px solid ${C.br}`, display: "flex", gap: 5, flexWrap: "wrap", alignItems: "center" }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 9, color: C.t4, marginRight: 2 }, children: "Lists:" }),
-        lists.map((l) => {
-          const isIn = membershipIds.has(l.id);
-          const cls = COLOR_CLASSES[listColorClass(l)] || COLOR_CLASSES["on-acc"];
-          return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
-            "button",
-            {
-              onClick: () => onToggleListMembership(article.id, l.id, isIn),
-              style: {
-                fontSize: 9,
-                padding: "3px 8px",
-                borderRadius: 10,
-                fontWeight: 500,
-                cursor: "pointer",
-                whiteSpace: "nowrap",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 3,
-                transition: ".12s",
-                fontFamily: "inherit",
-                border: `1px solid ${isIn ? cls.border : C.br}`,
-                background: isIn ? cls.bg : "transparent",
-                color: isIn ? cls.color : C.t3
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { "data-testid": "permanent-delete-button", onClick: () => onPermanentDelete(article), style: { padding: "5px 10px", borderRadius: 5, border: `1px solid rgba(248,113,113,0.35)`, background: "transparent", color: C.red, fontSize: 9, fontWeight: 600, fontFamily: "inherit" }, children: "Delete permanently" })
+      ] }) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { padding: "8px 24px", borderBottom: `1px solid ${C.br}`, display: "flex", gap: 5, alignItems: "center", flexWrap: "wrap" }, children: [
+          audioReady ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: { fontSize: 10, padding: "3px 8px", borderRadius: 5, background: C.abg, color: C.acc, fontWeight: 500 }, children: [
+              "\u266B",
+              " ",
+              fmtDur(audio.duration)
+            ] }),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: () => onPlayNow(article.id), style: { padding: "3px 8px", borderRadius: 5, border: `1px solid ${C.br}`, background: "transparent", color: C.t3, fontSize: 9, fontWeight: 600, fontFamily: "inherit", cursor: "pointer" }, children: playLabel })
+          ] }) : audioGen ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: { fontSize: 10, padding: "3px 8px", borderRadius: 5, background: C.ambg, color: C.amb, fontWeight: 500, animation: "pulse 1.2s infinite" }, children: [
+            "\u25CC",
+            " Generating..."
+          ] }) : audioFailed ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { title: audio.error || article.error_message || "Narration failed", style: { fontSize: 10, padding: "3px 8px", borderRadius: 5, background: C.rbg, color: C.red, fontWeight: 500 }, children: [
+              "\u26A0",
+              " Narration failed"
+            ] }),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: () => handleGenerateRendition("audio"), style: { padding: "3px 8px", borderRadius: 5, border: `1px solid ${C.red}`, background: "transparent", color: C.red, fontSize: 9, fontWeight: 600, fontFamily: "inherit", cursor: "pointer" }, children: "Retry narration" })
+          ] }) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: { fontSize: 10, padding: "3px 8px", borderRadius: 5, background: C.bg1, color: C.t4 }, children: [
+              "\u266A",
+              " No audio"
+            ] }),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: () => handleGenerateRendition("audio"), style: { padding: "3px 8px", borderRadius: 5, border: `1px solid ${C.acc}`, background: C.acc, color: C.bg0, fontSize: 9, fontWeight: 600, fontFamily: "inherit", cursor: "pointer" }, children: "Generate narration" })
+          ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { flex: 1 } }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", { onClick: () => handleGenerateRendition("summary"), style: { padding: "3px 6px", border: "none", background: "none", color: C.t4, fontSize: 9, cursor: "pointer", fontFamily: "inherit" }, children: [
+            "\u{1F4DD}",
+            " Summary"
+          ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", { "data-testid": "move-to-trash-button", onClick: () => onMoveToTrash(article), style: { padding: "3px 6px", border: "none", background: "none", color: C.red, fontSize: 9, cursor: "pointer", fontFamily: "inherit" }, children: [
+            "\u232B",
+            " Delete"
+          ] })
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { padding: "10px 24px", borderBottom: `1px solid ${C.br}`, display: "flex", gap: 5, flexWrap: "wrap", alignItems: "center" }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { fontSize: 9, color: C.t4, marginRight: 2 }, children: "Lists:" }),
+          lists.map((l) => {
+            const isIn = membershipIds.has(l.id);
+            const cls = COLOR_CLASSES[listColorClass(l)] || COLOR_CLASSES["on-acc"];
+            return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+              "button",
+              {
+                onClick: () => onToggleListMembership(article.id, l.id, isIn),
+                style: {
+                  fontSize: 9,
+                  padding: "3px 8px",
+                  borderRadius: 10,
+                  fontWeight: 500,
+                  cursor: "pointer",
+                  whiteSpace: "nowrap",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 3,
+                  transition: ".12s",
+                  fontFamily: "inherit",
+                  border: `1px solid ${isIn ? cls.border : C.br}`,
+                  background: isIn ? cls.bg : "transparent",
+                  color: isIn ? cls.color : C.t3
+                },
+                children: [
+                  l.icon,
+                  " ",
+                  isIn ? l.name : `+ ${l.name}`
+                ]
               },
-              children: [
-                l.icon,
-                " ",
-                isIn ? l.name : `+ ${l.name}`
-              ]
-            },
-            l.id
-          );
-        })
+              l.id
+            );
+          })
+        ] })
       ] }),
       /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { padding: "16px 24px", fontFamily: FONT.serif, fontSize: 14, lineHeight: 1.75, color: "#b8bac4" }, children: loading ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { color: C.t4 }, children: "Loading..." }) : fullText ? fullText.split("\n\n").filter(Boolean).map((p, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { style: { marginBottom: 10 }, children: p }, i)) : null })
     ] });
@@ -25675,6 +25710,7 @@ input,select{font-family:inherit}
   }
   function ReadcastApp() {
     const [articles, setArticles] = (0, import_react.useState)([]);
+    const [trashedArticles, setTrashedArticles] = (0, import_react.useState)([]);
     const [lists, setLists] = (0, import_react.useState)([]);
     const [voices, setVoices] = (0, import_react.useState)([]);
     const [listItems, setListItems] = (0, import_react.useState)([]);
@@ -25698,10 +25734,11 @@ input,select{font-family:inherit}
     const activeListObj = (0, import_react.useMemo)(() => lists.find((l) => l.id === activeList) || null, [lists, activeList]);
     const focusedArticle = (0, import_react.useMemo)(() => {
       if (!focusedId) return null;
+      if (railType === "trash") return trashedArticles.find((a) => a.id === focusedId) || null;
       const fromItems = listItems.find((i) => i.doc_id === focusedId || i.article && i.article.id === focusedId);
       if (fromItems?.article) return fromItems.article;
       return articles.find((a) => a.id === focusedId) || null;
-    }, [focusedId, articles, listItems]);
+    }, [focusedId, articles, trashedArticles, listItems, railType]);
     const playerPlaylist = (0, import_react.useMemo)(() => {
       if (playerPlaylistId === STANDALONE_PLAYER_ID) {
         return { id: STANDALONE_PLAYER_ID, name: "Now Playing", icon: "\u266B", item_count: playerItems.length, standalone: true };
@@ -25730,6 +25767,13 @@ input,select{font-family:inherit}
         const suffix = q.trim() ? `?q=${encodeURIComponent(q.trim())}` : "";
         const data = await apiGet(`/api/articles${suffix}`);
         setArticles(data.articles || []);
+      } catch {
+      }
+    }, []);
+    const refreshTrash = (0, import_react.useCallback)(async () => {
+      try {
+        const data = await apiGet("/api/trash");
+        setTrashedArticles(data.articles || []);
       } catch {
       }
     }, []);
@@ -25771,16 +25815,17 @@ input,select{font-family:inherit}
       }
     }, []);
     const refreshAll = (0, import_react.useCallback)(async () => {
-      await Promise.all([refreshArticles(search), refreshLists()]);
+      await Promise.all([refreshArticles(search), refreshTrash(), refreshLists()]);
       if (activeList) await refreshListItems(activeList);
       if (playerPlaylistId && playerPlaylistId !== STANDALONE_PLAYER_ID) await refreshPlayerItems(playerPlaylistId);
-    }, [refreshArticles, refreshLists, refreshListItems, refreshPlayerItems, activeList, playerPlaylistId, search]);
+    }, [refreshArticles, refreshTrash, refreshLists, refreshListItems, refreshPlayerItems, activeList, playerPlaylistId, search]);
     const hasPendingAudio = articles.some((article) => {
       const state = (article.renditions || {}).audio?.state;
       return state === "queued" || state === "generating";
     });
     (0, import_react.useEffect)(() => {
       refreshArticles();
+      refreshTrash();
       refreshLists();
       refreshVoices();
     }, []);
@@ -25808,8 +25853,9 @@ input,select{font-family:inherit}
       return () => clearTimeout(timeout);
     }, [search, refreshArticles]);
     (0, import_react.useEffect)(() => {
-      if (articles.length > 0 && !focusedId) setFocusedId(articles[0].id);
-    }, [articles, focusedId]);
+      const visible = railType === "trash" ? trashedArticles : activeList ? listItems.map((item) => item.article).filter(Boolean) : articles;
+      if (!visible.some((article) => article.id === focusedId)) setFocusedId(visible[0]?.id || null);
+    }, [railType, activeList, articles, trashedArticles, listItems, focusedId]);
     (0, import_react.useEffect)(() => {
       const audio = audioRef.current;
       if (!audio) return;
@@ -25865,7 +25911,7 @@ input,select{font-family:inherit}
       setRailType(typeKey);
       setEditing(false);
       setSearch("");
-      if (typeKey === "all") {
+      if (typeKey === "all" || typeKey === "trash") {
         setActiveList(null);
         return;
       }
@@ -25954,6 +26000,55 @@ input,select{font-family:inherit}
           await refreshAll();
         });
         await refreshAll();
+      } catch {
+      }
+    };
+    const handleMoveToTrash = async (article) => {
+      if (!confirm(`Move "${article.title}" to Trash?`)) return;
+      try {
+        if (nowPlayingArticle?.id === article.id) {
+          audioRef.current?.pause();
+          audioRef.current?.removeAttribute("src");
+          audioRef.current?.load();
+          setPlayerItems((items) => items.filter((item) => (item.doc_id || item.article?.id) !== article.id));
+          setPlayerIdx(0);
+        }
+        await apiDelete(`/api/articles/${article.id}`);
+        setFocusedId(null);
+        await refreshAll();
+        addToast(`Moved "${article.title}" to Trash`, async () => {
+          await apiJson(`/api/articles/${article.id}/restore`, "POST", {});
+          await refreshAll();
+        });
+      } catch {
+      }
+    };
+    const handleRestore = async (article) => {
+      try {
+        await apiJson(`/api/articles/${article.id}/restore`, "POST", {});
+        setFocusedId(null);
+        await refreshAll();
+        addToast(`Restored "${article.title}"`);
+      } catch {
+      }
+    };
+    const handlePermanentDelete = async (article) => {
+      if (!confirm(`Permanently delete "${article.title}"? This removes its text and audio and cannot be undone.`)) return;
+      try {
+        await apiDelete(`/api/trash/${article.id}`);
+        setFocusedId(null);
+        await refreshAll();
+        addToast(`Permanently deleted "${article.title}"`);
+      } catch {
+      }
+    };
+    const handleEmptyTrash = async () => {
+      if (!trashedArticles.length || !confirm(`Permanently delete all ${trashedArticles.length} items in Trash? This cannot be undone.`)) return;
+      try {
+        await apiDelete("/api/trash");
+        setFocusedId(null);
+        await refreshAll();
+        addToast("Trash emptied");
       } catch {
       }
     };
@@ -26046,8 +26141,8 @@ input,select{font-family:inherit}
     (0, import_react.useEffect)(() => {
       const handler = (e) => {
         if (isTypingTarget(e.target)) return;
-        const currentItems = activeList ? listItems : articles;
-        const ids = activeList ? currentItems.map((i) => i.doc_id || i.article && i.article.id) : currentItems.map((a) => a.id);
+        const currentItems = railType === "trash" ? trashedArticles : activeList ? listItems : articles;
+        const ids = railType === "trash" ? currentItems.map((a) => a.id) : activeList ? currentItems.map((i) => i.doc_id || i.article && i.article.id) : currentItems.map((a) => a.id);
         const curIdx = ids.indexOf(focusedId);
         if (e.key === "ArrowDown" || e.key === "j") {
           e.preventDefault();
@@ -26079,12 +26174,12 @@ input,select{font-family:inherit}
       };
       document.addEventListener("keydown", handler);
       return () => document.removeEventListener("keydown", handler);
-    }, [focusedId, activeList, listItems, articles, search, showCreateList, showExtensionSetup, playerPlaylistId]);
+    }, [focusedId, railType, activeList, listItems, articles, trashedArticles, search, showCreateList, showExtensionSetup, playerPlaylistId]);
     return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
       /* @__PURE__ */ (0, import_jsx_runtime.jsx)("style", { children: globalCSS }),
       /* @__PURE__ */ (0, import_jsx_runtime.jsx)("audio", { "data-testid": "audio-element", ref: audioRef, preload: "metadata" }),
       /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { id: "app", style: { display: "flex", flex: 1, overflow: "hidden" }, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(NavRail, { railType, onNavType: handleNavType, lists }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(NavRail, { railType, onNavType: handleNavType, lists, trashCount: trashedArticles.length }),
         /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
           CenterPanel,
           {
@@ -26092,6 +26187,7 @@ input,select{font-family:inherit}
             activeList,
             lists,
             articles,
+            trashedArticles,
             listItems,
             focusedId,
             search,
@@ -26126,7 +26222,8 @@ input,select{font-family:inherit}
             speed,
             onCycleSpeed: handleCycleSpeed,
             onRemoveFromList: handleRemoveFromList,
-            onShowExtension: () => setShowExtensionSetup(true)
+            onShowExtension: () => setShowExtensionSetup(true),
+            onEmptyTrash: handleEmptyTrash
           }
         ),
         /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
@@ -26138,7 +26235,11 @@ input,select{font-family:inherit}
             onRefresh: refreshAll,
             onToggleListMembership: handleToggleListMembership,
             onPlayNow: handlePlayNow,
-            playerPlaylistId
+            playerPlaylistId,
+            isTrash: railType === "trash",
+            onMoveToTrash: handleMoveToTrash,
+            onRestore: handleRestore,
+            onPermanentDelete: handlePermanentDelete
           }
         )
       ] }),
