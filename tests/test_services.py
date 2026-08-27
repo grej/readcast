@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from io import BytesIO
 from pathlib import Path
+import threading
 import wave
 
 import pytest
@@ -125,8 +126,10 @@ def test_process_article_removes_segments_after_success(monkeypatch, base_dir) -
     service = _service_with_tts(base_dir)
     added = service.add_text("Cleanup title\n\nParagraph one.\n\nParagraph two.")
     article_dir = service.store.get_article_dir(added.article.id)
+    observed_states: list[str] = []
 
     def fake_synthesize(segments, article_dir: Path, config, progress=None, *, tts_client):
+        observed_states.append(service.store.get_renditions(added.article.id)["audio"]["state"])
         segments_dir = article_dir / "segments"
         segments_dir.mkdir(parents=True, exist_ok=True)
         (segments_dir / "seg_000.wav").write_bytes(_wav_bytes())
@@ -141,6 +144,13 @@ def test_process_article_removes_segments_after_success(monkeypatch, base_dir) -
     result = service.process_articles([added.article])[0]
 
     assert result.success is True
+    assert observed_states == ["generating"]
+    rendition = service.store.get_renditions(added.article.id)["audio"]
+    assert rendition["state"] == "ready"
+    assert rendition["voice"] == added.article.voice
+    assert rendition["duration"] == 1.25
+    assert rendition["generated_at"] is not None
+    assert rendition["error"] is None
     assert (article_dir / "audio.mp3").exists()
     assert result.link_path is not None and result.link_path.exists()
     assert not (article_dir / "segments").exists()
@@ -155,7 +165,7 @@ def test_process_article_keeps_segments_on_failure(monkeypatch, base_dir) -> Non
         segments_dir = article_dir / "segments"
         segments_dir.mkdir(parents=True, exist_ok=True)
         (segments_dir / "seg_000.wav").write_bytes(_wav_bytes())
-        raise RuntimeError("boom")
+        raise RuntimeError("TTS socket is missing at unix:/tmp/kokoro-edge.sock")
 
     monkeypatch.setattr("readcast.services.synthesize", fake_synthesize)
 
@@ -164,7 +174,48 @@ def test_process_article_keeps_segments_on_failure(monkeypatch, base_dir) -> Non
 
     assert result.success is False
     assert latest is not None and latest.status == "failed"
+    rendition = service.store.get_renditions(added.article.id)["audio"]
+    assert rendition["state"] == "failed"
+    assert rendition["error"] == "TTS socket is missing at unix:/tmp/kokoro-edge.sock"
     assert (article_dir / "segments").exists()
+
+
+@pytest.mark.parametrize(
+    ("article_status", "rendition_state"),
+    [("synthesizing", "generating"), ("failed", "queued")],
+)
+def test_worker_recovers_interrupted_audio_job_on_start(
+    monkeypatch, base_dir, article_status: str, rendition_state: str
+) -> None:
+    service = _service_with_tts(base_dir)
+    added = service.add_text("Interrupted title\n\nParagraph one.\n\nParagraph two.")
+    service.store.update_status(added.article.id, article_status, "TTS socket disappeared")
+    service.store.set_rendition(
+        added.article.id,
+        "audio",
+        {"state": rendition_state, "voice": added.article.voice, "duration": None, "generated_at": None},
+    )
+    processed = threading.Event()
+
+    def fake_synthesize(segments, article_dir: Path, config, progress=None, *, tts_client):
+        audio_path = article_dir / "audio.mp3"
+        audio_path.write_bytes(_wav_bytes())
+        processed.set()
+        return audio_path
+
+    monkeypatch.setattr("readcast.services.synthesize", fake_synthesize)
+    monkeypatch.setattr("readcast.services.audio_duration", lambda path: 1.0)
+
+    worker = ProcessingWorker(service)
+    worker.start()
+    assert processed.wait(timeout=2)
+    worker.stop()
+
+    latest = service.get_article(added.article.id)
+    assert latest is not None
+    assert latest.status == "done"
+    assert latest.error_message is None
+    assert service.store.get_renditions(added.article.id)["audio"]["state"] == "ready"
 
 
 def test_cancel_article_sets_status_to_added(base_dir) -> None:

@@ -200,6 +200,7 @@ class Store:
         doc.ingest_status = _STATUS_TO_INGEST.get(status, "raw")
         doc.metadata = meta
         self._svc.docs.update(doc)
+        self._write_json(self.get_article_dir(article_id) / "meta.json", meta)
 
     def update_audio_metadata(self, article_id: str, duration_sec: float, voice: str, model: str, speed: float) -> None:
         doc = self._svc.docs.get(article_id, include_deleted=True)
@@ -215,6 +216,7 @@ class Store:
         doc.ingest_status = "indexed"
         doc.metadata = meta
         self._svc.docs.update(doc)
+        self._write_json(self.get_article_dir(article_id) / "meta.json", meta)
 
     def get_setting(self, key: str) -> Optional[str]:
         with closing(self._connect()) as conn:
@@ -669,6 +671,7 @@ class Store:
         meta["renditions"] = renditions
         doc.metadata = meta
         self._svc.docs.update(doc)
+        self._write_json(self.get_article_dir(doc_id) / "meta.json", meta)
 
     def clear_rendition(self, doc_id: str, rendition_type: str) -> None:
         self.set_rendition(doc_id, rendition_type, None)

@@ -617,7 +617,6 @@ def create_app(
             service.reprocess_article(doc_id, voice=voice)
         except KeyError as exc:
             raise HTTPException(status_code=404, detail="Document not found") from exc
-        service.store.set_rendition(doc_id, "audio", {"state": "queued", "voice": voice, "duration": None, "generated_at": None})
         worker.kick()
         return {"rendition": {"state": "queued", "voice": voice}}
 
@@ -696,11 +695,6 @@ def create_app(
                 try:
                     voice = service.default_voice()
                     service.reprocess_article(item["doc_id"], voice=voice)
-                    service.store.set_rendition(
-                        item["doc_id"],
-                        "audio",
-                        {"state": "queued", "voice": voice, "duration": None, "generated_at": None},
-                    )
                     queued += 1
                 except (KeyError, ValueError):
                     pass

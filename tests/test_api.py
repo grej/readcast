@@ -45,6 +45,7 @@ def test_api_serves_frontend_shell_and_bundle(base_dir) -> None:
         assert bundle.status_code == 200
         assert "Browser extension" in bundle.text
         assert "/api/extension.zip" in bundle.text
+        assert "Narration failed" in bundle.text
 
 
 def test_api_serves_browser_extension_archive(base_dir) -> None:
@@ -398,6 +399,31 @@ def test_api_renditions_endpoint(base_dir) -> None:
         rend = resp.json()["renditions"]
         assert rend["audio"] is None
         assert rend["summary"] is None
+
+
+def test_api_generate_audio_sets_queued_rendition_and_kicks_worker(base_dir) -> None:
+    app = create_app(base_dir)
+    with TestClient(app) as client:
+        article = client.post(
+            "/api/articles",
+            json={"input": "Retry narration\n\nBody.", "process": False},
+        ).json()["article"]
+        kicks: list[bool] = []
+        client.app.state.worker.kick = lambda: kicks.append(True)
+
+        response = client.post(f"/api/docs/{article['id']}/renditions/audio", json={"voice": "af_sky"})
+
+        assert response.status_code == 200
+        stored = client.get(f"/api/articles/{article['id']}").json()["article"]
+        assert stored["status"] == "queued"
+        assert stored["renditions"]["audio"] == {
+            "state": "queued",
+            "voice": "af_sky",
+            "duration": None,
+            "generated_at": None,
+            "error": None,
+        }
+        assert kicks == [True]
 
 
 def test_api_search_returns_matching_articles(base_dir) -> None:
