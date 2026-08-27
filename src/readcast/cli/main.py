@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import socket
 import threading
+import time
 from typing import Optional
 import webbrowser
 
@@ -23,47 +25,31 @@ from readcast.services import ProcessArticleResult, ReadcastService, ServerError
 console = Console()
 
 
-def _check_port_available(host: str, port: int) -> None:
-    import socket
-    import os
-    import signal
-    import subprocess
+def _check_port_available(
+    host: str,
+    port: int,
+    *,
+    wait_timeout: float = 10.0,
+    poll_interval: float = 0.1,
+) -> None:
+    """Wait for a prior server to release its listener during restart."""
+    deadline = time.monotonic() + max(0.0, wait_timeout)
+    last_error: Optional[OSError] = None
 
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    try:
-        sock.bind((host, port))
-        sock.close()
-        return
-    except OSError:
-        sock.close()
+    while True:
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+                sock.bind((host, port))
+            return
+        except OSError as exc:
+            last_error = exc
 
-    # Port is in use — try to find the PID
-    try:
-        result = subprocess.run(
-            ["lsof", "-ti", f":{port}"],
-            capture_output=True, text=True, timeout=5,
-        )
-        pids = [int(p) for p in result.stdout.strip().split() if p.strip()]
-    except (subprocess.SubprocessError, ValueError):
-        pids = []
-
-    if not pids:
-        raise click.ClickException(
-            f"Port {port} is already in use. Stop the other process or use --port to pick a different port."
-        )
-
-    pid_str = ", ".join(str(p) for p in pids)
-    if click.confirm(f"Port {port} is already in use (PID {pid_str}). Kill the old process?"):
-        for pid in pids:
-            try:
-                os.kill(pid, signal.SIGTERM)
-            except ProcessLookupError:
-                pass
-        import time
-        time.sleep(0.5)
-        console.print(f"[green]Stopped old process (PID {pid_str})[/green]")
-    else:
-        raise click.ClickException("Port is in use. Use --port to pick a different port.")
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise click.ClickException(
+                f"Port {port} is already in use. Stop the other process or use --port to pick a different port."
+            ) from last_error
+        time.sleep(min(max(0.001, poll_interval), remaining))
 
 
 class RichProgressCallback(ProgressCallback):
