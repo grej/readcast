@@ -49,7 +49,7 @@ pixi global install readcast --channel gjennings --channel conda-forge
 readcast web
 ```
 
-The web UI launches at `http://127.0.0.1:8765`. ML models (~600MB for embeddings + TTS)
+The web UI launches at `http://127.0.0.1:43827`. ML models (~600MB for embeddings + TTS)
 download automatically on first use.
 
 ### Local Knowledge ecosystem
@@ -85,6 +85,21 @@ readcast embeddings backfill  # generate embeddings for un-embedded articles
 ```
 
 If running from source, prefix commands with `pixi run readcast`.
+
+### Web server port
+
+Readcast defaults to `http://127.0.0.1:43827`. To choose a persistent alternate port:
+
+```bash
+readcast config set web.port 43827
+```
+
+Restart Readcast after changing it. For a single launch, use `readcast web --port 43827`.
+The Local Knowledge launcher and native app read the host and port from
+`~/.readcast/config.toml` on startup; restart them after changing this setting.
+Set the same server URL in the browser extension's settings, and update any podcast
+subscriptions or bookmarks. The extension accepts loopback hosts on alternate ports
+and migrates saved URLs using the old default port 8765 to 43827 when reloaded.
 
 ## Browser extension
 
@@ -153,7 +168,7 @@ All data lives locally in two directories:
   tags, knowledge graph)
 
 Subscribe to your articles as a podcast by copying the feed URL from the web UI
-or pointing your podcast app at `http://127.0.0.1:8765/feed.xml`.
+or pointing your podcast app at `http://127.0.0.1:43827/feed.xml`.
 
 ## Development
 

@@ -48,7 +48,7 @@ class KokoroEdgeConfig:
 @dataclass(slots=True)
 class WebConfig:
     host: str = "127.0.0.1"
-    port: int = 8765
+    port: int = 43827
     open_browser: bool = True
 
 

@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build:frontend": "node scripts/build-frontend.mjs"
+    "build:frontend": "node scripts/build-frontend.mjs",
+    "test:extension": "node --test tests/extension-server.test.mjs"
   },
   "dependencies": {
     "react": "^18.3.1",

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Readcast",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Capture articles and pages to your Readcast library for search and audio podcasts.",
   "permissions": [
     "activeTab",
@@ -43,7 +43,7 @@
     "128": "icons/icon128.png"
   },
   "host_permissions": [
-    "http://127.0.0.1:8765/*",
-    "http://localhost:8765/*"
+    "http://127.0.0.1/*",
+    "http://localhost/*"
   ]
 }
