@@ -1,4 +1,4 @@
-const DEFAULT_SERVER = "http://127.0.0.1:8765";
+importScripts("server.js");
 
 chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.create({
@@ -14,7 +14,7 @@ chrome.runtime.onInstalled.addListener(() => {
 });
 
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
-  const server = await getServer();
+  const server = await getReadcastServer();
 
   if (info.menuItemId === "readcast-add-selection" && info.selectionText) {
     await addToReadcast(server, { input: info.selectionText, source_url: tab?.url });
@@ -74,7 +74,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 });
 
 async function handleRunPlugin(pluginName, scrapedData, process = true) {
-  const server = await getServer();
+  const server = await getReadcastServer();
   try {
     const response = await fetch(`${server}/api/plugins/run`, {
       method: "POST",
@@ -94,9 +94,4 @@ async function handleRunPlugin(pluginName, scrapedData, process = true) {
   } catch (err) {
     return { success: false, error: "Could not connect to readcast server" };
   }
-}
-
-async function getServer() {
-  const result = await chrome.storage.local.get("readcastServer");
-  return result.readcastServer || DEFAULT_SERVER;
 }

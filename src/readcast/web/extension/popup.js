@@ -1,5 +1,3 @@
-const DEFAULT_SERVER = "http://127.0.0.1:8765";
-
 const $ = (id) => document.getElementById(id);
 let currentTab = null;
 let serverUrl = DEFAULT_SERVER;
@@ -9,8 +7,7 @@ let selectionText = null;
 
 document.addEventListener("DOMContentLoaded", async () => {
   // Load server URL
-  const stored = await chrome.storage.local.get("readcastServer");
-  serverUrl = stored.readcastServer || DEFAULT_SERVER;
+  serverUrl = await getReadcastServer();
   $("serverInput").value = serverUrl;
 
   // Get active tab

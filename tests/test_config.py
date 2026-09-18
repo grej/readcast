@@ -15,7 +15,7 @@ def test_config_created_with_defaults(base_dir) -> None:
     assert config.kokoro_edge.server_url == "http://127.0.0.1:7777"
     assert config.kokoro_edge.auto_start is True
     assert config.web.host == "127.0.0.1"
-    assert config.web.port == 8765
+    assert config.web.port == 43827
     assert config.web.open_browser is True
     saved = config.config_path.read_text(encoding="utf-8")
     assert "[kokoro_edge]" not in saved

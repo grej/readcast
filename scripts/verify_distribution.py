@@ -20,6 +20,7 @@ STATIC_EXPECTED = [
     "readcast/web/extension/content.js",
     "readcast/web/extension/popup.html",
     "readcast/web/extension/popup.js",
+    "readcast/web/extension/server.js",
 ]
 
 
